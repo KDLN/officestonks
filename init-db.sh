@@ -2,12 +2,24 @@
 
 echo "=== DATABASE INITIALIZATION ==="
 echo "Starting database initialization..."
+
+# Get database credentials from environment variables - prioritize Railway variables
+DB_HOST=${MYSQLHOST:-${DB_HOST:-"mysql.railway.internal"}}
+DB_PORT=${MYSQLPORT:-${DB_PORT:-"3306"}}
+DB_USER=${MYSQLUSER:-${DB_USER:-"root"}}
+DB_PASSWORD=${MYSQLPASSWORD:-${DB_PASSWORD:-""}}
+DB_NAME=${MYSQLDATABASE:-${MYSQL_DATABASE:-${DB_NAME:-"railway"}}}
+
 echo "Using connection parameters:"
-echo "  DB_HOST: $DB_HOST"
-echo "  DB_PORT: $DB_PORT"
-echo "  DB_USER: $DB_USER"
-echo "  DB_NAME: $DB_NAME"
-echo "  (DB_PASSWORD is hidden for security)"
+echo "  Host: $DB_HOST"
+echo "  Port: $DB_PORT"
+echo "  User: $DB_USER"
+echo "  Database: $DB_NAME"
+echo "  (Password hidden for security)"
+
+# List all available environment variables for debugging
+echo "Available environment variables:"
+env | grep -E "MYSQL|DB_" | grep -v PASSWORD | grep -v SECRET
 
 # MySQL command with SSL disabled
 MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\" --ssl-mode=DISABLED"

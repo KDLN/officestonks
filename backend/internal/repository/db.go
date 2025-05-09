@@ -15,12 +15,12 @@ var DB *sql.DB
 // InitDB initializes the database connection
 func InitDB() (*sql.DB, error) {
 	// Get database connection details from environment variables
-	// For development, you can hardcode these values
-	username := getEnv("DB_USER", "root")
-	password := getEnv("DB_PASSWORD", "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE")
-	host := getEnv("DB_HOST", "mysql.railway.internal")
-	port := getEnv("DB_PORT", "3306")
-	dbname := getEnv("DB_NAME", "railway")
+	// Check for Railway's MySQL environment variables first, then fallback to generic ones
+	username := getEnv("MYSQLUSER", getEnv("DB_USER", "root"))
+	password := getEnv("MYSQLPASSWORD", getEnv("DB_PASSWORD", "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE"))
+	host := getEnv("MYSQLHOST", getEnv("DB_HOST", "mysql.railway.internal"))
+	port := getEnv("MYSQLPORT", getEnv("DB_PORT", "3306"))
+	dbname := getEnv("MYSQLDATABASE", getEnv("MYSQL_DATABASE", getEnv("DB_NAME", "railway")))
 
 	// Log database connection details (excluding password)
 	log.Printf("Database connection details:")
@@ -28,6 +28,19 @@ func InitDB() (*sql.DB, error) {
 	log.Printf("  Port: %s", port)
 	log.Printf("  User: %s", username)
 	log.Printf("  Database: %s", dbname)
+	log.Printf("  Environment variables found: %v",
+		map[string]bool{
+			"MYSQLUSER":     os.Getenv("MYSQLUSER") != "",
+			"MYSQLPASSWORD": os.Getenv("MYSQLPASSWORD") != "",
+			"MYSQLHOST":     os.Getenv("MYSQLHOST") != "",
+			"MYSQLPORT":     os.Getenv("MYSQLPORT") != "",
+			"MYSQLDATABASE": os.Getenv("MYSQLDATABASE") != "",
+			"DB_USER":       os.Getenv("DB_USER") != "",
+			"DB_PASSWORD":   os.Getenv("DB_PASSWORD") != "",
+			"DB_HOST":       os.Getenv("DB_HOST") != "",
+			"DB_PORT":       os.Getenv("DB_PORT") != "",
+			"DB_NAME":       os.Getenv("DB_NAME") != "",
+		})
 	log.Printf("  (Password hidden for security)")
 
 	// Create connection string with SSL disabled for Railway
