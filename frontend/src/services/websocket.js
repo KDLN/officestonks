@@ -15,6 +15,8 @@ export const initWebSocket = () => {
     socket.close();
   }
 
+  // Socket will be initialized below
+
   const token = getToken();
   if (!token) {
     console.error('No authentication token available for WebSocket connection');
@@ -33,6 +35,10 @@ export const initWebSocket = () => {
 
   console.log('Connecting to WebSocket:', wsUrl);
   socket = new WebSocket(wsUrl);
+
+  // Make socket and addListener available globally for other components
+  window.socket = socket;
+  window.addListener = addListener;
 
   // Connection opened
   socket.addEventListener('open', () => {

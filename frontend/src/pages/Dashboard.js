@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
 import { initWebSocket, addListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
+import Chat from '../components/Chat';
 import './Dashboard.css';
 
 // Default empty states to prevent null references
@@ -296,6 +297,9 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Chat Component */}
+      <Chat />
     </div>
   );
 };

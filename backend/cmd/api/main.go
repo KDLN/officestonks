@@ -28,24 +28,33 @@ func main() {
 	stockRepo := repository.NewStockRepo(db)
 	portfolioRepo := repository.NewPortfolioRepo(db)
 	transactionRepo := repository.NewTransactionRepo(db)
+	chatRepo := repository.NewChatRepo(db)
 
 	// Create services
 	authService := services.NewAuthService(userRepo)
 	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo)
 	userService := services.NewUserService(userRepo, portfolioRepo)
 
-	// Initialize the market simulator
+	// Create websocket hub and initiate market simulator
+	wsHub := websocket.NewHub(marketService.GetSimulatorUpdates())
+	go wsHub.Run()
+
+	// Initialize the market simulator after setting up the hub
 	if err := marketService.InitializeSimulator(); err != nil {
 		log.Fatalf("Failed to initialize market simulator: %v", err)
 	}
 
+	// Create chat service with the websocket hub
+	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
+
 	// Create websocket handler
-	wsHandler := websocket.NewWebSocketHandler(marketService.GetSimulatorUpdates())
+	wsHandler := websocket.NewWebSocketHandler(wsHub)
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	marketHandler := handlers.NewMarketHandler(marketService)
 	userHandler := handlers.NewUserHandler(userService)
+	chatHandler := handlers.NewChatHandler(chatService)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -82,6 +91,10 @@ func main() {
 
 	// Protected user routes
 	protectedRouter.HandleFunc("/users/me", userHandler.GetUserProfile).Methods("GET", "OPTIONS")
+
+	// Chat routes
+	protectedRouter.HandleFunc("/chat/messages", chatHandler.GetRecentMessages).Methods("GET", "OPTIONS")
+	protectedRouter.HandleFunc("/chat/send", chatHandler.SendMessage).Methods("POST", "OPTIONS")
 
 	// WebSocket route
 	r.HandleFunc("/ws", wsHandler.HandleConnection)

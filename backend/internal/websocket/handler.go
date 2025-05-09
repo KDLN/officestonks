@@ -25,10 +25,7 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewWebSocketHandler creates a new websocket handler
-func NewWebSocketHandler(stockUpdates <-chan market.StockUpdate) *WebSocketHandler {
-	hub := NewHub(stockUpdates)
-	go hub.Run()
-	
+func NewWebSocketHandler(hub *Hub) *WebSocketHandler {
 	return &WebSocketHandler{
 		hub: hub,
 	}
