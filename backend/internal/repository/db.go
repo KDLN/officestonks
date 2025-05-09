@@ -44,7 +44,8 @@ func InitDB() (*sql.DB, error) {
 	log.Printf("  (Password hidden for security)")
 
 	// Create connection string with SSL disabled for Railway
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false",
+	// Add allowNativePasswords=true and multiStatements=true for better compatibility
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true",
 		username, password, host, port, dbname)
 
 	// Open connection
@@ -78,7 +79,20 @@ func InitDB() (*sql.DB, error) {
 		log.Printf("Connected to MySQL version: %s", version)
 	}
 
-	// Check if tables exist
+	// Set global DB variable first
+	DB = db
+
+	// Initialize database schema
+	log.Println("Initializing database schema...")
+	err = InitSchema()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize schema: %v", err)
+		log.Println("Application will continue but may encounter issues until database schema is properly initialized")
+	} else {
+		log.Println("Database schema initialization completed successfully")
+	}
+
+	// Check if tables exist after initialization
 	rows, err := db.Query("SHOW TABLES")
 	if err != nil {
 		log.Printf("Warning: Could not query tables: %v", err)
@@ -99,11 +113,10 @@ func InitDB() (*sql.DB, error) {
 		if len(tables) > 0 {
 			log.Printf("Found %d tables in database: %v", len(tables), tables)
 		} else {
-			log.Printf("Warning: No tables found in database. Schema initialization may be required.")
+			log.Printf("Warning: No tables found in database even after schema initialization.")
 		}
 	}
 
-	DB = db
 	return db, nil
 }
 
