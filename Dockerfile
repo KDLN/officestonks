@@ -15,13 +15,14 @@ FROM debian:bullseye-slim
 
 WORKDIR /app
 
-# Copy the binary from the builder stage
+# Copy the binary and start script
 COPY --from=builder /app/bin/server /app/bin/server
+COPY start-server.sh /app/start-server.sh
 
-# Make the binary executable
-RUN chmod +x /app/bin/server
+# Make the files executable
+RUN chmod +x /app/bin/server /app/start-server.sh
 
 EXPOSE 8080
 
 # Run the binary directly
-CMD ["/app/bin/server"]
+ENTRYPOINT ["/app/start-server.sh"]
