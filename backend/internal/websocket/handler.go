@@ -6,7 +6,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"officestonks/internal/auth"
-	"officestonks/pkg/market"
 )
 
 // WebSocketHandler handles websocket connections
