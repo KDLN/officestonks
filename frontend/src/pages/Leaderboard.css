@@ -1,0 +1,134 @@
+.leaderboard-page {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.leaderboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.leaderboard-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #333;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-table th {
+  background-color: #1a1a2e;
+  color: white;
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.leaderboard-table td {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.leaderboard-table tr:last-child td {
+  border-bottom: none;
+}
+
+.leaderboard-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+.rank {
+  font-weight: bold;
+  font-size: 1.2rem;
+  width: 60px;
+  text-align: center;
+}
+
+.rank-1 {
+  color: gold;
+}
+
+.rank-2 {
+  color: silver;
+}
+
+.rank-3 {
+  color: #cd7f32; /* bronze */
+}
+
+.username {
+  font-weight: 600;
+}
+
+.value {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+}
+
+.error {
+  background-color: #fff0f0;
+  color: #d32f2f;
+  padding: 15px;
+  margin: 20px 0;
+  border-radius: 4px;
+  border-left: 4px solid #d32f2f;
+}
+
+.no-data {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Highlight current user */
+.current-user {
+  background-color: #f0f7ff !important;
+}
+
+.refresh-button {
+  background-color: #4a69bd;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-button:hover {
+  background-color: #1e3799;
+}
+
+.refresh-icon {
+  width: 16px;
+  height: 16px;
+}

@@ -8,6 +8,8 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import StockList from './pages/StockList';
 import StockDetail from './pages/StockDetail';
+import Leaderboard from './pages/Leaderboard';
+import Transactions from './pages/Transactions';
 import ProtectedRoute from './components/ProtectedRoute';
 import { isAuthenticated } from './services/auth';
 
@@ -19,19 +21,9 @@ const Portfolio = () => (
   </div>
 );
 
-const Leaderboard = () => (
-  <div style={{ padding: '50px', textAlign: 'center' }}>
-    <h1>Leaderboard</h1>
-    <p>This page will be implemented soon.</p>
-  </div>
-);
+// Leaderboard component is now implemented
 
-const Transactions = () => (
-  <div style={{ padding: '50px', textAlign: 'center' }}>
-    <h1>Transaction History</h1>
-    <p>This page will be implemented soon.</p>
-  </div>
-);
+// Transactions component is now implemented
 
 function App() {
   return (
