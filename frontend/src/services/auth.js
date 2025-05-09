@@ -1,7 +1,7 @@
 // Authentication service for the frontend
 
 // API URL
-const API_URL = '/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app/api';
 
 // Register a new user
 export const register = async (username, password) => {

@@ -1,7 +1,7 @@
 // Stock market service for frontend
 import { getToken } from './auth';
 
-const API_URL = '/api';
+const API_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app/api';
 
 // Get all available stocks
 export const getAllStocks = async () => {

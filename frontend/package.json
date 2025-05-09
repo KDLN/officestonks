@@ -18,7 +18,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test --transformIgnorePatterns \"node_modules/(?!@codemirror)/\"",
     "test:ci": "react-scripts test --watchAll=false --transformIgnorePatterns \"node_modules/(?!@codemirror)/\"",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "build:production": "REACT_APP_API_URL=https://web-production-1e26.up.railway.app react-scripts build",
+    "deploy:railway": "npm run build:production && npx serve -s build"
   },
   "eslintConfig": {
     "extends": [
@@ -42,5 +44,6 @@
     "identity-obj-proxy": "^3.0.0",
     "jest-environment-jsdom": "^29.3.1"
   },
-  "proxy": "http://localhost:8080"
+  "proxy": "http://localhost:8080",
+  "homepage": "."
 }

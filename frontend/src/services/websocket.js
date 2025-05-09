@@ -22,11 +22,16 @@ export const initWebSocket = () => {
   }
 
   // Create WebSocket connection with token
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws?token=${token}`;
-  
-  // For development with different backend/frontend ports
-  // const wsUrl = `ws://localhost:8080/ws?token=${token}`;
-  
+  // Get the backend URL from environment or default to Railway URL
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
+
+  // Replace http/https with ws/wss
+  const wsBase = apiUrl.replace(/^http/, 'ws');
+
+  // Create the WebSocket URL
+  const wsUrl = `${wsBase}/ws?token=${token}`;
+
+  console.log('Connecting to WebSocket:', wsUrl);
   socket = new WebSocket(wsUrl);
 
   // Connection opened
