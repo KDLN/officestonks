@@ -33,7 +33,7 @@ This guide explains how to deploy Office Stonks using GitHub and Railway.
 
 2. Connect your GitHub repository:
    - Select the `officestonks` repository
-   - Railway will automatically detect the configuration
+   - Railway will detect the Dockerfile automatically
 
 3. Set up MySQL service:
    - In your project, click "New Service" > "Database" > "MySQL"
@@ -52,92 +52,68 @@ This guide explains how to deploy Office Stonks using GitHub and Railway.
      PORT=8080
      ```
 
-5. Setup GitHub Secrets for CI/CD:
-   - Go to your GitHub repository
-   - Navigate to Settings > Secrets > Actions
-   - Add a new secret: `RAILWAY_TOKEN`
-   - Get your token from Railway CLI by running:
-     ```bash
-     railway login
-     railway whoami
-     ```
-
 ## Database Initialization
 
 1. Connect to your Railway MySQL instance:
-   - Get connection details from Railway dashboard
-   - Use a MySQL client to connect
+   - From your Railway dashboard, go to your MySQL service
+   - Click "Connect" and use the provided connection details
+   - You can use a MySQL client or the Railway CLI to run SQL commands
 
 2. Run the schema initialization script:
-   - Import the `schema.sql` file to set up tables
+   - Import the `backend/schema.sql` file to set up tables:
+   ```bash
+   # Using Railway CLI
+   railway connect mysql
+   # Then paste the contents of schema.sql
 
-## Frontend Deployment
+   # Or using a MySQL client
+   mysql -h YOUR_MYSQL_HOST -u YOUR_MYSQL_USER -p YOUR_MYSQL_DATABASE < backend/schema.sql
+   ```
 
-For the MVP, we'll use a separate frontend deployment on Railway:
+## Troubleshooting Deployment Issues
 
-1. Create a new service in your Railway project:
-   - Click "New Service" > "Empty Service"
-   - Set the build command to: `cd frontend && npm install && npm run build`
-   - Set the start command to: `cd frontend && npx serve -s build`
+### Common Issues and Solutions
 
-2. Configure environment variables:
-   - Add `REACT_APP_API_URL` pointing to your backend service URL
-   - You can find this URL in the Railway dashboard
+1. **Database Connection Problems**:
+   - Verify environment variables are correct
+   - Check if the database user has proper permissions
+   - Ensure your application is connecting to the right host and port
 
-## Continuous Integration/Deployment
+2. **Build Failures**:
+   - Railway uses the Dockerfile for building
+   - Check build logs for specific errors
+   - Make sure all Go dependencies are properly specified in go.mod
 
-Our GitHub Actions workflows handle CI/CD:
+3. **Runtime Errors**:
+   - Check application logs in the Railway dashboard
+   - Verify that environment variables are being correctly passed to your application
+   - Make sure your application is listening on the correct port (PORT environment variable)
 
-1. **Test Workflow** (`test.yml`):
-   - Runs on every push and pull request
-   - Tests both backend and frontend code
-   - Ensures everything works before deployment
+### Updating the Deployment
 
-2. **Deploy Workflow** (`deploy.yml`):
-   - Runs on pushes to main branch
-   - Automatically deploys to Railway
+To update your deployment:
 
-## Manual Deployment
+1. Make changes to your code
+2. Commit and push to GitHub
+3. Railway will automatically detect changes and start a new deployment
 
-If you need to deploy manually, use Railway CLI:
+## Setting Up Custom Domain (Optional)
 
-```bash
-# Install Railway CLI
-npm i -g @railway/cli
-
-# Login
-railway login
-
-# Link to your project
-railway link
-
-# Deploy
-railway up
-```
+1. In Railway dashboard, go to your backend service
+2. Navigate to "Settings" > "Domains"
+3. Add your custom domain
+4. Update your DNS settings as instructed by Railway
 
 ## Monitoring
 
 1. Check deployment logs in Railway dashboard
 2. Monitor your application's performance in the Railway metrics tab
 
-## Troubleshooting
-
-1. **Database Connection Issues**:
-   - Verify environment variables are correct
-   - Check firewall settings in Railway
-
-2. **Failed Deployments**:
-   - Check GitHub Actions logs for errors
-   - Verify Railway configurations
-
-3. **Application Errors**:
-   - Check Railway logs for backend/frontend services
-
 ## Next Steps
 
-After initial deployment:
+After successful deployment:
 
-1. Set up a custom domain (in Railway settings)
-2. Configure SSL/TLS (automatic with Railway)
-3. Set up monitoring and alerts
-4. Implement database backups
+1. Access your API at the provided Railway URL or your custom domain
+2. Set up the frontend (can be deployed separately on Railway or services like Vercel, Netlify)
+3. Configure CORS settings to allow your frontend to communicate with the backend
+4. Set up database backups

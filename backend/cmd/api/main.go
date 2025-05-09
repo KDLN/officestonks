@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/yourusername/officestonks/internal/handlers"
@@ -79,13 +81,34 @@ func main() {
 		w.Write([]byte("API is running"))
 	}).Methods("GET")
 
+	// Root endpoint
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Office Stonks API is running"))
+	}).Methods("GET")
+
 	// Set up CORS middleware
 	r.Use(corsMiddleware)
 
-	// Start server
-	port := 8080
+	// Get port from environment variable or use default
+	port := getPort()
 	fmt.Printf("Server starting on port %d...\n", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), r))
+}
+
+// Get port from environment or use default 8080
+func getPort() int {
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
+		return 8080
+	}
+	
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 8080
+	}
+	
+	return port
 }
 
 // CORS middleware to allow frontend to communicate with the API
