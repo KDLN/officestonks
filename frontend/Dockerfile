@@ -3,8 +3,9 @@ FROM node:18-alpine as build
 WORKDIR /app
 
 # Copy package.json and install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json ./
+# Force install without using package-lock to resolve dependency conflicts
+RUN npm install
 
 # Copy the rest of the application code
 COPY . ./
