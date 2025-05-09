@@ -24,14 +24,7 @@ COPY --from=builder /app/bin/server /app/bin/server
 # Make the binary executable
 RUN chmod +x /app/bin/server
 
-# Add bash to the image
-RUN apk add --no-cache bash
-
-# Copy the start script
-COPY backend/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
 EXPOSE 8080
 
-# Run the server using the start script
-CMD ["/app/start.sh"]
+# Run the binary directly
+CMD ["/app/bin/server"]
