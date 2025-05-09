@@ -1,19 +1,42 @@
-FROM golang:1.19
+# Use a minimal golang alpine image to build the app
+FROM golang:1.20-alpine AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum files first for better caching
+# Copy go mod and sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
-# Copy the rest of the codebase
+# Copy source code
 COPY . .
 
-# Build the application
-RUN go build -o /app/bin/server ./cmd/api
+# Build a static binary
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/api ./cmd/api/main.go
 
-# Expose the port the server listens on
+# Use a tiny alpine image for the final container
+FROM alpine:3.16
+
+# Install CA certificates and MySQL client for database operations
+RUN apk --no-cache add ca-certificates mysql-client
+
+# Set working directory
+WORKDIR /app
+
+# Copy the binary from builder stage
+COPY --from=builder /app/bin/api /app/api
+
+# Copy schema for initialization
+COPY schema.sql /app/schema.sql
+
+# Expose port
 EXPOSE 8080
 
-# Command to run the executable
-CMD ["/app/bin/server"]
+# Create start script to initialize and run
+RUN echo "#!/bin/sh\n\n# Start the application\n/app/api" > /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Set entry point
+ENTRYPOINT ["/app/start.sh"]

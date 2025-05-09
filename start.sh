@@ -1,2 +1,2 @@
 #!/bin/bash
-/app/bin/server
+/app/api
