@@ -2,9 +2,10 @@ FROM golang:1.20-alpine AS builder
 
 WORKDIR /app
 
-# Copy go mod files first for better caching
-COPY backend/go.mod backend/go.sum /app/backend/
-RUN cd backend && go mod download
+# Copy go mod file first for better caching
+COPY backend/go.mod /app/backend/
+# Initialize go modules if no go.sum exists
+RUN cd backend && go mod tidy && go mod download
 
 # Copy backend source code
 COPY backend/ /app/backend/

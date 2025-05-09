@@ -43,3 +43,4 @@
 
 # Log files
 *.log
+**/.claude/settings.local.json
