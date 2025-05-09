@@ -1,20 +1,17 @@
-FROM golang:1.20-alpine AS builder
+FROM golang:1.20 AS builder
 
 WORKDIR /app
 
-# Copy go mod file first for better caching
-COPY backend/go.mod /app/backend/
-# Initialize go modules if no go.sum exists
-RUN cd backend && go mod tidy && go mod download
-
-# Copy backend source code
+# Copy the entire backend directory
 COPY backend/ /app/backend/
 
 # Build the application
-RUN cd backend && go build -o /app/bin/server cmd/api/main.go
+WORKDIR /app/backend
+RUN go mod tidy && go mod download
+RUN go build -o /app/bin/server cmd/api/main.go
 
 # Create a smaller final image
-FROM alpine:3.17
+FROM debian:bullseye-slim
 
 WORKDIR /app
 

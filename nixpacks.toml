@@ -2,7 +2,7 @@
 nixPkgs = ["go_1_20"]
 
 [phases.build]
-cmds = ["cd backend && go build -o ../bin/api ./cmd/api/main.go"]
+cmds = ["cd backend && go build -o /app/bin/server ./cmd/api/main.go"]
 
 [start]
-cmd = "./bin/api"
+cmd = "/app/bin/server"
