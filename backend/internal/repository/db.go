@@ -30,8 +30,8 @@ func InitDB() (*sql.DB, error) {
 	log.Printf("  Database: %s", dbname)
 	log.Printf("  (Password hidden for security)")
 
-	// Create connection string
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+	// Create connection string with SSL disabled for Railway
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false",
 		username, password, host, port, dbname)
 
 	// Open connection
