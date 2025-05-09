@@ -1,1 +1,1 @@
-web: /app/bin/api
+web: /app/bin/server
