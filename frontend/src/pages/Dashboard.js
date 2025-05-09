@@ -42,54 +42,69 @@ const Dashboard = () => {
     initWebSocket();
 
     // Listen for stock updates to refresh data
-    const removeListener = addListener('stock_update', (message) => {
-      // Update portfolio stocks if affected
-      setPortfolio(prevPortfolio => {
-        if (!prevPortfolio) return null;
-        
-        // Update portfolio items if the stock is in portfolio
-        const updatedItems = prevPortfolio.portfolio_items.map(item => {
-          if (item.stock_id === message.stock_id) {
-            const oldValue = item.quantity * item.stock.current_price;
-            const newValue = item.quantity * message.price;
-            const updatedStock = { ...item.stock, current_price: message.price };
-            
-            return { 
-              ...item, 
-              stock: updatedStock,
-              valueChange: oldValue < newValue ? 'up' : 'down'
-            };
-          }
-          return item;
+    const removeListener = addListener('*', (message) => {
+      // Log the message for debugging
+      console.log('Received message on dashboard:', message);
+
+      // Process stock update message
+      if (message.type === 'stock_update' || (message.id && message.current_price)) {
+        // Extract stock_id and price - handle different message formats
+        const stock_id = message.stock_id || message.id;
+        const price = message.price || message.current_price;
+
+        if (!stock_id || !price) {
+          console.log('Missing required fields in message:', message);
+          return;
+        }
+
+        // Update portfolio stocks if affected
+        setPortfolio(prevPortfolio => {
+          if (!prevPortfolio || !prevPortfolio.portfolio_items) return prevPortfolio;
+
+          // Update portfolio items if the stock is in portfolio
+          const updatedItems = prevPortfolio.portfolio_items.map(item => {
+            if (item.stock_id === stock_id) {
+              const oldValue = item.quantity * item.stock.current_price;
+              const newValue = item.quantity * price;
+              const updatedStock = { ...item.stock, current_price: price };
+
+              return {
+                ...item,
+                stock: updatedStock,
+                valueChange: oldValue < newValue ? 'up' : 'down'
+              };
+            }
+            return item;
+          });
+
+          // Recalculate stock value
+          const newStockValue = updatedItems.reduce(
+            (total, item) => total + (item.quantity * item.stock.current_price),
+            0
+          );
+
+          return {
+            ...prevPortfolio,
+            portfolio_items: updatedItems,
+            stock_value: newStockValue,
+            total_value: prevPortfolio.cash_balance + newStockValue
+          };
         });
-        
-        // Recalculate stock value
-        const newStockValue = updatedItems.reduce(
-          (total, item) => total + (item.quantity * item.stock.current_price), 
-          0
-        );
-        
-        return {
-          ...prevPortfolio,
-          portfolio_items: updatedItems,
-          stock_value: newStockValue,
-          total_value: prevPortfolio.cash_balance + newStockValue
-        };
-      });
-      
-      // Update top stocks if affected
-      setTopStocks(prevTopStocks => {
-        return prevTopStocks.map(stock => {
-          if (stock.id === message.stock_id) {
-            return {
-              ...stock,
-              current_price: message.price,
-              priceChange: stock.current_price < message.price ? 'up' : 'down'
-            };
-          }
-          return stock;
+
+        // Update top stocks if affected
+        setTopStocks(prevTopStocks => {
+          return prevTopStocks.map(stock => {
+            if (stock.id === stock_id) {
+              return {
+                ...stock,
+                current_price: price,
+                priceChange: stock.current_price < price ? 'up' : 'down'
+              };
+            }
+            return stock;
+          });
         });
-      });
+      }
     });
 
     // Clean up on unmount
@@ -136,7 +151,7 @@ const Dashboard = () => {
               <Link to="/portfolio" className="view-all">View All</Link>
             </div>
             
-            {portfolio?.portfolio_items.length > 0 ? (
+            {portfolio?.portfolio_items && portfolio.portfolio_items.length > 0 ? (
               <div className="portfolio-list">
                 <table className="dashboard-table">
                   <thead>

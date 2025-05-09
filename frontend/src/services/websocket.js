@@ -48,18 +48,32 @@ export const initWebSocket = () => {
   // Listen for messages
   socket.addEventListener('message', (event) => {
     try {
-      const message = JSON.parse(event.data);
+      // Log raw message for debugging
+      console.log('Raw WebSocket message:', event.data);
+
+      // Clean up the message if needed (in case there are control characters)
+      let jsonStr = event.data;
+      if (typeof jsonStr === 'string') {
+        // Remove any BOM and control characters
+        jsonStr = jsonStr.replace(/^\ufeff/, ''); // Remove byte order mark
+        jsonStr = jsonStr.replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control chars
+      }
+
+      const message = JSON.parse(jsonStr);
+
       // Call all listeners for this message type
       if (listeners[message.type]) {
         listeners[message.type].forEach(callback => callback(message));
       }
-      
+
       // Call general listeners
       if (listeners['*']) {
         listeners['*'].forEach(callback => callback(message));
       }
     } catch (e) {
       console.error('Error parsing WebSocket message', e);
+      console.error('Message content:', event.data);
+      // Continue - don't let the error stop the socket
     }
   });
 
