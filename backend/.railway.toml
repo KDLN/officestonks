@@ -1,0 +1,7 @@
+[build]
+builder = "DOCKERFILE"
+dockerfile = "Dockerfile"
+
+[deploy]
+startCommand = "/app/bin/server"
+restartPolicyType = "ON_FAILURE"
