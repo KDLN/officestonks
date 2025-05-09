@@ -87,7 +87,8 @@ func main() {
 		w.Write([]byte("Office Stonks API is running"))
 	}).Methods("GET")
 
-	// Set up CORS middleware
+	// Set up CORS middleware (must be applied before routes)
+	r = r.PathPrefix("").Subrouter()
 	r.Use(corsMiddleware)
 
 	// Get port from environment variable or use default
@@ -114,10 +115,32 @@ func getPort() int {
 // CORS middleware to allow frontend to communicate with the API
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Set CORS headers with specific origins
+		allowedOrigins := []string{
+			"https://web-copy-production-5b48.up.railway.app",
+			"http://localhost:3000",
+		}
+
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			for _, allowedOrigin := range allowedOrigins {
+				if allowedOrigin == origin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
+			}
+		}
+
+		// If no match, use wildcard (less secure but works for development)
+		if w.Header().Get("Access-Control-Allow-Origin") == "" {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+
+		// Add other CORS headers
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
