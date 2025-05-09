@@ -1,0 +1,52 @@
+version: '3'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: officestonks-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: officestonks
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - officestonks-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: officestonks-backend
+    depends_on:
+      - mysql
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=password
+      - DB_NAME=officestonks
+    ports:
+      - "8080:8080"
+    networks:
+      - officestonks-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: officestonks-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - officestonks-network
+
+networks:
+  officestonks-network:
+    driver: bridge
+
+volumes:
+  mysql-data:

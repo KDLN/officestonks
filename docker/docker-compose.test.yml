@@ -1,0 +1,46 @@
+version: '3'
+
+services:
+  mysql-test:
+    image: mysql:8.0
+    container_name: officestonks-mysql-test
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: officestonks_test
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - officestonks-test-network
+
+  backend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.test
+    container_name: officestonks-backend-test
+    depends_on:
+      - mysql-test
+    environment:
+      - TEST_DB_HOST=mysql-test
+      - TEST_DB_USER=root
+      - TEST_DB_PASSWORD=password
+      - TEST_DB_NAME=officestonks_test
+    volumes:
+      - ./backend:/app
+    networks:
+      - officestonks-test-network
+
+  frontend-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.test
+    container_name: officestonks-frontend-test
+    volumes:
+      - ./frontend:/app
+    networks:
+      - officestonks-test-network
+
+networks:
+  officestonks-test-network:
+    driver: bridge

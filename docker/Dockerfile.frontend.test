@@ -1,0 +1,15 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json first for better layer caching
+COPY frontend/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the source code
+COPY frontend/ .
+
+# Run tests in CI mode (non-interactive)
+CMD ["npm", "run", "test:ci"]
