@@ -1,7 +1,9 @@
 // Authentication service for the frontend
 
 // API URL
-const API_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app/api';
+// Make sure to include the correct API path
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
+const API_URL = `${BASE_URL}/api`;
 console.log("Using API URL:", API_URL);
 
 // Register a new user
