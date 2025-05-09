@@ -20,11 +20,15 @@ FROM nginx:alpine
 # Copy built assets from the build stage
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Copy nginx configuration
+# Copy nginx configuration and startup script
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY start.sh /start.sh
+
+# Make startup script executable
+RUN chmod +x /start.sh
 
 # Expose port 80
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use startup script as entrypoint
+ENTRYPOINT ["/start.sh"]
