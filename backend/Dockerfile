@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build a static binary
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/api ./cmd/api/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
 
 # Use a tiny alpine image for the final container
 FROM alpine:3.16
@@ -26,7 +26,7 @@ RUN apk --no-cache add ca-certificates mysql-client
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /app/bin/api /app/api
+COPY --from=builder /app/bin/server /app/bin/server
 
 # Copy schema for initialization
 COPY schema.sql /app/schema.sql
@@ -35,7 +35,7 @@ COPY schema.sql /app/schema.sql
 EXPOSE 8080
 
 # Create start script to initialize and run
-RUN echo "#!/bin/sh\n\n# Start the application\n/app/api" > /app/start.sh && \
+RUN echo "#!/bin/sh\n\n# Start the application\n/app/bin/server" > /app/start.sh && \
     chmod +x /app/start.sh
 
 # Set entry point
