@@ -32,6 +32,7 @@ func main() {
 	// Create services
 	authService := services.NewAuthService(userRepo)
 	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo)
+	userService := services.NewUserService(userRepo, portfolioRepo)
 
 	// Initialize the market simulator
 	if err := marketService.InitializeSimulator(); err != nil {
@@ -46,6 +47,7 @@ func main() {
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService)
 	marketHandler := handlers.NewMarketHandler(marketService)
+	userHandler := handlers.NewUserHandler(userService)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -65,6 +67,9 @@ func main() {
 	apiRouter.HandleFunc("/stocks", marketHandler.GetAllStocks).Methods("GET")
 	apiRouter.HandleFunc("/stocks/{id}", marketHandler.GetStockByID).Methods("GET")
 
+	// Public user routes
+	apiRouter.HandleFunc("/users/leaderboard", userHandler.GetLeaderboard).Methods("GET")
+
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
 	protectedRouter.Use(authMiddleware.Authenticate)
@@ -73,6 +78,9 @@ func main() {
 	protectedRouter.HandleFunc("/portfolio", marketHandler.GetUserPortfolio).Methods("GET")
 	protectedRouter.HandleFunc("/trading", marketHandler.TradeStock).Methods("POST")
 	protectedRouter.HandleFunc("/transactions", marketHandler.GetTransactionHistory).Methods("GET")
+
+	// Protected user routes
+	protectedRouter.HandleFunc("/users/me", userHandler.GetUserProfile).Methods("GET")
 
 	// WebSocket route
 	r.HandleFunc("/ws", wsHandler.HandleConnection)

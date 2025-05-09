@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"officestonks/internal/middleware"
-	"officestonks/internal/models"
 	"officestonks/internal/services"
 )
 
