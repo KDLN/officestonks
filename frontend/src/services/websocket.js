@@ -51,32 +51,93 @@ export const initWebSocket = () => {
       // Log raw message for debugging
       console.log('Raw WebSocket message:', event.data);
 
-      // Clean up the message if needed (in case there are control characters)
+      // Clean the message string
       let jsonStr = event.data;
       if (typeof jsonStr === 'string') {
         // Remove any BOM and control characters
         jsonStr = jsonStr.replace(/^\ufeff/, ''); // Remove byte order mark
-        jsonStr = jsonStr.replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control chars
+        jsonStr = jsonStr.replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control chars except whitespace
+        jsonStr = jsonStr.trim(); // Remove leading/trailing whitespace
+
+        // Backend should now send each message separately, but keep handling for robustness
+        if (jsonStr.includes('}{')) {
+          console.log('Found multiple JSON objects in message - splitting');
+
+          // Split by finding object boundaries - this handles nested objects better
+          let objects = [];
+          let nesting = 0;
+          let start = 0;
+
+          for (let i = 0; i < jsonStr.length; i++) {
+            if (jsonStr[i] === '{') {
+              if (nesting === 0) start = i;
+              nesting++;
+            } else if (jsonStr[i] === '}') {
+              nesting--;
+              if (nesting === 0) {
+                // Extract complete object
+                objects.push(jsonStr.substring(start, i + 1));
+              }
+            }
+          }
+
+          console.log(`Split into ${objects.length} JSON objects`);
+
+          // Process each message individually
+          objects.forEach(jsonObj => {
+            try {
+              const parsedObj = JSON.parse(jsonObj);
+              processMessage(parsedObj);
+            } catch (innerErr) {
+              console.error('Error parsing individual JSON object:', innerErr);
+              console.error('Object content:', jsonObj);
+            }
+          });
+
+          return; // We've handled the multiple objects
+        }
       }
 
-      const message = JSON.parse(jsonStr);
-
-      // Call all listeners for this message type
-      if (listeners[message.type]) {
-        listeners[message.type].forEach(callback => callback(message));
-      }
-
-      // Call general listeners
-      if (listeners['*']) {
-        listeners['*'].forEach(callback => callback(message));
+      // Process a single JSON message
+      try {
+        const message = JSON.parse(jsonStr);
+        processMessage(message);
+      } catch (parseError) {
+        throw new Error(`Failed to parse JSON: ${parseError.message}`);
       }
     } catch (e) {
-      console.error('Error parsing WebSocket message', e);
+      console.error('Error processing WebSocket message:', e);
       console.error('Message content:', event.data);
-      // Continue - don't let the error stop the socket
+
+      // Final fallback attempt for malformed messages
+      try {
+        // Sometimes we might receive messages with extra characters or incorrect format
+        // Try to extract valid JSON objects using a regex
+        const messageStr = String(event.data);
+        const regex = /({[^}]+})/g;
+        const matches = messageStr.match(regex);
+
+        if (matches && matches.length > 0) {
+          console.log('Fallback: Found potential JSON objects:', matches.length);
+          matches.forEach(match => {
+            try {
+              // Try to clean and parse each match
+              const cleanMatch = match.replace(/[^\x20-\x7E]/g, '');
+              const parsedMsg = JSON.parse(cleanMatch);
+              console.log('Successfully parsed from fallback:', parsedMsg);
+              processMessage(parsedMsg);
+            } catch (matchErr) {
+              // Just log and continue
+              console.log('Failed to parse potential object:', match);
+            }
+          });
+        }
+      } catch (fallbackErr) {
+        console.error('All parsing attempts failed');
+      }
     }
   });
-
+  
   // Connection closed
   socket.addEventListener('close', () => {
     console.log('WebSocket connection closed');
@@ -92,6 +153,19 @@ export const initWebSocket = () => {
 
   return socket;
 };
+
+// Helper function to process a single parsed message
+function processMessage(message) {
+  // Call all listeners for this message type
+  if (listeners[message.type]) {
+    listeners[message.type].forEach(callback => callback(message));
+  }
+  
+  // Call general listeners
+  if (listeners['*']) {
+    listeners['*'].forEach(callback => callback(message));
+  }
+}
 
 // Add a listener for a specific message type
 export const addListener = (type, callback) => {

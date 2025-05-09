@@ -5,8 +5,16 @@ import { initWebSocket, addListener, closeWebSocket } from '../services/websocke
 import Navigation from '../components/Navigation';
 import './Dashboard.css';
 
+// Default empty states to prevent null references
+const DEFAULT_PORTFOLIO = {
+  portfolio_items: [],
+  cash_balance: 0,
+  stock_value: 0,
+  total_value: 0
+};
+
 const Dashboard = () => {
-  const [portfolio, setPortfolio] = useState(null);
+  const [portfolio, setPortfolio] = useState(DEFAULT_PORTFOLIO);
   const [transactions, setTransactions] = useState([]);
   const [topStocks, setTopStocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,12 +67,18 @@ const Dashboard = () => {
 
         // Update portfolio stocks if affected
         setPortfolio(prevPortfolio => {
-          if (!prevPortfolio || !prevPortfolio.portfolio_items) return prevPortfolio;
+          // If portfolio is null or undefined, use the default empty portfolio
+          const portfolio = prevPortfolio || DEFAULT_PORTFOLIO;
+          if (!portfolio.portfolio_items) {
+            return portfolio;
+          }
 
           // Update portfolio items if the stock is in portfolio
-          const updatedItems = prevPortfolio.portfolio_items.map(item => {
+          const updatedItems = portfolio.portfolio_items.map(item => {
+            if (!item || !item.stock) return item;
+
             if (item.stock_id === stock_id) {
-              const oldValue = item.quantity * item.stock.current_price;
+              const oldValue = item.quantity * (item.stock.current_price || 0);
               const newValue = item.quantity * price;
               const updatedStock = { ...item.stock, current_price: price };
 
@@ -77,28 +91,37 @@ const Dashboard = () => {
             return item;
           });
 
-          // Recalculate stock value
+          // Recalculate stock value with null safety
           const newStockValue = updatedItems.reduce(
-            (total, item) => total + (item.quantity * item.stock.current_price),
+            (total, item) => {
+              if (!item || !item.stock) return total;
+              return total + (item.quantity * (item.stock.current_price || 0));
+            },
             0
           );
 
           return {
-            ...prevPortfolio,
+            ...portfolio,
             portfolio_items: updatedItems,
             stock_value: newStockValue,
-            total_value: prevPortfolio.cash_balance + newStockValue
+            total_value: (portfolio.cash_balance || 0) + newStockValue
           };
         });
 
         // Update top stocks if affected
         setTopStocks(prevTopStocks => {
+          if (!prevTopStocks || !Array.isArray(prevTopStocks)) {
+            return prevTopStocks || [];
+          }
+
           return prevTopStocks.map(stock => {
+            if (!stock) return stock;
+
             if (stock.id === stock_id) {
               return {
                 ...stock,
                 current_price: price,
-                priceChange: stock.current_price < price ? 'up' : 'down'
+                priceChange: (stock.current_price || 0) < price ? 'up' : 'down'
               };
             }
             return stock;
@@ -130,15 +153,15 @@ const Dashboard = () => {
           <h1>Dashboard</h1>
           <div className="portfolio-value">
             <h2>Total Portfolio Value</h2>
-            <div className="value">${portfolio?.total_value.toFixed(2)}</div>
+            <div className="value">${(portfolio?.total_value || 0).toFixed(2)}</div>
             <div className="portfolio-breakdown">
               <div className="breakdown-item">
                 <span>Cash:</span>
-                <span>${portfolio?.cash_balance.toFixed(2)}</span>
+                <span>${(portfolio?.cash_balance || 0).toFixed(2)}</span>
               </div>
               <div className="breakdown-item">
                 <span>Stocks:</span>
-                <span>${portfolio?.stock_value.toFixed(2)}</span>
+                <span>${(portfolio?.stock_value || 0).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -164,22 +187,22 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {portfolio.portfolio_items.slice(0, 3).map(item => (
-                      <tr 
+                    {portfolio.portfolio_items?.slice(0, 3).map(item => item && item.stock ? (
+                      <tr
                         key={item.stock_id}
                         className={item.valueChange ? `value-${item.valueChange}` : ''}
                       >
                         <td>{item.stock.symbol}</td>
                         <td>{item.quantity}</td>
-                        <td>${item.stock.current_price.toFixed(2)}</td>
-                        <td>${(item.quantity * item.stock.current_price).toFixed(2)}</td>
+                        <td>${(item.stock.current_price || 0).toFixed(2)}</td>
+                        <td>${(item.quantity * (item.stock.current_price || 0)).toFixed(2)}</td>
                         <td>
                           <Link to={`/stock/${item.stock_id}`} className="trade-button">
                             Trade
                           </Link>
                         </td>
                       </tr>
-                    ))}
+                    ) : null)}
                   </tbody>
                 </table>
               </div>
@@ -208,21 +231,25 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {topStocks.map(stock => (
-                    <tr 
+                  {topStocks && topStocks.length > 0 ? topStocks.map(stock => stock ? (
+                    <tr
                       key={stock.id}
                       className={stock.priceChange ? `price-${stock.priceChange}` : ''}
                     >
                       <td>{stock.symbol}</td>
                       <td>{stock.name}</td>
-                      <td>${stock.current_price.toFixed(2)}</td>
+                      <td>${(stock.current_price || 0).toFixed(2)}</td>
                       <td>
                         <Link to={`/stock/${stock.id}`} className="trade-button">
                           Trade
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                  ) : null) : (
+                    <tr>
+                      <td colSpan="4" className="empty-message">No stocks available</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -234,40 +261,38 @@ const Dashboard = () => {
               <Link to="/transactions" className="view-all">View All</Link>
             </div>
             
-            {transactions.length > 0 ? (
-              <div className="transactions-list">
-                <table className="dashboard-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Stock</th>
-                      <th>Type</th>
-                      <th>Quantity</th>
-                      <th>Price</th>
-                      <th>Total</th>
+            <div className="transactions-list">
+              <table className="dashboard-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Stock</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions && transactions.length > 0 ? transactions.map(transaction => transaction && transaction.stock ? (
+                    <tr key={transaction.id}>
+                      <td>{new Date(transaction.created_at).toLocaleDateString()}</td>
+                      <td>{transaction.stock.symbol}</td>
+                      <td className={`transaction-type ${transaction.transaction_type}`}>
+                        {transaction.transaction_type}
+                      </td>
+                      <td>{transaction.quantity}</td>
+                      <td>${(transaction.price || 0).toFixed(2)}</td>
+                      <td>${(transaction.quantity * (transaction.price || 0)).toFixed(2)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map(transaction => (
-                      <tr key={transaction.id}>
-                        <td>{new Date(transaction.created_at).toLocaleDateString()}</td>
-                        <td>{transaction.stock.symbol}</td>
-                        <td className={`transaction-type ${transaction.transaction_type}`}>
-                          {transaction.transaction_type}
-                        </td>
-                        <td>{transaction.quantity}</td>
-                        <td>${transaction.price.toFixed(2)}</td>
-                        <td>${(transaction.quantity * transaction.price).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-list">
-                <p>No recent transactions.</p>
-              </div>
-            )}
+                  ) : null) : (
+                    <tr>
+                      <td colSpan="6" className="empty-message">No recent transactions.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

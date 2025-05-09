@@ -88,21 +88,40 @@ func (c *Client) writePump() {
 				return
 			}
 
+			// IMPORTANT: Send each message individually to prevent JSON parsing issues
+			// DO NOT batch multiple JSON objects together
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
 				return
 			}
+			
+			// Write a single message
 			w.Write(message)
-
-			// Add queued messages to the current websocket message
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-c.send)
-			}
-
+			
+			// Close this message
 			if err := w.Close(); err != nil {
 				return
+			}
+			
+			// Process any queued messages - each in its own write operation
+			n := len(c.send)
+			for i := 0; i < n; i++ {
+				// Get next message
+				queuedMessage := <-c.send
+				
+				// Create a new writer for each message
+				w, err := c.conn.NextWriter(websocket.TextMessage)
+				if err != nil {
+					return
+				}
+				
+				// Write the message
+				w.Write(queuedMessage)
+				
+				// Close this message
+				if err := w.Close(); err != nil {
+					return
+				}
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
@@ -122,6 +141,12 @@ func (c *Client) Send(message interface{}) {
 		return
 	}
 	
-	// Send to client's channel
-	c.send <- jsonMessage
+	// Send to client's channel with non-blocking behavior
+	select {
+	case c.send <- jsonMessage:
+		// Message sent successfully
+	default:
+		// Channel buffer is full, log and drop message
+		log.Printf("Client send buffer full, dropping message for user %d", c.userID)
+	}
 }

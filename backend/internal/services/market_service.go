@@ -24,8 +24,9 @@ func NewMarketService(
 	portfolioRepo models.PortfolioRepository,
 	transactionRepo models.TransactionRepository,
 ) *MarketService {
-	// Create a new market simulator with 5-second updates and 2% volatility
-	simulator := market.NewMarketSimulator(5*time.Second, 0.02)
+	// Create a market simulator with faster updates and higher volatility for more dynamic price movements
+	// 2-second updates and 5% volatility
+	simulator := market.NewMarketSimulator(2*time.Second, 0.05)
 	
 	// Return the service
 	return &MarketService{
