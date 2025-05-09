@@ -30,11 +30,11 @@ RUN chmod +x /start.sh
 # Create a health check file
 RUN echo "OK" > /usr/share/nginx/html/health
 
-# Expose port 80
-EXPOSE 80
+# Expose port 8080 (Railway expects this port by default)
+EXPOSE 8080
 
 # Add healthcheck
-HEALTHCHECK --interval=5s --timeout=3s --retries=3 CMD curl -f http://localhost/health || exit 1
+HEALTHCHECK --interval=5s --timeout=3s --retries=3 CMD curl -f http://localhost:8080/health || exit 1
 
 # Use startup script as entrypoint
 ENTRYPOINT ["/start.sh"]
