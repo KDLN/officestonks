@@ -88,7 +88,7 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 		salt,
 		time,
 		memory,
-		threads,
+		uint8(threads),
 		uint32(len(decodedHash)),
 	)
 

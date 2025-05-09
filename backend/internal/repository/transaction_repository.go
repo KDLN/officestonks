@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/yourusername/officestonks/internal/models"
+	"officestonks/internal/models"
 )
 
 // TransactionRepo implements the TransactionRepository interface

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/yourusername/officestonks/internal/models"
+	"officestonks/internal/models"
 )
 
 func TestGetAllStocks(t *testing.T) {

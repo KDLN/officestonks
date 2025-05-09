@@ -3,7 +3,7 @@ package websocket
 import (
 	"sync"
 
-	"github.com/yourusername/officestonks/pkg/market"
+	"officestonks/pkg/market"
 )
 
 // Hub maintains the set of active clients and broadcasts messages to them

@@ -6,9 +6,9 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/yourusername/officestonks/internal/middleware"
-	"github.com/yourusername/officestonks/internal/models"
-	"github.com/yourusername/officestonks/internal/services"
+	"officestonks/internal/middleware"
+	"officestonks/internal/models"
+	"officestonks/internal/services"
 )
 
 // MarketHandler handles market-related requests

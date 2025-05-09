@@ -20,6 +20,12 @@ type StockRepository interface {
 	GetStockByID(id int) (*Stock, error)
 	GetStockBySymbol(symbol string) (*Stock, error)
 	UpdateStockPrice(stockID int, newPrice float64) error
+	LoadStocksForSimulation() (map[int]struct {
+		ID       int
+		Symbol   string
+		Sector   string
+		Price    float64
+	}, error)
 }
 
 // StockPrice represents a simple price update

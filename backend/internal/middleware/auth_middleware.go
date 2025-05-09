@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yourusername/officestonks/internal/services"
+	"officestonks/internal/services"
 )
 
 // Key type for context values

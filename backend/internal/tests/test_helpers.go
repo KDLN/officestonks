@@ -10,11 +10,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/yourusername/officestonks/internal/auth"
-	"github.com/yourusername/officestonks/internal/handlers"
-	"github.com/yourusername/officestonks/internal/models"
-	"github.com/yourusername/officestonks/internal/repository"
-	"github.com/yourusername/officestonks/internal/services"
+	"officestonks/internal/auth"
+	"officestonks/internal/handlers"
+	"officestonks/internal/models"
+	"officestonks/internal/repository"
+	"officestonks/internal/services"
 
 	"github.com/gorilla/mux"
 	_ "github.com/go-sql-driver/mysql"

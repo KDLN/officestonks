@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/yourusername/officestonks/internal/repository"
+	"officestonks/internal/repository"
 )
 
 // TestUserRepositoryIntegration tests the user repository against a real database

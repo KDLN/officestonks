@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
-	"github.com/yourusername/officestonks/internal/auth"
-	"github.com/yourusername/officestonks/pkg/market"
+	"officestonks/internal/auth"
+	"officestonks/pkg/market"
 )
 
 // WebSocketHandler handles websocket connections

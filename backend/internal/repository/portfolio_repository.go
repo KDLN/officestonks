@@ -2,9 +2,8 @@ package repository
 
 import (
 	"database/sql"
-	"errors"
 
-	"github.com/yourusername/officestonks/internal/models"
+	"officestonks/internal/models"
 )
 
 // PortfolioRepo implements the PortfolioRepository interface

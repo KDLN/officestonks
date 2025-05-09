@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yourusername/officestonks/internal/models"
-	"github.com/yourusername/officestonks/internal/services"
+	"officestonks/internal/models"
+	"officestonks/internal/services"
 )
 
 // AuthHandler handles authentication requests

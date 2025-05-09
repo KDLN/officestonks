@@ -3,8 +3,8 @@ package services
 import (
 	"errors"
 
-	"github.com/yourusername/officestonks/internal/auth"
-	"github.com/yourusername/officestonks/internal/models"
+	"officestonks/internal/auth"
+	"officestonks/internal/models"
 )
 
 // AuthService handles authentication business logic

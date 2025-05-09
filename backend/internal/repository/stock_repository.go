@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yourusername/officestonks/internal/models"
+	"officestonks/internal/models"
 )
 
 // StockRepo implements the StockRepository interface

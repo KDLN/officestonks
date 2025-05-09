@@ -4,8 +4,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/yourusername/officestonks/internal/models"
-	"github.com/yourusername/officestonks/pkg/market"
+	"officestonks/internal/models"
+	"officestonks/pkg/market"
 )
 
 // MarketService handles stock market operations

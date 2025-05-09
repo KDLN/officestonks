@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/yourusername/officestonks/internal/models"
+	"officestonks/internal/models"
 )
 
 func TestRegisterUser(t *testing.T) {
