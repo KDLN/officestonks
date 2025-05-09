@@ -8,11 +8,11 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/yourusername/officestonks/internal/handlers"
-	"github.com/yourusername/officestonks/internal/middleware"
-	"github.com/yourusername/officestonks/internal/repository"
-	"github.com/yourusername/officestonks/internal/services"
-	"github.com/yourusername/officestonks/internal/websocket"
+	"officestonks/internal/handlers"
+	"officestonks/internal/middleware"
+	"officestonks/internal/repository"
+	"officestonks/internal/services"
+	"officestonks/internal/websocket"
 )
 
 func main() {

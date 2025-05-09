@@ -1,4 +1,4 @@
-module github.com/yourusername/officestonks
+module officestonks
 
 go 1.20
 

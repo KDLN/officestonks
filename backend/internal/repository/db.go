@@ -17,10 +17,10 @@ func InitDB() (*sql.DB, error) {
 	// Get database connection details from environment variables
 	// For development, you can hardcode these values
 	username := getEnv("DB_USER", "root")
-	password := getEnv("DB_PASSWORD", "password")
-	host := getEnv("DB_HOST", "localhost")
+	password := getEnv("DB_PASSWORD", "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE")
+	host := getEnv("DB_HOST", "mysql.railway.internal")
 	port := getEnv("DB_PORT", "3306")
-	dbname := getEnv("DB_NAME", "officestonks")
+	dbname := getEnv("DB_NAME", "railway")
 
 	// Create connection string
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", 
