@@ -21,8 +21,18 @@ echo "  (Password hidden for security)"
 echo "Available environment variables:"
 env | grep -E "MYSQL|DB_" | grep -v PASSWORD | grep -v SECRET
 
-# MySQL command with SSL disabled
-MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\" --ssl-mode=DISABLED"
+# MySQL/MariaDB command with SSL disabled
+# Check mysql version and use compatible SSL options
+echo "Detecting database client version..."
+if mysql --version 2>&1 | grep -q -i "mariadb"; then
+  echo "Detected MariaDB client, using compatible options"
+  # MariaDB client options - use --ssl=0 instead of --ssl-mode
+  MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\" --ssl=0"
+else
+  echo "Detected MySQL client, using compatible options"
+  # MySQL client options
+  MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\" --ssl=0"
+fi
 
 # Wait for MySQL to be ready
 MAX_RETRIES=30
@@ -49,15 +59,20 @@ if [ $RETRIES -eq $MAX_RETRIES ]; then
 
   # Try with different SSL options as a fallback
   echo "Attempting to connect with alternative SSL settings..."
-  if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" --ssl-mode=PREFERRED -e "SELECT 1" "$DB_NAME" > /dev/null 2>&1; then
-    echo "✅ Connection successful with --ssl-mode=PREFERRED"
-    MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\" --ssl-mode=PREFERRED"
+
+  # Try without any SSL options
+  if mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1" "$DB_NAME" > /dev/null 2>&1; then
+    echo "✅ Connection successful with no SSL options"
+    MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\""
+  # Try with --skip-ssl (might work on some MySQL versions)
   elif mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" --skip-ssl -e "SELECT 1" "$DB_NAME" > /dev/null 2>&1; then
     echo "✅ Connection successful with --skip-ssl"
     MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\" --skip-ssl"
   else
-    echo "❌ All connection attempts failed"
-    exit 1
+    echo "⚠️ All connection attempts failed, but will continue anyway"
+    # Don't exit, let the application try to connect
+    # It might have more success with the Go MySQL driver
+    MYSQL_CMD="mysql -h \"$DB_HOST\" -P \"$DB_PORT\" -u \"$DB_USER\" -p\"$DB_PASSWORD\""
   fi
 fi
 
