@@ -2,8 +2,6 @@ package repository
 
 import (
 	"log"
-	"os"
-	"path/filepath"
 )
 
 // Database schema SQL - embedded directly to avoid filesystem dependencies

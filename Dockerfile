@@ -8,7 +8,10 @@ COPY backend/ /app/backend/
 # Build the application - using CGO_ENABLED=0 for static binary
 WORKDIR /app/backend
 RUN go mod tidy && go mod download
-RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /app/bin/server cmd/api/main.go
+# Add debugging to see the environment
+RUN pwd && ls -la && ls -la cmd/api/
+# Build with more verbosity to see any issues
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
 
 # Use a small alpine image for the final container
 FROM alpine:latest
