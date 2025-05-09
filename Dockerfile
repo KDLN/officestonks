@@ -5,15 +5,18 @@ WORKDIR /app
 # Copy the entire backend directory
 COPY backend/ /app/backend/
 
-# Build the application
+# Build the application - using CGO_ENABLED=0 for static binary
 WORKDIR /app/backend
 RUN go mod tidy && go mod download
-RUN go build -o /app/bin/server cmd/api/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /app/bin/server cmd/api/main.go
 
-# Create a smaller final image
-FROM debian:bullseye-slim
+# Use a small alpine image for the final container
+FROM alpine:latest
 
 WORKDIR /app
+
+# Add CA certificates for HTTPS calls
+RUN apk --no-cache add ca-certificates
 
 # Copy the binary and start script
 COPY --from=builder /app/bin/server /app/bin/server
