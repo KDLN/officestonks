@@ -48,29 +48,32 @@ func main() {
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
-	// Initialize router
+	// Initialize router with CORS middleware first
 	r := mux.NewRouter()
+
+	// IMPORTANT: Apply CORS middleware at the top level
+	r.Use(corsMiddleware)
 
 	// Set up API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()
-	
+
 	// Public routes
 	authRouter := apiRouter.PathPrefix("/auth").Subrouter()
-	authRouter.HandleFunc("/register", authHandler.Register).Methods("POST")
-	authRouter.HandleFunc("/login", authHandler.Login).Methods("POST")
+	authRouter.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
+	authRouter.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
 
 	// Public market routes
-	apiRouter.HandleFunc("/stocks", marketHandler.GetAllStocks).Methods("GET")
-	apiRouter.HandleFunc("/stocks/{id}", marketHandler.GetStockByID).Methods("GET")
+	apiRouter.HandleFunc("/stocks", marketHandler.GetAllStocks).Methods("GET", "OPTIONS")
+	apiRouter.HandleFunc("/stocks/{id}", marketHandler.GetStockByID).Methods("GET", "OPTIONS")
 
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
 	protectedRouter.Use(authMiddleware.Authenticate)
-	
+
 	// Protected market routes
-	protectedRouter.HandleFunc("/portfolio", marketHandler.GetUserPortfolio).Methods("GET")
-	protectedRouter.HandleFunc("/trading", marketHandler.TradeStock).Methods("POST")
-	protectedRouter.HandleFunc("/transactions", marketHandler.GetTransactionHistory).Methods("GET")
+	protectedRouter.HandleFunc("/portfolio", marketHandler.GetUserPortfolio).Methods("GET", "OPTIONS")
+	protectedRouter.HandleFunc("/trading", marketHandler.TradeStock).Methods("POST", "OPTIONS")
+	protectedRouter.HandleFunc("/transactions", marketHandler.GetTransactionHistory).Methods("GET", "OPTIONS")
 
 	// WebSocket route
 	r.HandleFunc("/ws", wsHandler.HandleConnection)
@@ -79,17 +82,13 @@ func main() {
 	apiRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("API is running"))
-	}).Methods("GET")
+	}).Methods("GET", "OPTIONS")
 
 	// Root endpoint
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("Office Stonks API is running"))
-	}).Methods("GET")
-
-	// Set up CORS middleware (must be applied before routes)
-	r = r.PathPrefix("").Subrouter()
-	r.Use(corsMiddleware)
+	}).Methods("GET", "OPTIONS")
 
 	// Get port from environment variable or use default
 	port := getPort()
