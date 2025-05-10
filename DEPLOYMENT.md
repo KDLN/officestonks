@@ -70,6 +70,7 @@ This guide explains how to deploy Office Stonks using GitHub and Railway.
 
 2. Run the schema initialization script:
    - Import the `schema.sql` file to set up tables
+   - Note: The application will also attempt to initialize the database on startup
 
 ## Frontend Deployment
 

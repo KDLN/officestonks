@@ -1,36 +1,45 @@
-FROM golang:1.20 AS builder
+# Use a minimal golang alpine image to build the app
+FROM golang:1.20-alpine AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Copy the entire backend directory
-COPY backend/ /app/backend/
+# Copy go mod and sum files
+COPY go.mod go.sum ./
 
-# Build the application - using CGO_ENABLED=0 for static binary
-WORKDIR /app/backend
-RUN go mod tidy && go mod download
-# Add debugging to see the environment
-RUN pwd && ls -la && ls -la cmd/api/
-# Build with more verbosity to see any issues
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
+# Download dependencies
+RUN go mod download
 
-# Use a small alpine image for the final container
-FROM alpine:latest
+# Copy source code
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
+COPY schema.sql ./schema.sql
 
-WORKDIR /app
+# Build a static binary
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/api ./cmd/api/main.go
 
-# Add CA certificates for HTTPS calls and MySQL client for database initialization
+# Use a tiny alpine image for the final container
+FROM alpine:3.16
+
+# Install CA certificates and MySQL client for database operations
 RUN apk --no-cache add ca-certificates mysql-client
 
-# Copy the binary and scripts
-COPY --from=builder /app/bin/server /app/bin/server
-COPY start-server.sh /app/start-server.sh
-COPY init-db.sh /app/init-db.sh
-COPY backend/schema.sql /app/schema.sql
+# Set working directory
+WORKDIR /app
 
-# Make the files executable
-RUN chmod +x /app/bin/server /app/start-server.sh /app/init-db.sh
+# Copy the binary from builder stage
+COPY --from=builder /app/bin/api /app/api
 
+# Copy schema for initialization
+COPY schema.sql /app/schema.sql
+COPY start.sh /app/start.sh
+
+# Make files executable
+RUN chmod +x /app/api /app/start.sh
+
+# Expose port
 EXPOSE 8080
 
 # Run the start script
-ENTRYPOINT ["/app/start-server.sh"]
+ENTRYPOINT ["/app/start.sh"]
