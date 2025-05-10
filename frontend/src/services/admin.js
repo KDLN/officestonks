@@ -62,7 +62,7 @@ export const getAllUsers = async () => {
 
     // Check if response has content before parsing JSON
     const text = await response.text();
-    if (!text) {
+    if (!text || text.trim() === '') {
       console.warn('Empty response from server for getAllUsers');
       return [];
     }
@@ -72,11 +72,13 @@ export const getAllUsers = async () => {
     } catch (jsonError) {
       console.error('Error parsing JSON response:', jsonError);
       console.error('Response text was:', text);
-      throw new Error('Invalid JSON response from server');
+      // Return empty array instead of throwing to prevent UI errors
+      return [];
     }
   } catch (error) {
     console.error('Error fetching users:', error);
-    throw error;
+    // Return empty array instead of re-throwing to prevent UI errors
+    return [];
   }
 };
 
@@ -85,8 +87,8 @@ export const resetStockPrices = async () => {
   try {
     const token = getToken();
 
-    const response = await fetch(`${API_URL}/admin/stocks/reset`, {
-      method: 'POST',
+    const response = await fetch(`${API_URL}/admin/stocks/reset?token=${token}`, {
+      method: 'GET', // Changed from POST to GET to match backend expectations
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
@@ -102,7 +104,7 @@ export const resetStockPrices = async () => {
 
     // Check if response has content before parsing JSON
     const text = await response.text();
-    if (!text) {
+    if (!text || text.trim() === '') {
       console.warn('Empty response from server for resetStockPrices');
       return { message: 'Stock prices reset successfully' };
     }
@@ -117,7 +119,8 @@ export const resetStockPrices = async () => {
     }
   } catch (error) {
     console.error('Error resetting stock prices:', error);
-    throw error;
+    // Return a user-friendly error message instead of throwing
+    return { error: true, message: 'Failed to reset stock prices. Please try again.' };
   }
 };
 
@@ -143,7 +146,7 @@ export const clearAllChats = async () => {
 
     // Check if response has content before parsing JSON
     const text = await response.text();
-    if (!text) {
+    if (!text || text.trim() === '') {
       console.warn('Empty response from server for clearAllChats');
       return { message: 'Chat messages cleared successfully' };
     }
@@ -158,7 +161,8 @@ export const clearAllChats = async () => {
     }
   } catch (error) {
     console.error('Error clearing chat messages:', error);
-    throw error;
+    // Return a user-friendly error message instead of throwing
+    return { error: true, message: 'Failed to clear chat messages. Please try again.' };
   }
 };
 

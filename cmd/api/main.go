@@ -166,7 +166,7 @@ func main() {
 	adminRouter.HandleFunc("/users/{id:[0-9]+}", adminHandler.DeleteUser).Methods("DELETE", "OPTIONS")
 
 	// Admin stock management
-	adminRouter.HandleFunc("/stocks/reset", adminHandler.ResetStockPrices).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/stocks/reset", adminHandler.ResetStockPrices).Methods("GET", "POST", "OPTIONS")
 
 	// Admin chat management
 	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("POST", "OPTIONS")

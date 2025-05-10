@@ -178,6 +178,16 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // ResetStockPrices resets all stock prices to their initial values (admin only)
 func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) {
+	// Log request method for debugging
+	log.Printf("ResetStockPrices called with method: %s", r.Method)
+
+	// Handle both GET and POST methods
+	if r.Method != "GET" && r.Method != "POST" {
+		log.Printf("Invalid method for ResetStockPrices: %s", r.Method)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Reset stock prices
 	err := h.stockRepo.ResetAllStockPrices()
 	if err != nil {
@@ -185,12 +195,14 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return success
 	response := map[string]string{
 		"message": "Stock prices reset successfully",
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	json.NewEncoder(w).Encode(response)
 }
 

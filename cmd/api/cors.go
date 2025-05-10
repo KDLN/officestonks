@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strings"
 )
 
 // CORS middleware to allow frontend to communicate with the API
@@ -53,6 +54,15 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 		w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
 		w.Header().Set("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+
+		// Special handling for admin routes
+		if strings.Contains(r.URL.Path, "/api/admin/") {
+			log.Printf("CORS: Admin endpoint detected: %s", r.URL.Path)
+			// Ensure CORS headers are set correctly for admin endpoints
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+		}
 
 		// Log all headers we're setting
 		log.Printf("CORS Response Headers: %v", w.Header())
