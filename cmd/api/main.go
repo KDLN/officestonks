@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"officestonks/internal/handlers"
@@ -59,11 +61,15 @@ func main() {
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
 
-	// Initialize router with CORS middleware first
+	// Create rate limiter (100 requests per minute per IP)
+	rateLimiter := middleware.NewRateLimiter(100, time.Minute)
+
+	// Initialize router with middleware
 	r := mux.NewRouter()
 
-	// IMPORTANT: Apply CORS middleware at the top level
+	// IMPORTANT: Apply middleware at the top level
 	r.Use(corsMiddleware)
+	r.Use(rateLimiter.RateLimit)
 
 	// Set up API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()
@@ -103,6 +109,21 @@ func main() {
 	apiRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("API is running"))
+	}).Methods("GET", "OPTIONS")
+
+	// Rate limiter statistics endpoint (admin only)
+	apiRouter.HandleFunc("/stats/rate-limit", func(w http.ResponseWriter, r *http.Request) {
+		// Check for admin token (simple implementation)
+		token := r.URL.Query().Get("token")
+		if token != os.Getenv("ADMIN_TOKEN") {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Unauthorized"))
+			return
+		}
+
+		// Return rate limiter statistics
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(rateLimiter.GetStats())
 	}).Methods("GET", "OPTIONS")
 
 	// Root endpoint
