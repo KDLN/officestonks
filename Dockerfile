@@ -9,6 +9,9 @@ WORKDIR /app
 COPY ./server /app/server
 COPY ./schema.sql /app/schema.sql
 
+# Copy frontend build files
+COPY ./frontend/build /app/frontend/build
+
 # Make binary executable
 RUN chmod +x /app/server
 

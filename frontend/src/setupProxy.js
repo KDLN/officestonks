@@ -1,7 +1,7 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
-  const backendUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
+  const backendUrl = process.env.REACT_APP_API_URL || 'https://web-copy-production-5b48.up.railway.app';
   
   // Proxy API requests to the backend
   app.use(

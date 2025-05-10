@@ -25,7 +25,7 @@ export const initWebSocket = () => {
 
   // Create WebSocket connection with token
   // Get the backend URL from environment or default to Railway URL
-  const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://web-copy-production-5b48.up.railway.app';
 
   // Replace http/https with ws/wss
   const wsBase = apiUrl.replace(/^http/, 'ws');
