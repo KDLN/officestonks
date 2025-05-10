@@ -55,58 +55,60 @@ func (r *UserRepo) CreateUser(username, passwordHash string) (*models.User, erro
 // GetUserByID retrieves a user by ID
 func (r *UserRepo) GetUserByID(id int) (*models.User, error) {
 	var user models.User
-	
+
 	query := `
-		SELECT id, username, password_hash, cash_balance, created_at, updated_at
+		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
 		FROM users
 		WHERE id = ?
 	`
-	
+
 	err := r.db.QueryRow(query, id).Scan(
 		&user.ID,
 		&user.Username,
 		&user.PasswordHash,
 		&user.CashBalance,
+		&user.IsAdmin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")
 		}
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
 // GetUserByUsername retrieves a user by username
 func (r *UserRepo) GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
-	
+
 	query := `
-		SELECT id, username, password_hash, cash_balance, created_at, updated_at
+		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
 		FROM users
 		WHERE username = ?
 	`
-	
+
 	err := r.db.QueryRow(query, username).Scan(
 		&user.ID,
 		&user.Username,
 		&user.PasswordHash,
 		&user.CashBalance,
+		&user.IsAdmin,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")
 		}
 		return nil, err
 	}
-	
+
 	return &user, nil
 }
 
@@ -131,13 +133,13 @@ func (r *UserRepo) GetTopUsers(limit int) ([]*models.User, error) {
 		ORDER BY cash_balance DESC
 		LIMIT ?
 	`
-	
+
 	rows, err := r.db.Query(query, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var users []*models.User
 	for rows.Next() {
 		var user models.User
@@ -153,6 +155,115 @@ func (r *UserRepo) GetTopUsers(limit int) ([]*models.User, error) {
 		}
 		users = append(users, &user)
 	}
-	
+
 	return users, nil
+}
+
+// IsUserAdmin checks if a user is an admin
+func (r *UserRepo) IsUserAdmin(userID int) (bool, error) {
+	query := `
+		SELECT is_admin
+		FROM users
+		WHERE id = ?
+	`
+
+	var isAdmin bool
+	err := r.db.QueryRow(query, userID).Scan(&isAdmin)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, errors.New("user not found")
+		}
+		return false, err
+	}
+
+	return isAdmin, nil
+}
+
+// GetAllUsers gets all users in the system
+func (r *UserRepo) GetAllUsers() ([]*models.User, error) {
+	query := `
+		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
+		FROM users
+		ORDER BY id ASC
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.PasswordHash,
+			&user.CashBalance,
+			&user.IsAdmin,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	return users, nil
+}
+
+// UpdateUser updates a user's information
+func (r *UserRepo) UpdateUser(userID int, cashBalance float64, isAdmin bool) error {
+	query := `
+		UPDATE users
+		SET cash_balance = ?,
+			is_admin = ?,
+			updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := r.db.Exec(query, cashBalance, isAdmin, time.Now(), userID)
+	return err
+}
+
+// DeleteUser deletes a user from the system
+func (r *UserRepo) DeleteUser(userID int) error {
+	// Start a transaction
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// Delete user's transactions
+	_, err = tx.Exec("DELETE FROM transactions WHERE user_id = ?", userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete user's portfolio
+	_, err = tx.Exec("DELETE FROM portfolio WHERE user_id = ?", userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete user from chat
+	_, err = tx.Exec("DELETE FROM chat_messages WHERE user_id = ?", userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Finally, delete the user
+	_, err = tx.Exec("DELETE FROM users WHERE id = ?", userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit the transaction
+	return tx.Commit()
 }

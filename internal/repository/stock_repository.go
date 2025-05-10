@@ -172,3 +172,44 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	
 	return stocks, nil
 }
+// ResetAllStockPrices resets all stock prices to their initial values
+func (r *StockRepo) ResetAllStockPrices() error {
+	// This will reset all stock prices to their initial values in the database
+	// Assuming initial prices are stored in a separate table or have a default value
+	
+	// The SQL statement to reset prices to original values
+	// Using a transaction for atomicity
+	tx, err := r.db.Begin()
+	if err \!= nil {
+		return err
+	}
+	
+	// Option 1: Reset to the initial seed prices (assuming this is how your DB is set up)
+	query := `
+		UPDATE stocks
+		SET current_price = CASE
+			WHEN symbol = 'AAPL' THEN 150.00
+			WHEN symbol = 'MSFT' THEN 250.00
+			WHEN symbol = 'GOOGL' THEN 2500.00
+			WHEN symbol = 'AMZN' THEN 3000.00
+			WHEN symbol = 'META' THEN 300.00
+			WHEN symbol = 'TSLA' THEN 700.00
+			WHEN symbol = 'NFLX' THEN 550.00
+			WHEN symbol = 'NVDA' THEN 600.00
+			WHEN symbol = 'CRM' THEN 250.00
+			WHEN symbol = 'PYPL' THEN 280.00
+			ELSE current_price
+		END,
+		last_updated = ?
+	`
+	
+	// Execute the update
+	_, err = tx.Exec(query, time.Now())
+	if err \!= nil {
+		tx.Rollback()
+		return err
+	}
+	
+	// Commit the transaction
+	return tx.Commit()
+}

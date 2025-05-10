@@ -47,8 +47,9 @@ func (s *AuthService) Register(username, password string) (*models.AuthResponse,
 	
 	// Return the auth response
 	return &models.AuthResponse{
-		Token:  token,
-		UserID: user.ID,
+		Token:   token,
+		UserID:  user.ID,
+		IsAdmin: user.IsAdmin,
 	}, nil
 }
 
@@ -74,8 +75,9 @@ func (s *AuthService) Login(username, password string) (*models.AuthResponse, er
 	
 	// Return the auth response
 	return &models.AuthResponse{
-		Token:  token,
-		UserID: user.ID,
+		Token:   token,
+		UserID:  user.ID,
+		IsAdmin: user.IsAdmin,
 	}, nil
 }
 

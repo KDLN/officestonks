@@ -17,4 +17,5 @@ type ChatMessage struct {
 type ChatRepository interface {
 	SaveMessage(userID int, message string) (*ChatMessage, error)
 	GetRecentMessages(limit int) ([]*ChatMessage, error)
+	ClearAllMessages() error
 }

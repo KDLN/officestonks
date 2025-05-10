@@ -103,3 +103,25 @@ func (r *ChatRepo) GetRecentMessages(limit int) ([]*models.ChatMessage, error) {
 	
 	return messages, nil
 }
+// ClearAllMessages clears all chat messages in the database
+func (r *ChatRepo) ClearAllMessages() error {
+	// Using a transaction for atomicity
+	tx, err := r.db.Begin()
+	if err \!= nil {
+		return err
+	}
+	
+	// Delete all messages
+	query := `DELETE FROM chat_messages`
+	
+	// Execute the delete
+	_, err = tx.Exec(query)
+	if err \!= nil {
+		tx.Rollback()
+		return err
+	}
+	
+	// Commit the transaction
+	return tx.Commit()
+}
+EOF < /dev/null

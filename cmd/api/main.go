@@ -100,6 +100,7 @@ func main() {
 	marketHandler := handlers.NewMarketHandler(marketService)
 	userHandler := handlers.NewUserHandler(userService)
 	chatHandler := handlers.NewChatHandler(chatService)
+	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -151,6 +152,24 @@ func main() {
 	// Chat routes
 	protectedRouter.HandleFunc("/chat/messages", chatHandler.GetRecentMessages).Methods("GET", "OPTIONS")
 	protectedRouter.HandleFunc("/chat/send", chatHandler.SendMessage).Methods("POST", "OPTIONS")
+
+	// Admin status check (for frontend)
+	protectedRouter.HandleFunc("/admin/status", adminHandler.GetAdminStatus).Methods("GET", "OPTIONS")
+
+	// Admin routes - protected by both auth middleware and admin middleware
+	adminRouter := protectedRouter.PathPrefix("/admin").Subrouter()
+	adminRouter.Use(adminHandler.AdminOnly)
+
+	// Admin user management
+	adminRouter.HandleFunc("/users", adminHandler.GetAllUsers).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/users/{id:[0-9]+}", adminHandler.UpdateUser).Methods("PUT", "OPTIONS")
+	adminRouter.HandleFunc("/users/{id:[0-9]+}", adminHandler.DeleteUser).Methods("DELETE", "OPTIONS")
+
+	// Admin stock management
+	adminRouter.HandleFunc("/stocks/reset", adminHandler.ResetStockPrices).Methods("POST", "OPTIONS")
+
+	// Admin chat management
+	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("POST", "OPTIONS")
 
 	// WebSocket route
 	r.HandleFunc("/ws", wsHandler.HandleConnection)

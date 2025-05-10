@@ -26,6 +26,7 @@ type StockRepository interface {
 		Sector   string
 		Price    float64
 	}, error)
+	ResetAllStockPrices() error
 }
 
 // StockPrice represents a simple price update
