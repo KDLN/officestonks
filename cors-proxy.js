@@ -25,21 +25,27 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'CORS proxy server is running' });
 });
 
-// Proxy all other requests to the target API
-app.use('/', createProxyMiddleware({
-  target: 'https://web-copy-production-5b48.up.railway.app',
+// Proxy admin API requests to the backend
+app.use('/admin', createProxyMiddleware({
+  target: 'https://web-production-1e26.up.railway.app/api',
   changeOrigin: true,
   pathRewrite: {
-    '^/api': '/api' // Keep the /api prefix
+    '^/admin': '/admin' // Keep the /admin path
   },
   onProxyReq: (proxyReq, req, res) => {
     // Log the proxy request
-    console.log(`Proxying ${req.method} ${req.url} to ${proxyReq.path}`);
+    console.log(`Proxying ADMIN ${req.method} ${req.url} to ${proxyReq.path}`);
+
+    // Copy token from query parameter to authorization header if needed
+    if (req.query.token && !req.headers.authorization) {
+      proxyReq.setHeader('Authorization', `Bearer ${req.query.token}`);
+      console.log('Added token from query parameters to authorization header');
+    }
   },
   onProxyRes: (proxyRes, req, res) => {
     // Log the proxy response status
-    console.log(`Proxy response: ${proxyRes.statusCode}`);
-    
+    console.log(`Proxy ADMIN response: ${proxyRes.statusCode}`);
+
     // Ensure CORS headers on the response
     proxyRes.headers['Access-Control-Allow-Origin'] = '*';
     proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';

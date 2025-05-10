@@ -5,11 +5,20 @@ import { getToken } from './auth';
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// For Railway deployment, check if a CORS proxy is available or use direct path
+// If a proxy is available, admin endpoints will go through the proxy
+const CORS_PROXY_URL = process.env.REACT_APP_CORS_PROXY_URL || 'https://officestonks-cors-proxy.up.railway.app';
+
 // For Railway deployment, we might have different URLs for frontend and backend
 // Use the API URL that matches the environment
 const API_URL = isLocalhost
   ? '/api'  // Use relative URL when running locally
   : 'https://web-production-1e26.up.railway.app/api';  // Use absolute URL in production
+
+// Admin specific URL that goes through the CORS proxy to avoid CORS issues
+const ADMIN_URL = isLocalhost
+  ? '/api/admin'  // Use relative URL when running locally
+  : `${CORS_PROXY_URL}/admin`;  // Use CORS proxy in production for admin endpoints
 
 console.log('Admin service using API URL:', API_URL);
 
@@ -17,14 +26,13 @@ console.log('Admin service using API URL:', API_URL);
 export const checkAdminStatus = async () => {
   try {
     const token = getToken();
-    
-    const response = await fetch(`${API_URL}/admin/status`, {
+
+    const response = await fetch(`${ADMIN_URL}/status?token=${token}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
+      credentials: 'same-origin', // Don't use 'include' with CORS proxy
       mode: 'cors',
     });
 
@@ -45,13 +53,12 @@ export const getAllUsers = async () => {
   try {
     const token = getToken();
 
-    const response = await fetch(`${API_URL}/admin/users`, {
+    const response = await fetch(`${ADMIN_URL}/users?token=${token}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
 
@@ -87,13 +94,12 @@ export const resetStockPrices = async () => {
   try {
     const token = getToken();
 
-    const response = await fetch(`${API_URL}/admin/stocks/reset?token=${token}`, {
-      method: 'GET', // Changed from POST to GET to match backend expectations
+    const response = await fetch(`${ADMIN_URL}/stocks/reset?token=${token}`, {
+      method: 'GET', // Use GET method for the CORS proxy
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
 
@@ -129,13 +135,12 @@ export const clearAllChats = async () => {
   try {
     const token = getToken();
 
-    const response = await fetch(`${API_URL}/admin/chat/clear`, {
-      method: 'POST',
+    const response = await fetch(`${ADMIN_URL}/chat/clear?token=${token}`, {
+      method: 'GET', // Use GET for the CORS proxy instead of POST
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
+      credentials: 'same-origin',
       mode: 'cors',
     });
 
@@ -171,6 +176,7 @@ export const updateUser = async (userId, data) => {
   try {
     const token = getToken();
 
+    // For the PUT request, we'll still use the direct API because the CORS proxy currently only handles GET
     const response = await fetch(`${API_URL}/admin/users/${userId}`, {
       method: 'PUT',
       headers: {
@@ -189,7 +195,7 @@ export const updateUser = async (userId, data) => {
 
     // Check if response has content before parsing JSON
     const text = await response.text();
-    if (!text) {
+    if (!text || text.trim() === '') {
       console.warn('Empty response from server for updateUser');
       return { ...data, id: userId, message: 'User updated successfully' };
     }
@@ -204,7 +210,8 @@ export const updateUser = async (userId, data) => {
     }
   } catch (error) {
     console.error('Error updating user:', error);
-    throw error;
+    // Return a user-friendly error message instead of throwing
+    return { error: true, ...data, id: userId, message: 'Failed to update user. Please try again.' };
   }
 };
 
@@ -213,6 +220,7 @@ export const deleteUser = async (userId) => {
   try {
     const token = getToken();
 
+    // Similar to updateUser, we'll keep using the direct API for DELETE
     const response = await fetch(`${API_URL}/admin/users/${userId}`, {
       method: 'DELETE',
       headers: {
@@ -230,7 +238,7 @@ export const deleteUser = async (userId) => {
 
     // Check if response has content before parsing JSON
     const text = await response.text();
-    if (!text) {
+    if (!text || text.trim() === '') {
       console.warn('Empty response from server for deleteUser');
       return { message: 'User deleted successfully' };
     }
@@ -245,6 +253,7 @@ export const deleteUser = async (userId) => {
     }
   } catch (error) {
     console.error('Error deleting user:', error);
-    throw error;
+    // Return a user-friendly error message instead of throwing
+    return { error: true, message: 'Failed to delete user. Please try again.' };
   }
 };
