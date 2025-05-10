@@ -8,7 +8,31 @@ echo "Environment: $(env | grep -v PASSWORD)"
 # Initialize the database if mysql-client is available
 if command -v mysql >/dev/null 2>&1; then
   echo "MySQL client found, initializing database..."
-  sh /app/init-db.sh
+  if [ -f "/app/init-db.sh" ]; then
+    sh /app/init-db.sh
+  elif [ -f "./init-db.sh" ]; then
+    sh ./init-db.sh
+  else
+    echo "❌ WARNING: init-db.sh not found. Using SQL script directly."
+    # Try to use the schema.sql directly
+    if [ -f "./schema.sql" ]; then
+      echo "Found schema.sql, checking MySQL connection..."
+      # Try a simple connection test before running the script
+      MYSQL_HOST="${DB_HOST:-localhost}"
+      MYSQL_PORT="${DB_PORT:-3306}"
+      MYSQL_USER="${DB_USER:-officestonks}"
+      MYSQL_PASS="${DB_PASSWORD:-officestonks}"
+      MYSQL_DB="${DB_NAME:-officestonks}"
+
+      echo "Connecting to MySQL: ${MYSQL_HOST}:${MYSQL_PORT}..."
+      mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASS" \
+        -e "SELECT 'MySQL connection successful!'" || echo "MySQL connection failed"
+
+      echo "Initializing database from schema.sql..."
+      mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB" < ./schema.sql \
+        && echo "Database initialized successfully" || echo "Failed to initialize database"
+    fi
+  fi
 else
   echo "MySQL client not available, skipping database initialization."
   echo "IMPORTANT: You need to manually initialize the database using schema.sql"

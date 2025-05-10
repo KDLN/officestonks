@@ -114,6 +114,13 @@ func main() {
 	r.Use(corsMiddleware)
 	r.Use(rateLimiter.RateLimit)
 
+	// Global OPTIONS handler to ensure CORS preflight works for all routes
+	r.PathPrefix("/").Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Global OPTIONS handler for: %s", r.URL.Path)
+		// CORS headers are set by the middleware, just return 200 OK
+		w.WriteHeader(http.StatusOK)
+	})
+
 	// Set up API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()
 
@@ -153,6 +160,25 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("API is running"))
 	}).Methods("GET", "OPTIONS")
+
+	// CORS debug endpoint
+	apiRouter.HandleFunc("/debug/cors", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("CORS Debug Request: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
+
+		// Return information about the request headers for debugging
+		w.Header().Set("Content-Type", "application/json")
+
+		response := map[string]interface{}{
+			"success": true,
+			"message": "CORS is working if you can see this response",
+			"request_headers": r.Header,
+			"origin": r.Header.Get("Origin"),
+			"host": r.Host,
+			"timestamp": time.Now().String(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+	}).Methods("GET", "POST", "OPTIONS")
 
 	// Rate limiter statistics endpoint (admin only)
 	apiRouter.HandleFunc("/stats/rate-limit", func(w http.ResponseWriter, r *http.Request) {
