@@ -69,4 +69,4 @@ fi
 
 # Execute the server binary
 echo "Starting the API server..."
-exec /app/api
+exec /app/bin/server

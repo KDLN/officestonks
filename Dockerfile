@@ -17,7 +17,7 @@ COPY pkg ./pkg
 COPY schema.sql ./schema.sql
 
 # Build a static binary
-RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/api ./cmd/api/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
 
 # Use a tiny alpine image for the final container
 FROM alpine:3.16
@@ -29,7 +29,7 @@ RUN apk --no-cache add ca-certificates mysql-client
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /app/bin/api /app/api
+COPY --from=builder /app/bin/server /app/bin/server
 
 # Copy schema for initialization
 COPY schema.sql /app/schema.sql
@@ -37,7 +37,7 @@ COPY start.sh /app/start.sh
 COPY start-server.sh /app/start-server.sh
 
 # Make files executable
-RUN chmod +x /app/api /app/start.sh /app/start-server.sh
+RUN chmod +x /app/bin/server /app/start.sh /app/start-server.sh
 
 # Expose port
 EXPOSE 8080
