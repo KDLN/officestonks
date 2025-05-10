@@ -57,4 +57,28 @@ else
   fi
 fi
 
+# Apply admin schema update
+ADMIN_SCHEMA_PATH="/app/admin-schema-update-mysql.sql"
+echo "🔄 Applying admin schema update..."
+if [ -f "$ADMIN_SCHEMA_PATH" ]; then
+  if eval $MYSQL_CMD "$DB_NAME" < $ADMIN_SCHEMA_PATH; then
+    echo "✅ Admin schema update applied successfully."
+  else
+    echo "⚠️ Admin schema update encountered issues."
+  fi
+else
+  echo "⚠️ Admin schema update file not found at $ADMIN_SCHEMA_PATH."
+  # Try local path
+  if [ -f "./admin-schema-update-mysql.sql" ]; then
+    echo "Found admin schema update in current directory, applying..."
+    if eval $MYSQL_CMD "$DB_NAME" < ./admin-schema-update-mysql.sql; then
+      echo "✅ Admin schema update applied successfully."
+    else
+      echo "⚠️ Admin schema update encountered issues."
+    fi
+  else
+    echo "⚠️ Admin schema update file not found in current directory."
+  fi
+fi
+
 echo "✅ Database initialization complete."
