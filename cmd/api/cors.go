@@ -22,6 +22,8 @@ func corsMiddleware(next http.Handler) http.Handler {
 			"https://officestonks-frontend-production.up.railway.app",
 			"https://web-production-1e26.up.railway.app",
 			"http://localhost:3000",
+			"https://officestonks-frontend.vercel.app",
+			"https://officestonks-frontend-production.up.railway.app"
 		}
 
 		// Always set CORS headers regardless of origin

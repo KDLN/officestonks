@@ -29,13 +29,35 @@ func NewAdminHandler(userRepo models.UserRepository, stockRepo models.StockRepos
 // AdminOnly middleware checks if the user is an admin
 func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Always set CORS headers for admin endpoints
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+		}
+
+		// Handle OPTIONS preflight requests immediately
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Check for token parameter in URL for GET requests
+		if r.Method == "GET" && r.URL.Query().Get("token") != "" {
+			token := r.URL.Query().Get("token")
+			r.Header.Set("Authorization", "Bearer "+token)
+			log.Printf("Added token from URL parameter: %s", token[:10]+"...")
+		}
+
 		// Get user ID from context (set by auth middleware)
 		userID, ok := r.Context().Value("userID").(int)
 		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		
+
 		// Check if user is admin
 		isAdmin, err := h.userRepo.IsUserAdmin(userID)
 		if err != nil {
@@ -43,12 +65,12 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
-		
+
 		if !isAdmin {
 			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
 			return
 		}
-		
+
 		// User is admin, proceed
 		next(w, r)
 	}
@@ -93,15 +115,38 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 
 // GetAllUsers returns all users in the system (admin only)
 func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
+	// Log request method for debugging
+	log.Printf("GetAllUsers called with method: %s, Origin: %s", r.Method, r.Header.Get("Origin"))
+
 	users, err := h.userRepo.GetAllUsers()
 	if err != nil {
 		log.Printf("Error getting all users: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
+	// Ensure proper CORS headers are set
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+
+	// Make sure valid JSON is sent
+	if users == nil {
+		// Return empty array instead of null
+		w.Write([]byte("[]"))
+		return
+	}
+
+	err = json.NewEncoder(w).Encode(users)
+	if err != nil {
+		log.Printf("Error encoding users: %v", err)
+		// Return empty array in case of encoding error
+		w.Write([]byte("[]"))
+	}
 }
 
 // UpdateUser updates a user's information (admin only)
@@ -208,6 +253,16 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 
 // ClearAllChats clears all chat messages (admin only)
 func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
+	// Log request method for debugging
+	log.Printf("ClearAllChats called with method: %s", r.Method)
+
+	// Handle both GET and POST methods
+	if r.Method != "GET" && r.Method != "POST" {
+		log.Printf("Invalid method for ClearAllChats: %s", r.Method)
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Clear chat messages
 	err := h.chatRepo.ClearAllMessages()
 	if err != nil {
@@ -215,11 +270,13 @@ func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return success
 	response := map[string]string{
 		"message": "Chat messages cleared successfully",
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	json.NewEncoder(w).Encode(response)
 }

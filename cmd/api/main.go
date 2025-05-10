@@ -169,7 +169,7 @@ func main() {
 	adminRouter.HandleFunc("/stocks/reset", adminHandler.ResetStockPrices).Methods("GET", "POST", "OPTIONS")
 
 	// Admin chat management
-	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("GET", "POST", "OPTIONS")
 
 	// WebSocket route
 	r.HandleFunc("/ws", wsHandler.HandleConnection)
