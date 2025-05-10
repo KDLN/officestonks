@@ -1,0 +1,11 @@
+{
+  "name": "officestonks-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for Office Stonks app",
+  "scripts": {
+    "build": "mkdir -p public && cd ../frontend && npm install && npm run build && cp -r build/* ../frontend-deploy/public/"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
