@@ -13,4 +13,5 @@ else
 fi
 
 # Execute the server binary
+echo "Starting the API server..."
 exec /app/bin/server
