@@ -4,8 +4,12 @@ import { getToken } from './auth';
 // Make sure to include the correct API path
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BASE_URL = isLocalhost ? '' : (process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app');
-const API_URL = `${BASE_URL}/api`;
+
+// For Railway deployment, we might have different URLs for frontend and backend
+// Use the API URL that matches the environment
+const API_URL = isLocalhost
+  ? '/api'  // Use relative URL when running locally
+  : 'https://web-production-1e26.up.railway.app/api';  // Use absolute URL in production
 
 console.log('Admin service using API URL:', API_URL);
 
@@ -20,6 +24,8 @@ export const checkAdminStatus = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -45,6 +51,8 @@ export const getAllUsers = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -83,6 +91,8 @@ export const resetStockPrices = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -122,6 +132,8 @@ export const clearAllChats = async () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -161,6 +173,8 @@ export const updateUser = async (userId, data) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      credentials: 'include',
+      mode: 'cors',
       body: JSON.stringify(data),
     });
 
@@ -201,6 +215,8 @@ export const deleteUser = async (userId) => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      credentials: 'include',
+      mode: 'cors',
     });
 
     if (!response.ok) {
