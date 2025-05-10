@@ -1,0 +1,13 @@
+{
+  "name": "no-cors-proxy",
+  "version": "1.0.0",
+  "description": "Simple proxy that removes all CORS restrictions",
+  "main": "no-cors-proxy.js",
+  "scripts": {
+    "start": "node no-cors-proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
+  }
+}
