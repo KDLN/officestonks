@@ -1,1 +1,1 @@
-web: /app/start-server.sh
+web: /app/start.sh

@@ -9,6 +9,6 @@
     "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3,
-    "startCommand": "/app/start-server.sh"
+    "startCommand": "/app/start.sh"
   }
 }
