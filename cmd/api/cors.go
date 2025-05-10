@@ -18,6 +18,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		// Explicitly handle known origins
 		knownOrigins := []string{
 			"https://officestonks-frontend.vercel.app",
+			"https://officestonks-frontend-production.up.railway.app",
 			"http://localhost:3000",
 		}
 
