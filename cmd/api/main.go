@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	_ "github.com/dgrijalva/jwt-go"     // Used indirectly
+	_ "github.com/go-sql-driver/mysql"  // Used as database driver
+
 	"officestonks/internal/handlers"
 	"officestonks/internal/middleware"
 	"officestonks/internal/repository"
