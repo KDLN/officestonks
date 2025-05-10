@@ -70,6 +70,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Log the auth response for debugging
+	log.Printf("Login successful for user %s (ID: %d), is_admin: %v", req.Username, authResp.UserID, authResp.IsAdmin)
+
 	// Return the response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(authResp)
