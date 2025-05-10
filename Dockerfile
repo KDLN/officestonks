@@ -8,13 +8,16 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download dependencies
-RUN go mod download
+RUN go mod tidy && go mod download
 
 # Copy source code
-COPY cmd ./cmd
-COPY internal ./internal
-COPY pkg ./pkg
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY pkg/ ./pkg/
 COPY schema.sql ./schema.sql
+
+# Add debugging to see the environment
+RUN pwd && ls -la && ls -la cmd/api/
 
 # Build a static binary
 RUN CGO_ENABLED=0 GOOS=linux go build -v -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
@@ -31,16 +34,17 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/bin/server /app/bin/server
 
-# Copy schema for initialization
+# Copy schema and scripts
 COPY schema.sql /app/schema.sql
 COPY start.sh /app/start.sh
 COPY start-server.sh /app/start-server.sh
+COPY init-db.sh /app/init-db.sh
 
 # Make files executable
-RUN chmod +x /app/bin/server /app/start.sh /app/start-server.sh
+RUN chmod +x /app/bin/server /app/start.sh /app/start-server.sh /app/init-db.sh
 
 # Expose port
 EXPOSE 8080
 
 # Run the start script
-ENTRYPOINT ["/app/start-server.sh"]
+ENTRYPOINT ["/app/start.sh"]
