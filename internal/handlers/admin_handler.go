@@ -282,11 +282,11 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// ResetStockPrices resets all stock prices to their initial values (admin only)
+// ResetStockPrices resets all stock prices to random values (admin only)
 func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers first, before anything else
 	origin := r.Header.Get("Origin")
-	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
@@ -307,17 +307,47 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Reset stock prices
-	err := h.stockRepo.ResetAllStockPrices()
+	// Get all stocks first to verify we can read them
+	stocks, err := h.stockRepo.GetAllStocks()
 	if err != nil {
-		log.Printf("Error resetting stock prices: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		log.Printf("Error getting stocks: %v", err)
+		http.Error(w, fmt.Sprintf("Error getting stocks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// Log the existing stocks
+	log.Printf("Found %d stocks before resetting prices", len(stocks))
+	for _, s := range stocks {
+		log.Printf("Stock before reset: %s (ID: %d) - Price: %.2f", s.Symbol, s.ID, s.CurrentPrice)
+	}
+
+	// Reset stock prices
+	log.Println("Starting stock price reset...")
+	err = h.stockRepo.ResetAllStockPrices()
+	if err != nil {
+		log.Printf("Error resetting stock prices: %v", err)
+		http.Error(w, fmt.Sprintf("Error resetting stock prices: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Verify that stocks were updated by reading them again
+	updatedStocks, err := h.stockRepo.GetAllStocks()
+	if err != nil {
+		log.Printf("Error getting updated stocks: %v", err)
+		// Continue anyway since we at least tried to reset
+	} else {
+		log.Printf("Found %d stocks after resetting prices", len(updatedStocks))
+		for _, s := range updatedStocks {
+			log.Printf("Stock after reset: %s (ID: %d) - Price: %.2f", s.Symbol, s.ID, s.CurrentPrice)
+		}
+	}
+
 	// Return success
-	response := map[string]string{
+	response := map[string]interface{}{
 		"message": "Stock prices reset successfully",
+		"success": true,
+		"timestamp": time.Now().String(),
+		"stocks_count": len(stocks),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
@@ -327,7 +357,7 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers first, before anything else
 	origin := r.Header.Get("Origin")
-	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
@@ -348,17 +378,23 @@ func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("Starting to clear all chat messages...")
+
 	// Clear chat messages
 	err := h.chatRepo.ClearAllMessages()
 	if err != nil {
 		log.Printf("Error clearing chat messages: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error clearing chat messages: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	log.Println("Successfully cleared all chat messages")
+
 	// Return success
-	response := map[string]string{
+	response := map[string]interface{}{
 		"message": "Chat messages cleared successfully",
+		"success": true,
+		"timestamp": time.Now().String(),
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)

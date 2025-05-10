@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"log"
+	"math/rand"
 	"time"
 
 	"officestonks/internal/models"
@@ -172,44 +174,49 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	
 	return stocks, nil
 }
-// ResetAllStockPrices resets all stock prices to their initial values
+
+// ResetAllStockPrices resets all stock prices to random values
 func (r *StockRepo) ResetAllStockPrices() error {
-	// This will reset all stock prices to their initial values in the database
-	// Assuming initial prices are stored in a separate table or have a default value
+	log.Println("ResetAllStockPrices: Starting to reset stock prices")
 	
-	// The SQL statement to reset prices to original values
-	// Using a transaction for atomicity
-	tx, err := r.db.Begin()
-	if err \!= nil {
+	// Initialize random seed
+	rand.Seed(time.Now().UnixNano())
+	
+	// Get all stocks
+	stocks, err := r.GetAllStocks()
+	if err != nil {
+		log.Printf("ResetAllStockPrices: Error getting stocks: %v", err)
 		return err
 	}
 	
-	// Option 1: Reset to the initial seed prices (assuming this is how your DB is set up)
-	query := `
-		UPDATE stocks
-		SET current_price = CASE
-			WHEN symbol = 'AAPL' THEN 150.00
-			WHEN symbol = 'MSFT' THEN 250.00
-			WHEN symbol = 'GOOGL' THEN 2500.00
-			WHEN symbol = 'AMZN' THEN 3000.00
-			WHEN symbol = 'META' THEN 300.00
-			WHEN symbol = 'TSLA' THEN 700.00
-			WHEN symbol = 'NFLX' THEN 550.00
-			WHEN symbol = 'NVDA' THEN 600.00
-			WHEN symbol = 'CRM' THEN 250.00
-			WHEN symbol = 'PYPL' THEN 280.00
-			ELSE current_price
-		END,
-		last_updated = ?
-	`
+	log.Printf("ResetAllStockPrices: Found %d stocks to reset", len(stocks))
 	
-	// Execute the update
-	_, err = tx.Exec(query, time.Now())
-	if err \!= nil {
-		tx.Rollback()
-		return err
+	// Update each stock individually with a random price
+	for _, stock := range stocks {
+		// Generate a random price between 50 and 1000
+		newPrice := 50.0 + rand.Float64()*950.0
+		
+		// Round to 2 decimal places
+		newPrice = float64(int(newPrice*100)) / 100
+		
+		log.Printf("ResetAllStockPrices: Updating %s price from %.2f to %.2f", 
+			stock.Symbol, stock.CurrentPrice, newPrice)
+		
+		// Update the stock price
+		updateQuery := `
+			UPDATE stocks
+			SET current_price = ?,
+				last_updated = ?
+			WHERE id = ?
+		`
+		
+		_, err := r.db.Exec(updateQuery, newPrice, time.Now(), stock.ID)
+		if err != nil {
+			log.Printf("ResetAllStockPrices: Error updating stock %s: %v", stock.Symbol, err)
+			return err
+		}
 	}
 	
-	// Commit the transaction
-	return tx.Commit()
+	log.Println("ResetAllStockPrices: Successfully reset all stock prices")
+	return nil
 }

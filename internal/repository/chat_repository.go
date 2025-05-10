@@ -105,23 +105,44 @@ func (r *ChatRepo) GetRecentMessages(limit int) ([]*models.ChatMessage, error) {
 }
 // ClearAllMessages clears all chat messages in the database
 func (r *ChatRepo) ClearAllMessages() error {
-	// Using a transaction for atomicity
-	tx, err := r.db.Begin()
-	if err \!= nil {
+	// First, count how many messages we have
+	var count int
+	countQuery := `SELECT COUNT(*) FROM chat_messages`
+	err := r.db.QueryRow(countQuery).Scan(&count)
+	if err != nil {
 		return err
 	}
-	
-	// Delete all messages
+
+	// Delete all messages directly without transaction
 	query := `DELETE FROM chat_messages`
-	
+
 	// Execute the delete
-	_, err = tx.Exec(query)
-	if err \!= nil {
-		tx.Rollback()
+	result, err := r.db.Exec(query)
+	if err != nil {
 		return err
 	}
-	
-	// Commit the transaction
-	return tx.Commit()
+
+	// Get affected rows
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	// Add a welcome message from system admin
+	if count > 0 {
+		// Find an admin user
+		var adminID int
+		adminQuery := `SELECT id FROM users WHERE is_admin = TRUE LIMIT 1`
+		err = r.db.QueryRow(adminQuery).Scan(&adminID)
+
+		if err == nil && adminID > 0 {
+			welcomeMessage := "Chat has been cleared by admin."
+			insertQuery := `INSERT INTO chat_messages (user_id, message) VALUES (?, ?)`
+			_, err = r.db.Exec(insertQuery, adminID, welcomeMessage)
+			// Ignore errors here, it's not critical
+		}
+	}
+
+	return nil
 }
 EOF < /dev/null
