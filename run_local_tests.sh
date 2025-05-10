@@ -5,7 +5,6 @@
 echo "=== Running Backend Tests ==="
 echo "Note: To run backend tests locally, you need Go installed and a MySQL database."
 echo "If you don't have these, use 'run_tests.sh' with Docker instead."
-cd backend
 if command -v go &> /dev/null; then
     go test -v ./internal/tests/...
 else
@@ -13,7 +12,7 @@ else
 fi
 
 echo "=== Running Frontend Tests ==="
-cd ../frontend
+cd frontend
 if command -v npm &> /dev/null; then
     npm run test:ci
 else
