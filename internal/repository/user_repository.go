@@ -3,6 +3,8 @@ package repository
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"log"
 	"time"
 
 	"officestonks/internal/models"
@@ -267,3 +269,53 @@ func (r *UserRepo) DeleteUser(userID int) error {
 	// Commit the transaction
 	return tx.Commit()
 }
+// For debugging purposes:
+func (r *UserRepo) DebugIsUserAdmin(userID int) string {
+	log.Printf("Debug IsUserAdmin: Checking admin status for user %d", userID)
+	
+	// Try to get the user first
+	var user models.User
+	userQuery := `
+		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
+		FROM users
+		WHERE id = ?
+	`
+	err := r.db.QueryRow(userQuery, userID).Scan(
+		&user.ID,
+		&user.Username,
+		&user.PasswordHash,
+		&user.CashBalance,
+		&user.IsAdmin,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	
+	if err \!= nil {
+		if err == sql.ErrNoRows {
+			return fmt.Sprintf("User %d not found", userID)
+		}
+		return fmt.Sprintf("Error getting user %d: %v", userID, err)
+	}
+	
+	// Check the is_admin column directly
+	var isAdmin bool
+	adminQuery := `SELECT is_admin FROM users WHERE id = ?`
+	err = r.db.QueryRow(adminQuery, userID).Scan(&isAdmin)
+	
+	if err \!= nil {
+		return fmt.Sprintf("Error checking admin status for user %d: %v", userID, err)
+	}
+	
+	// Check database schema
+	var columnInfo string
+	schemaQuery := `SHOW COLUMNS FROM users WHERE Field = 'is_admin'`
+	err = r.db.QueryRow(schemaQuery).Scan(&columnInfo)
+	
+	if err \!= nil {
+		columnInfo = fmt.Sprintf("Error checking is_admin column: %v", err)
+	}
+	
+	return fmt.Sprintf("User %d: Username=%s, IsAdmin=%v (direct query: %v), Column info: %s", 
+		userID, user.Username, user.IsAdmin, isAdmin, columnInfo)
+}
+EOF < /dev/null

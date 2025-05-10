@@ -58,24 +58,35 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
 	userID, ok := r.Context().Value("userID").(int)
+	log.Printf("GetAdminStatus: userID from context: %v, ok: %v", userID, ok)
+
 	if !ok {
+		log.Printf("GetAdminStatus: No userID in context")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
+
+	// Debug admin status
+	debugInfo := h.userRepo.DebugIsUserAdmin(userID)
+	log.Printf("GetAdminStatus: Debug info: %s", debugInfo)
+
 	// Check if user is admin
 	isAdmin, err := h.userRepo.IsUserAdmin(userID)
+	log.Printf("GetAdminStatus: User %d, isAdmin: %v, err: %v", userID, isAdmin, err)
+
 	if err != nil {
 		log.Printf("Error checking admin status: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Return admin status
 	response := map[string]bool{
 		"isAdmin": isAdmin,
 	}
-	
+
+	log.Printf("GetAdminStatus: Returning response for user %d: %v", userID, response)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
