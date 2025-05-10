@@ -2,7 +2,7 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "nixpacks",
-    "buildCommand": "cd ../frontend && npm install && npm run build && cp -r build/* ../frontend-deploy/public/"
+    "buildCommand": "npm run build"
   },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Frontend for Office Stonks app",
   "scripts": {
-    "build": "mkdir -p public && cd ../frontend && npm install && npm run build && cp -r build/* ../frontend-deploy/public/"
+    "build": "mkdir -p public && echo '<!DOCTYPE html><html><head><meta http-equiv=\"refresh\" content=\"0;url=https://web-copy-production-5b48.up.railway.app\"></head><body><p>Redirecting to the API...</p></body></html>' > public/index.html"
   },
   "engines": {
     "node": ">=16"
