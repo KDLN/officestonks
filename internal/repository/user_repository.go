@@ -183,36 +183,53 @@ func (r *UserRepo) IsUserAdmin(userID int) (bool, error) {
 
 // GetAllUsers gets all users in the system
 func (r *UserRepo) GetAllUsers() ([]*models.User, error) {
+	log.Println("GetAllUsers: Fetching all users from database")
+
 	query := `
 		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
 		FROM users
 		ORDER BY id ASC
 	`
 
+	log.Println("GetAllUsers: Executing query:", query)
 	rows, err := r.db.Query(query)
 	if err != nil {
+		log.Printf("GetAllUsers: Error executing query: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	var users []*models.User
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
 		var user models.User
+		var isAdmin sql.NullBool // Handle NULL values in is_admin column
+
 		err := rows.Scan(
 			&user.ID,
 			&user.Username,
 			&user.PasswordHash,
 			&user.CashBalance,
-			&user.IsAdmin,
+			&isAdmin,
 			&user.CreatedAt,
 			&user.UpdatedAt,
 		)
 		if err != nil {
+			log.Printf("GetAllUsers: Error scanning row %d: %v", rowCount, err)
 			return nil, err
 		}
+
+		// Convert NullBool to bool (false if NULL)
+		user.IsAdmin = isAdmin.Valid && isAdmin.Bool
+
+		log.Printf("GetAllUsers: Found user id=%d, username=%s, isAdmin=%v, cashBalance=%v",
+			user.ID, user.Username, user.IsAdmin, user.CashBalance)
+
 		users = append(users, &user)
 	}
 
+	log.Printf("GetAllUsers: Found %d users", len(users))
 	return users, nil
 }
 

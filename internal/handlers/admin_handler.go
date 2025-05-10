@@ -142,41 +142,71 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers first, before anything else
 	origin := r.Header.Get("Origin")
-	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Use wildcard for debugging
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 
 	// Log request details for debugging
 	log.Printf("GetAllUsers called with method: %s from origin: %s", r.Method, origin)
+	log.Printf("GetAllUsers: Request headers: %v", r.Header)
+
+	// Debug User ID and Admin Status
+	userID, ok := r.Context().Value("userID").(int)
+	if ok {
+		log.Printf("GetAllUsers: User ID from context: %d", userID)
+		isAdmin, err := h.userRepo.IsUserAdmin(userID)
+		if err != nil {
+			log.Printf("GetAllUsers: Error checking admin status: %v", err)
+		} else {
+			log.Printf("GetAllUsers: User is admin: %v", isAdmin)
+		}
+	} else {
+		log.Printf("GetAllUsers: No user ID in context")
+	}
 
 	// Handle OPTIONS preflight
 	if r.Method == "OPTIONS" {
+		log.Printf("GetAllUsers: Handling OPTIONS preflight request")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
+	// Get all users
+	log.Printf("GetAllUsers: Fetching users from repository")
 	users, err := h.userRepo.GetAllUsers()
 	if err != nil {
-		log.Printf("Error getting all users: %v", err)
+		log.Printf("GetAllUsers: Error getting all users: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
+	log.Printf("GetAllUsers: Repository returned %d users", len(users))
+
 	w.Header().Set("Content-Type", "application/json")
 
 	// Make sure valid JSON is sent
-	if users == nil {
+	if users == nil || len(users) == 0 {
+		log.Printf("GetAllUsers: No users found, returning empty array")
 		// Return empty array instead of null
 		w.Write([]byte("[]"))
 		return
 	}
 
+	// Debug user data
+	for i, user := range users {
+		log.Printf("GetAllUsers: User[%d]: id=%d, username=%s, isAdmin=%v",
+			i, user.ID, user.Username, user.IsAdmin)
+	}
+
+	// Encode the response
+	log.Printf("GetAllUsers: Encoding %d users to JSON", len(users))
 	err = json.NewEncoder(w).Encode(users)
 	if err != nil {
-		log.Printf("Error encoding users: %v", err)
+		log.Printf("GetAllUsers: Error encoding users: %v", err)
 		// Return empty array in case of encoding error
 		w.Write([]byte("[]"))
+	} else {
+		log.Printf("GetAllUsers: Successfully encoded and sent users")
 	}
 }
 
