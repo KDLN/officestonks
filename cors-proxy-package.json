@@ -1,0 +1,19 @@
+{
+  "name": "officestonks-cors-proxy",
+  "version": "2.0.0",
+  "description": "CORS proxy for OfficeStonks admin API",
+  "main": "cors-proxy.js",
+  "scripts": {
+    "start": "node cors-proxy.js",
+    "dev": "nodemon cors-proxy.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6",
+    "morgan": "^1.10.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}
