@@ -1,0 +1,15 @@
+{
+  "name": "ultra-simple-cors-proxy",
+  "version": "1.0.0",
+  "description": "Ultra simple CORS proxy for OfficeStonks",
+  "main": "ultra-simple-proxy.js",
+  "engines": {
+    "node": "18.x"
+  },
+  "scripts": {
+    "start": "node ultra-simple-proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
