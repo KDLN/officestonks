@@ -16,4 +16,23 @@ fi
 
 # Execute the server binary
 echo "Starting the API server..."
-exec /app/bin/server
+echo "Checking if server binary exists..."
+if [ -f "/app/bin/server" ]; then
+  echo "✅ Server binary found at /app/bin/server"
+  exec /app/bin/server
+elif [ -f "./bin/server" ]; then
+  echo "✅ Server binary found at ./bin/server"
+  exec ./bin/server
+elif [ -f "./server" ]; then
+  echo "✅ Server binary found at ./server"
+  exec ./server
+else
+  echo "❌ ERROR: Server binary not found!"
+  echo "Available files in current directory:"
+  ls -la
+  echo "Available files in /app:"
+  ls -la /app || echo "Cannot access /app"
+  echo "Available files in /app/bin:"
+  ls -la /app/bin || echo "Cannot access /app/bin"
+  exit 1
+fi

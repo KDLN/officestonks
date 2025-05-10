@@ -15,7 +15,14 @@ ENV GOOS=linux
 # Check go.mod content
 RUN cat go.mod
 
-# Download dependencies with verbose output
+# Download dependencies explicitly first
+RUN go get github.com/dgrijalva/jwt-go
+RUN go get github.com/go-sql-driver/mysql
+RUN go get github.com/gorilla/mux
+RUN go get github.com/gorilla/websocket
+RUN go get golang.org/x/crypto/argon2
+
+# Download all dependencies with verbose output
 RUN go mod tidy -v && go mod download -x
 
 # Copy source code
@@ -36,16 +43,11 @@ RUN go version && go env
 # List cmd/api contents to verify files exist
 RUN ls -la cmd/api/
 
-# Build with detailed debugging
-RUN go build -v -x -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go || \
-    (echo "===== BUILD FAILED ====="; \
-     echo "Directory structure:"; \
-     find . -type f -name "*.go" | sort; \
-     echo "===== import errors ====="; \
-     go build -v ./cmd/api/main.go 2>&1 | grep "import"; \
-     echo "===== main.go content ====="; \
-     cat cmd/api/main.go; \
-     exit 1)
+# Try building with more debugging and verification
+RUN echo "Checking go.mod before build..." && cat go.mod && \
+    echo "Verifying module paths..." && go list -m all && \
+    echo "Building with detailed output..." && \
+    go build -v -x -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
 
 # Use a tiny alpine image for the final container
 FROM alpine:3.16
