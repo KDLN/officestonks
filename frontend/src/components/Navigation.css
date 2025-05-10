@@ -37,6 +37,16 @@
   background-color: #34495e;
 }
 
+.admin-link {
+  background-color: #e74c3c;
+  color: white;
+  font-weight: bold;
+}
+
+.admin-link:hover {
+  background-color: #c0392b !important;
+}
+
 .logout-button {
   background: none;
   border: 1px solid white;
