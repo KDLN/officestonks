@@ -1,2 +1,3 @@
 #!/bin/sh
-/app/api
+# Simple startup script - redirects to the main start-server.sh
+exec /app/start-server.sh

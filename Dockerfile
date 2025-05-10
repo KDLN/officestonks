@@ -34,12 +34,13 @@ COPY --from=builder /app/bin/api /app/api
 # Copy schema for initialization
 COPY schema.sql /app/schema.sql
 COPY start.sh /app/start.sh
+COPY start-server.sh /app/start-server.sh
 
 # Make files executable
-RUN chmod +x /app/api /app/start.sh
+RUN chmod +x /app/api /app/start.sh /app/start-server.sh
 
 # Expose port
 EXPOSE 8080
 
 # Run the start script
-ENTRYPOINT ["/app/start.sh"]
+ENTRYPOINT ["/app/start-server.sh"]
