@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CORS Debug Tool</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      color: #333;
+    }
+    .panel {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+    button {
+      padding: 8px 12px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    input, select {
+      padding: 8px;
+      width: 100%;
+      margin: 5px 0 15px;
+      box-sizing: border-box;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 10px;
+      overflow: auto;
+      border-radius: 4px;
+    }
+    .success {
+      color: green;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>CORS Debug Tool</h1>
+  <p>This tool helps test different aspects of CORS functionality for the OfficeStonks API proxy.</p>
+  
+  <div class="panel">
+    <h2>Request Configuration</h2>
+    <div>
+      <label for="proxy-url">Proxy URL:</label>
+      <input type="text" id="proxy-url" value="https://officestonks-cors-proxy.up.railway.app">
+    </div>
+    
+    <div>
+      <label for="endpoint">Endpoint:</label>
+      <select id="endpoint">
+        <option value="/health">Health Check</option>
+        <option value="/cors-test">CORS Test</option>
+        <option value="/admin-test">Admin Test</option>
+        <option value="/admin/users">Admin Users</option>
+        <option value="/admin/stocks/reset">Reset Stocks</option>
+        <option value="/admin/chat/clear">Clear Chat</option>
+      </select>
+    </div>
+    
+    <div>
+      <label for="method">HTTP Method:</label>
+      <select id="method">
+        <option value="GET">GET</option>
+        <option value="POST">POST</option>
+        <option value="OPTIONS">OPTIONS</option>
+      </select>
+    </div>
+    
+    <div>
+      <label for="token">JWT Token (for admin endpoints):</label>
+      <input type="text" id="token" placeholder="eyJhbGciOiJ...">
+    </div>
+    
+    <button onclick="sendRequest()">Send Request</button>
+  </div>
+  
+  <div class="panel">
+    <h2>Response</h2>
+    <div id="status"></div>
+    <h3>Headers:</h3>
+    <pre id="headers">No response yet</pre>
+    <h3>Body:</h3>
+    <pre id="response">No response yet</pre>
+  </div>
+  
+  <script>
+    async function sendRequest() {
+      const proxyUrl = document.getElementById('proxy-url').value;
+      const endpoint = document.getElementById('endpoint').value;
+      const method = document.getElementById('method').value;
+      const token = document.getElementById('token').value;
+      
+      let url = `${proxyUrl}${endpoint}`;
+      
+      // Add token as query parameter for admin endpoints
+      if (endpoint.startsWith('/admin') && token) {
+        url += `?token=${token}`;
+      }
+      
+      document.getElementById('status').innerHTML = `<p>Sending ${method} request to ${url}...</p>`;
+      
+      try {
+        // Use fetch with manual mode to see headers
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          mode: 'cors'
+        });
+        
+        // Display response status
+        const statusElement = document.getElementById('status');
+        if (response.ok) {
+          statusElement.innerHTML = `<p class="success">Status: ${response.status} ${response.statusText}</p>`;
+        } else {
+          statusElement.innerHTML = `<p class="error">Status: ${response.status} ${response.statusText}</p>`;
+        }
+        
+        // Display headers
+        const headers = {};
+        response.headers.forEach((value, key) => {
+          headers[key] = value;
+        });
+        document.getElementById('headers').textContent = JSON.stringify(headers, null, 2);
+        
+        // Display response body if possible
+        try {
+          const data = await response.json();
+          document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+          const text = await response.text();
+          document.getElementById('response').textContent = text || '(empty body)';
+        }
+        
+      } catch (error) {
+        document.getElementById('status').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        document.getElementById('headers').textContent = 'No headers (CORS error)';
+        document.getElementById('response').textContent = 'Failed to fetch. Check console for details.';
+        console.error('Request failed:', error);
+      }
+    }
+  </script>
+</body>
+</html>

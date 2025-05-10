@@ -1,23 +1,16 @@
-FROM golang:1.20
+FROM node:16-alpine
 
 WORKDIR /app
 
-# Copy entire repo
-COPY . .
+# Copy package.json and install dependencies
+COPY simple-package.json ./package.json
+RUN npm install
 
-# Force rebuild every time
-RUN ls -la
+# Copy application code
+COPY simple-cors-proxy.js ./
 
-# Install missing packages
-RUN go get -u github.com/dgrijalva/jwt-go
-RUN go get -u github.com/go-sql-driver/mysql
-RUN go get -u github.com/gorilla/mux
-RUN go get -u github.com/gorilla/websocket
-RUN go get -u golang.org/x/crypto/argon2
-RUN go get -u golang.org/x/crypto
+# Expose port
+EXPOSE 3001
 
-# Build with full debugging
-RUN GOOS=linux CGO_ENABLED=0 go build -v ./cmd/api/main.go
-
-# Run the application
-CMD ["./main"]
+# Start the server
+CMD ["node", "simple-cors-proxy.js"]

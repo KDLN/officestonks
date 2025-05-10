@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CORS Test</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+    button { padding: 10px; margin: 5px; cursor: pointer; }
+    pre { background: #f5f5f5; padding: 10px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>CORS Proxy Test</h1>
+  
+  <div>
+    <label for="proxy-url">Proxy URL:</label>
+    <input type="text" id="proxy-url" value="https://officestonks-cors-proxy.up.railway.app" style="width: 350px;">
+  </div>
+  
+  <div>
+    <label for="token">JWT Token:</label>
+    <input type="text" id="token" style="width: 350px;">
+  </div>
+  
+  <h2>Test Endpoints</h2>
+  <div>
+    <button onclick="testHealth()">Test Health</button>
+    <button onclick="testCorsTest()">Test CORS Test</button>
+    <button onclick="testAdminUsers()">Test Admin Users</button>
+  </div>
+  
+  <h2>Results</h2>
+  <pre id="results">Results will appear here...</pre>
+
+  <script>
+    function showResult(title, data) {
+      const results = document.getElementById('results');
+      results.textContent = `${title}\n\n${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}`;
+    }
+
+    function handleError(title, error) {
+      showResult(title, `Error: ${error.message}\n\nTry opening the browser console for more details.`);
+      console.error(error);
+    }
+
+    async function testHealth() {
+      try {
+        const proxyUrl = document.getElementById('proxy-url').value;
+        const response = await fetch(`${proxyUrl}/health`);
+        const data = await response.json();
+        showResult('Health Check Results:', data);
+      } catch (error) {
+        handleError('Health Check Failed:', error);
+      }
+    }
+
+    async function testCorsTest() {
+      try {
+        const proxyUrl = document.getElementById('proxy-url').value;
+        const response = await fetch(`${proxyUrl}/cors-test`);
+        const data = await response.json();
+        showResult('CORS Test Results:', data);
+      } catch (error) {
+        handleError('CORS Test Failed:', error);
+      }
+    }
+
+    async function testAdminUsers() {
+      try {
+        const proxyUrl = document.getElementById('proxy-url').value;
+        const token = document.getElementById('token').value;
+        
+        if (!token) {
+          showResult('Admin Users Test:', 'Please enter a JWT token first');
+          return;
+        }
+
+        showResult('Admin Users Test:', 'Sending request...');
+        
+        const response = await fetch(`${proxyUrl}/admin/users?token=${token}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        showResult('Admin Users Results:', data);
+      } catch (error) {
+        handleError('Admin Users Test Failed:', error);
+      }
+    }
+  </script>
+</body>
+</html>

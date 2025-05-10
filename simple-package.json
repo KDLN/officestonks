@@ -1,0 +1,14 @@
+{
+  "name": "officestonks-simple-cors-proxy",
+  "version": "1.0.0",
+  "description": "Simple CORS proxy for OfficeStonks admin API",
+  "main": "simple-cors-proxy.js",
+  "scripts": {
+    "start": "node simple-cors-proxy.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6"
+  }
+}

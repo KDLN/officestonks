@@ -72,3 +72,51 @@ railway link
 # Deploy
 railway up
 ```
+
+# CORS Proxy Deployment
+
+This section covers how to deploy the simplified CORS proxy for admin API endpoints.
+
+## Prerequisites
+
+- Railway account
+- Access to the officestonks repository
+
+## Deployment Steps
+
+1. Ensure you have the following files in your repository:
+   - `simple-cors-proxy.js`: The main proxy server code
+   - `simple-package.json`: Dependencies for the proxy
+   - `Dockerfile.simple`: Docker configuration for the proxy
+
+2. Create a new service in your Railway project:
+   - Go to the Railway dashboard
+   - Select "New Service" and choose "Deploy from Repo"
+   - Select your repository
+
+3. Configure the service:
+   - Build Command: `cp simple-package.json package.json && npm install`
+   - Start Command: `node simple-cors-proxy.js`
+
+4. Set these environment variables:
+   - `PORT`: 3001 (Railway will override this)
+   - `API_BASE_URL`: `https://web-production-1e26.up.railway.app`
+
+5. Click "Deploy"
+
+## Testing the CORS Proxy
+
+After deployment:
+
+1. Use the `cors-debug.html` tool to verify the proxy is working
+2. Test all endpoints, especially the admin endpoints
+3. Check that OPTIONS preflight requests are handled correctly
+
+## Troubleshooting
+
+If you encounter CORS issues:
+
+1. Check the Railway logs for detailed error information
+2. Verify that the CORS headers are being set correctly in responses
+3. Test OPTIONS requests directly to confirm proper preflight handling
+4. Make sure the backend API URL is correct and accessible
