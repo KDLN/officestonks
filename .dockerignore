@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Development
+node_modules
+frontend/node_modules
+frontend/build
+.env
+.env.local
+
+# Docker
+docker/
+Dockerfile*
+docker-compose*
+
+# Documentation
+README.md
+*.md
+
+# Backup files
+backup/
+
+# Old backend structure
+backend/
+
+# Temporary files
+*.log
+*.tmp

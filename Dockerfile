@@ -1,83 +1,22 @@
-# Use a minimal golang alpine image to build the app
-FROM golang:1.20-alpine AS builder
+FROM debian:bullseye-slim
 
-# Set working directory
+# Install necessary tools
+RUN apt-get update && apt-get install -y ca-certificates default-mysql-client && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Copy go mod and sum files
-COPY go.mod go.sum ./
-
-# Set environment variables for Go
-ENV GO111MODULE=on
-ENV CGO_ENABLED=0
-ENV GOOS=linux
-
-# Check go.mod content
-RUN cat go.mod
-
-# Download dependencies explicitly first
-RUN go get github.com/dgrijalva/jwt-go
-RUN go get github.com/go-sql-driver/mysql
-RUN go get github.com/gorilla/mux
-RUN go get github.com/gorilla/websocket
-RUN go get golang.org/x/crypto/argon2
-
-# Download all dependencies with verbose output
-RUN go mod tidy -v && go mod download -x
-
-# Copy source code
-COPY cmd/ ./cmd/
-COPY internal/ ./internal/
-COPY pkg/ ./pkg/
-COPY schema.sql ./schema.sql
-
-# Add debugging to see the environment
-RUN pwd && ls -la && ls -la cmd/api/
-
-# Show environment and list files before building
-RUN echo "Current directory: $(pwd)" && ls -la
-
-# Check Go version and environment
-RUN go version && go env
-
-# List cmd/api contents to verify files exist
-RUN ls -la cmd/api/
-
-# Try building with more debugging and verification
-RUN echo "Checking go.mod before build..." && cat go.mod && \
-    echo "Verifying module paths..." && go list -m all && \
-    echo "Building with detailed output..." && \
-    go build -v -x -a -ldflags '-extldflags "-static"' -o /app/bin/server ./cmd/api/main.go
-
-# Use a tiny alpine image for the final container
-FROM alpine:3.16
-
-# Install CA certificates and MySQL client for database operations
-RUN apk --no-cache add ca-certificates mysql-client
-
-# Set working directory
-WORKDIR /app
-
-# Copy the binary from builder stage
-COPY --from=builder /app/bin/server /app/bin/server
-
-# Copy schema and scripts - using absolute paths to be explicit
+# Copy pre-built binary and required files
+COPY ./server /app/server
 COPY ./schema.sql /app/schema.sql
 COPY ./start.sh /app/start.sh
 COPY ./start-server.sh /app/start-server.sh
 COPY ./init-db.sh /app/init-db.sh
 
-# Debug: list files to verify they exist
-RUN ls -la /app/
-
-# Make files executable
-RUN chmod +x /app/bin/server /app/start.sh /app/start-server.sh /app/init-db.sh
-
-# Debug: verify permissions
-RUN ls -la /app/
+# Make all scripts executable
+RUN chmod +x /app/server /app/start.sh /app/start-server.sh /app/init-db.sh
 
 # Expose port
 EXPOSE 8080
 
-# Run the start script
-ENTRYPOINT ["/app/start.sh"]
+# Run the server directly
+CMD ["/app/server"]
