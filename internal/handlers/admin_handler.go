@@ -29,49 +29,74 @@ func NewAdminHandler(userRepo models.UserRepository, stockRepo models.StockRepos
 // AdminOnly middleware checks if the user is an admin
 func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Always set CORS headers for admin endpoints
+		// CRITICAL: Set CORS headers immediately, at the very top
 		origin := r.Header.Get("Origin")
-		if origin != "" {
+
+		// Always allow the production frontend origin unconditionally
+		if origin == "https://officestonks-frontend-production.up.railway.app" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+		} else if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
+
+		// Set all other CORS headers
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+		// Log all request details for debugging
+		log.Printf("AdminOnly middleware: Method=%s Path=%s Origin=%s",
+			r.Method, r.URL.Path, r.Header.Get("Origin"))
 
 		// Handle OPTIONS preflight requests immediately
 		if r.Method == "OPTIONS" {
+			log.Printf("AdminOnly: Responding to OPTIONS preflight request")
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// Check for token parameter in URL for GET requests
-		if r.Method == "GET" && r.URL.Query().Get("token") != "" {
+		// Check for token parameter in URL for all requests
+		if r.URL.Query().Get("token") != "" {
 			token := r.URL.Query().Get("token")
+			tokenPrefix := token
+			if len(token) > 10 {
+				tokenPrefix = token[:10] + "..."
+			}
 			r.Header.Set("Authorization", "Bearer "+token)
-			log.Printf("Added token from URL parameter: %s", token[:10]+"...")
+			log.Printf("AdminOnly: Added token from URL parameter: %s", tokenPrefix)
 		}
 
 		// Get user ID from context (set by auth middleware)
 		userID, ok := r.Context().Value("userID").(int)
+		log.Printf("AdminOnly: UserID from context: %v, ok: %v", userID, ok)
+
 		if !ok {
+			log.Printf("AdminOnly: No userID in context, responding with 401")
+			// Add CORS headers to error response
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		// Check if user is admin
 		isAdmin, err := h.userRepo.IsUserAdmin(userID)
+		log.Printf("AdminOnly: User %d isAdmin=%v, err=%v", userID, isAdmin, err)
+
 		if err != nil {
-			log.Printf("Error checking admin status: %v", err)
+			log.Printf("AdminOnly: Error checking admin status: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
 		if !isAdmin {
+			log.Printf("AdminOnly: User %d is not an admin, responding with 403", userID)
 			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
 			return
 		}
 
 		// User is admin, proceed
+		log.Printf("AdminOnly: User %d authorized as admin, proceeding", userID)
 		next(w, r)
 	}
 }
@@ -115,21 +140,27 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 
 // GetAllUsers returns all users in the system (admin only)
 func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
-	// Log request method for debugging
-	log.Printf("GetAllUsers called with method: %s, Origin: %s", r.Method, r.Header.Get("Origin"))
+	// Set CORS headers first, before anything else
+	origin := r.Header.Get("Origin")
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Log request details for debugging
+	log.Printf("GetAllUsers called with method: %s from origin: %s", r.Method, origin)
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
 	users, err := h.userRepo.GetAllUsers()
 	if err != nil {
 		log.Printf("Error getting all users: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
-	}
-
-	// Ensure proper CORS headers are set
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -223,10 +254,23 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // ResetStockPrices resets all stock prices to their initial values (admin only)
 func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) {
-	// Log request method for debugging
-	log.Printf("ResetStockPrices called with method: %s", r.Method)
+	// Set CORS headers first, before anything else
+	origin := r.Header.Get("Origin")
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 
-	// Handle both GET and POST methods
+	// Log request details for debugging
+	log.Printf("ResetStockPrices called with method: %s from origin: %s", r.Method, origin)
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Handle both GET and POST methods (but reject others)
 	if r.Method != "GET" && r.Method != "POST" {
 		log.Printf("Invalid method for ResetStockPrices: %s", r.Method)
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -246,17 +290,28 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 		"message": "Stock prices reset successfully",
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	json.NewEncoder(w).Encode(response)
 }
 
 // ClearAllChats clears all chat messages (admin only)
 func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
-	// Log request method for debugging
-	log.Printf("ClearAllChats called with method: %s", r.Method)
+	// Set CORS headers first, before anything else
+	origin := r.Header.Get("Origin")
+	w.Header().Set("Access-Control-Allow-Origin", origin)
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 
-	// Handle both GET and POST methods
+	// Log request details for debugging
+	log.Printf("ClearAllChats called with method: %s from origin: %s", r.Method, origin)
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Handle both GET and POST methods (but reject others)
 	if r.Method != "GET" && r.Method != "POST" {
 		log.Printf("Invalid method for ClearAllChats: %s", r.Method)
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -276,7 +331,5 @@ func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 		"message": "Chat messages cleared successfully",
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	json.NewEncoder(w).Encode(response)
 }
