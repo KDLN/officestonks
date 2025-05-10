@@ -1,0 +1,15 @@
+{
+  "name": "allow-all-cors-proxy-commonjs",
+  "version": "1.0.0",
+  "description": "A CORS proxy that allows absolutely everything (CommonJS)",
+  "main": "allow-all-proxy-commonjs.js",
+  "scripts": {
+    "start": "node allow-all-proxy-commonjs.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=12.x"
+  }
+}
