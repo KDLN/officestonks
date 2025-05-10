@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   cash_balance DECIMAL(15,2) DEFAULT 10000.00,
+  is_admin BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -76,6 +77,10 @@ INSERT IGNORE INTO stocks (symbol, name, sector, current_price) VALUES
 ('DIS', 'The Walt Disney Company', 'Entertainment', 185.00),
 ('NFLX', 'Netflix, Inc.', 'Entertainment', 580.00),
 ('PFE', 'Pfizer Inc.', 'Healthcare', 42.00);
+
+-- Add default admin user (password is 'admin123')
+INSERT IGNORE INTO users (username, password_hash, cash_balance, is_admin) VALUES
+('admin', '$2a$10$l6jzERQJiOVnWw8FN2qQw.fxJfZsXnuKNtGV.OU63s8SLsBJBvvV2', 10000.00, 1);
 `
 
 // InitSchema initializes the database schema

@@ -18,8 +18,11 @@ func InitDB() (*sql.DB, error) {
 	// Check for Railway's MySQL environment variables first, then fallback to generic ones
 	username := getEnv("MYSQLUSER", getEnv("DB_USER", "root"))
 	password := getEnv("MYSQLPASSWORD", getEnv("DB_PASSWORD", "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE"))
-	host := getEnv("MYSQLHOST", getEnv("DB_HOST", "mysql.railway.internal"))
-	port := getEnv("MYSQLPORT", getEnv("DB_PORT", "3306"))
+
+	// Try to use the public MySQL URL if available
+	// Default to the public MySQL URL provided
+	host := getEnv("MYSQLHOST", getEnv("DB_HOST", "caboose.proxy.rlwy.net"))
+	port := getEnv("MYSQLPORT", getEnv("DB_PORT", "40558"))
 	dbname := getEnv("MYSQLDATABASE", getEnv("MYSQL_DATABASE", getEnv("DB_NAME", "railway")))
 
 	// Log database connection details (excluding password)
