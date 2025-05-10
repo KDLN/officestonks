@@ -6,6 +6,7 @@ CREATE TABLE users (
   username VARCHAR(50) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   cash_balance DECIMAL(15,2) DEFAULT 10000.00,
+  is_admin BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -65,3 +66,12 @@ INSERT INTO stocks (symbol, name, sector, current_price) VALUES
 ('DIS', 'The Walt Disney Company', 'Entertainment', 185.00),
 ('NFLX', 'Netflix, Inc.', 'Entertainment', 580.00),
 ('PFE', 'Pfizer Inc.', 'Healthcare', 42.00);
+
+-- Insert admin user if it doesn't exist - password is 'admin123'
+INSERT INTO users (username, password_hash, cash_balance, is_admin)
+SELECT 'admin', '$2a$10$JdvU7xXL6eLAC1ped9bY5.RMRxgNUT1Dg.Bh3ZJxXmVvIyAOKHYQu', 10000.00, TRUE
+FROM dual
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
+
+-- In case the admin user exists but doesn't have admin flag
+UPDATE users SET is_admin = TRUE WHERE username = 'admin';

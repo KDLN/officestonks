@@ -21,8 +21,9 @@ echo "  (Password hidden for security)"
 echo "Available environment variables:"
 env | grep -E "MYSQL|DB_" | grep -v PASSWORD | grep -v SECRET
 
-# Set schema path
+# Set schema paths
 SCHEMA_PATH="/app/schema.sql"
+UPDATE_SCHEMA_PATH="/app/update-schema.sql"
 
 # For Railway, we need to use the most basic connection parameters
 echo "Using basic connection parameters for maximum compatibility"
@@ -44,7 +45,27 @@ echo "Current tables in database: $TABLES"
 
 # Attempt to create tables if needed
 if echo "$TABLES" | grep -q "stocks"; then
-  echo "✅ Database tables already exist, skipping initialization."
+  echo "✅ Database tables already exist, skipping full initialization."
+  echo "🔄 Applying schema updates..."
+
+  # Always run the update schema for existing databases
+  if [ -f "$UPDATE_SCHEMA_PATH" ]; then
+    echo "Found update schema at $UPDATE_SCHEMA_PATH"
+    if eval $MYSQL_CMD "$DB_NAME" < $UPDATE_SCHEMA_PATH; then
+      echo "✅ Schema updates applied successfully."
+    else
+      echo "⚠️ Schema updates encountered issues."
+    fi
+  elif [ -f "./update-schema.sql" ]; then
+    echo "Found update schema in current directory"
+    if eval $MYSQL_CMD "$DB_NAME" < ./update-schema.sql; then
+      echo "✅ Schema updates applied successfully."
+    else
+      echo "⚠️ Schema updates encountered issues."
+    fi
+  else
+    echo "⚠️ Update schema file not found."
+  fi
 else
   echo "🔄 Initializing database schema..."
   if eval $MYSQL_CMD "$DB_NAME" < $SCHEMA_PATH; then
@@ -57,28 +78,6 @@ else
   fi
 fi
 
-# Apply admin schema update
-ADMIN_SCHEMA_PATH="/app/admin-schema-update-mysql.sql"
-echo "🔄 Applying admin schema update..."
-if [ -f "$ADMIN_SCHEMA_PATH" ]; then
-  if eval $MYSQL_CMD "$DB_NAME" < $ADMIN_SCHEMA_PATH; then
-    echo "✅ Admin schema update applied successfully."
-  else
-    echo "⚠️ Admin schema update encountered issues."
-  fi
-else
-  echo "⚠️ Admin schema update file not found at $ADMIN_SCHEMA_PATH."
-  # Try local path
-  if [ -f "./admin-schema-update-mysql.sql" ]; then
-    echo "Found admin schema update in current directory, applying..."
-    if eval $MYSQL_CMD "$DB_NAME" < ./admin-schema-update-mysql.sql; then
-      echo "✅ Admin schema update applied successfully."
-    else
-      echo "⚠️ Admin schema update encountered issues."
-    fi
-  else
-    echo "⚠️ Admin schema update file not found in current directory."
-  fi
-fi
+# We now handle admin schema updates directly in the update-schema.sql file
 
 echo "✅ Database initialization complete."
