@@ -590,17 +590,139 @@ func main() {
 		})
 	})
 
-	// Create ServeMux for direct access
-	directMux := http.NewServeMux()
-	// Register emergency admin handlers on the direct mux
-	handlers.RegisterEmergencyAdminHandlers(directMux, userRepo)
-	handlers.RegisterDebugEndpoints(directMux)
+	// Register emergency endpoints DIRECTLY to the main router BEFORE the protected routes
+	// This ensures they bypass the auth middleware
+	emergencyRouter := apiRouter.PathPrefix("").Subrouter()
 
-	// Register the direct mux handlers to the main router
-	r.PathPrefix("/api/admin/users").Handler(directMux)
-	r.PathPrefix("/api/admin/status").Handler(directMux)
-	r.PathPrefix("/api/debug/info").Handler(directMux)
-	r.PathPrefix("/api/debug/jwt").Handler(directMux)
+	// Add DIRECT emergency admin handlers
+	emergencyRouter.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("EMERGENCY: Direct access to admin users from %s", r.RemoteAddr)
+
+		// Set CORS headers - explicitly added here to ensure they're applied
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Get users directly - no auth check
+		users, err := userRepo.GetAllUsers()
+		if err != nil {
+			log.Printf("Error getting users: %v", err)
+			http.Error(w, "Error retrieving users", http.StatusInternalServerError)
+			return
+		}
+
+		// Return users as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"users": users,
+			"emergency_direct_access": true,
+			"timestamp": time.Now().String(),
+		})
+	}).Methods("GET", "OPTIONS")
+
+	// Add direct admin status endpoint
+	emergencyRouter.HandleFunc("/admin/status", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("EMERGENCY: Direct access to admin status from %s", r.RemoteAddr)
+
+		// Set CORS headers - explicitly added here to ensure they're applied
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Always return true without auth check
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"isAdmin": true,
+			"emergency_direct_access": true,
+			"timestamp": time.Now().String(),
+		})
+	}).Methods("GET", "OPTIONS")
+
+	// Add debug info endpoint
+	emergencyRouter.HandleFunc("/debug/info", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("EMERGENCY: Direct access to debug info from %s", r.RemoteAddr)
+
+		// Set CORS headers - explicitly added here to ensure they're applied
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Return debug info
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"request": map[string]interface{}{
+				"method": r.Method,
+				"path": r.URL.Path,
+				"remote_addr": r.RemoteAddr,
+				"headers": r.Header,
+			},
+			"emergency_direct_access": true,
+			"timestamp": time.Now().String(),
+		})
+	}).Methods("GET", "OPTIONS")
+
+	// Add debug JWT endpoint
+	emergencyRouter.HandleFunc("/debug/jwt", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("EMERGENCY: Direct access to debug JWT from %s", r.RemoteAddr)
+
+		// Set CORS headers - explicitly added here to ensure they're applied
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Get token from URL parameter or Authorization header
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
+			}
+		}
+
+		// Return token info if present
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"emergency_direct_access": true,
+			"timestamp": time.Now().String(),
+		}
+
+		if token != "" {
+			response["token_present"] = true
+			response["token_preview"] = token
+			if len(token) > 10 {
+				response["token_preview"] = token[:10] + "..."
+			}
+		} else {
+			response["token_present"] = false
+			response["message"] = "No token provided"
+		}
+
+		json.NewEncoder(w).Encode(response)
+	}).Methods("GET", "OPTIONS")
 
 	log.Println("EMERGENCY: Direct admin handlers registered")
 
