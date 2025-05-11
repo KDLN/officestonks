@@ -45,7 +45,8 @@ func InitDB() (*sql.DB, error) {
 
 	// Create connection string with SSL disabled for Railway
 	// Add allowNativePasswords=true and multiStatements=true for better compatibility
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true",
+	// Also add timeout, readTimeout and writeTimeout for better connection resilience
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
 		username, password, host, port, dbname)
 
 	// Open connection
@@ -56,10 +57,11 @@ func InitDB() (*sql.DB, error) {
 		return nil, err
 	}
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	// Set connection pool settings for reliability
+	db.SetMaxOpenConns(10)         // Reduce from 25 to prevent overwhelming the server
+	db.SetMaxIdleConns(5)          // Keep some connections idle for quick reuse
+	db.SetConnMaxLifetime(1 * time.Minute) // Shorter lifetime to refresh connections more often
+	db.SetConnMaxIdleTime(30 * time.Second) // Close idle connections after 30 seconds
 
 	// Check connection
 	log.Println("Pinging database to verify connection...")

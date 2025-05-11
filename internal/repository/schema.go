@@ -87,18 +87,18 @@ INSERT IGNORE INTO users (username, password_hash, cash_balance, is_admin) VALUE
 func InitSchema() error {
 	log.Println("Initializing database schema...")
 	
-	// Execute schema SQL
-	_, err := DB.Exec(schemaSQL)
+	// Execute schema SQL with retry
+	_, err := RetryExec(DB, schemaSQL)
 	if err != nil {
 		log.Printf("Error executing schema SQL: %v", err)
 		return err
 	}
-	
+
 	log.Println("Database schema created successfully.")
-	
-	// Check if stocks table has data
+
+	// Check if stocks table has data with retry
 	var count int
-	err = DB.QueryRow("SELECT COUNT(*) FROM stocks").Scan(&count)
+	err = RetryQueryRow(DB, "SELECT COUNT(*) FROM stocks").Scan(&count)
 	if err != nil {
 		log.Printf("Error checking stocks count: %v", err)
 		return err
@@ -107,7 +107,7 @@ func InitSchema() error {
 	// Only seed data if no stocks exist
 	if count == 0 {
 		log.Println("Seeding initial stock data...")
-		_, err = DB.Exec(seedDataSQL)
+		_, err = RetryExec(DB, seedDataSQL)
 		if err != nil {
 			log.Printf("Error seeding data: %v", err)
 			return err
