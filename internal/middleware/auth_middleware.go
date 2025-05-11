@@ -11,7 +11,7 @@ import (
 )
 
 // Key type for context values
-type ContextKey string
+type ContextKey string // Exported type
 
 // UserIDKey is the context key for the user ID
 const UserIDKey ContextKey = "userID"
@@ -79,7 +79,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusUnauthorized)
 				json.NewEncoder(w).Encode(map[string]string{
-					"error": "Unauthorized",
+					"error":   "Unauthorized",
 					"message": "Invalid authorization format",
 				})
 				return
@@ -94,9 +94,9 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Unauthorized",
+				"error":   "Unauthorized",
 				"message": "Authentication token required",
-				"path": r.URL.Path,
+				"path":    r.URL.Path,
 			})
 			return
 		}
@@ -108,7 +108,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Unauthorized",
+				"error":   "Unauthorized",
 				"message": "Invalid or expired token",
 				"details": err.Error(),
 			})
@@ -116,16 +116,26 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 		log.Printf("Auth middleware: Valid token for user ID %d", userID)
 
-		// Add the user ID to the request context
-		ctx := context.WithValue(r.Context(), UserIDKey, userID)
+		// Add the user ID to the request context using both keys for compatibility
+		ctx1 := context.WithValue(r.Context(), UserIDKey, userID)
+		ctx2 := context.WithValue(ctx1, "userID", userID) // Also add as string
+
+		// Log context values for debugging
+		log.Printf("Auth middleware: Added userID %d to context with both key types", userID)
 
 		// Call the next handler with the updated context
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r.WithContext(ctx2))
 	})
 }
 
 // GetUserID extracts the user ID from the request context
 func GetUserID(r *http.Request) (int, bool) {
-	userID, ok := r.Context().Value(UserIDKey).(int)
+	// First try with the typed key
+	if userID, ok := r.Context().Value(UserIDKey).(int); ok {
+		return userID, ok
+	}
+	
+	// Fallback to string key
+	userID, ok := r.Context().Value("userID").(int)
 	return userID, ok
 }
