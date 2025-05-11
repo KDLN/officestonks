@@ -33,22 +33,9 @@ func InitDB() (*sql.DB, error) {
 		password = "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE" // fallback
 	}
 
-	// Respect the environment variables exactly as provided
-	host := os.Getenv("MYSQLHOST")
-	if host == "" {
-		host = os.Getenv("DB_HOST")
-	}
-	if host == "" {
-		host = "mysql.railway.internal" // fallback
-	}
-
-	port := os.Getenv("MYSQLPORT")
-	if port == "" {
-		port = os.Getenv("DB_PORT")
-	}
-	if port == "" {
-		port = "3306" // fallback
-	}
+	// EXPLICITLY use the proxy URL for Railway
+	host := "caboose.proxy.rlwy.net"
+	port := "40558"
 
 	dbname := os.Getenv("MYSQLDATABASE")
 	if dbname == "" {
@@ -80,7 +67,8 @@ func InitDB() (*sql.DB, error) {
 		username, password, host, port, dbname)
 
 	// Open connection
-	log.Println("Opening database connection...")
+	log.Println("Opening database connection using PROXY URL...")
+	log.Printf("DSN Connection string: %s", dsn)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Error opening database connection: %v", err)
