@@ -19,10 +19,9 @@ func InitDB() (*sql.DB, error) {
 	username := getEnv("MYSQLUSER", getEnv("DB_USER", "root"))
 	password := getEnv("MYSQLPASSWORD", getEnv("DB_PASSWORD", "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE"))
 
-	// Try to use the public MySQL URL if available
-	// Default to the public MySQL URL provided
-	host := getEnv("MYSQLHOST", getEnv("DB_HOST", "caboose.proxy.rlwy.net"))
-	port := getEnv("MYSQLPORT", getEnv("DB_PORT", "40558"))
+	// ALWAYS use the public proxy URL, not the internal URL
+	host := "caboose.proxy.rlwy.net"
+	port := "40558"
 	dbname := getEnv("MYSQLDATABASE", getEnv("MYSQL_DATABASE", getEnv("DB_NAME", "railway")))
 
 	// Log database connection details (excluding password)
@@ -52,7 +51,8 @@ func InitDB() (*sql.DB, error) {
 		username, password, host, port, dbname)
 
 	// Open connection
-	log.Println("Opening database connection...")
+	log.Println("Opening database connection via PROXY URL...")
+	log.Printf("Connection string: %s:%s@tcp(%s:%s)/%s", username, "[PASSWORD]", host, port, dbname)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Printf("Error opening database connection: %v", err)
