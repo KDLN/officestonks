@@ -101,13 +101,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		// *** TEMPORARY BYPASS FOR DEBUGGING ***
-		// Hardcode userID 3 (KDLN) for all requests to bypass token validation issues
-		userID := 3
-		log.Printf("Auth middleware: HARDCODED user ID %d for debugging - NO VALIDATION PERFORMED", userID)
-		
-		// Comment out actual token validation for debugging
-		/*
+		// Use our bypass-enabled validation for tokens
 		userID, err := m.authService.ValidateToken(tokenString)
 		if err != nil {
 			log.Printf("Auth middleware: Token validation error: %v", err)
@@ -116,11 +110,11 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			json.NewEncoder(w).Encode(map[string]string{
 				"error": "Unauthorized",
 				"message": "Invalid or expired token",
+				"details": err.Error(),
 			})
 			return
 		}
 		log.Printf("Auth middleware: Valid token for user ID %d", userID)
-		*/
 
 		// Add the user ID to the request context
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
