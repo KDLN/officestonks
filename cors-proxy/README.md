@@ -1,10 +1,19 @@
 # OfficeStonks CORS Proxy
 
-A simple CORS proxy service for OfficeStonks that eliminates CORS issues between the frontend and backend.
+A comprehensive CORS proxy service for OfficeStonks that eliminates CORS issues between the frontend and backend.
 
 ## Overview
 
 This proxy service sits between your frontend and backend, handling CORS headers properly and forwarding requests to the backend service. It supports both regular HTTP requests and WebSocket connections.
+
+## Features
+
+- Complete CORS header management
+- WebSocket proxy support
+- Admin API endpoint handling
+- Bearer token forwarding
+- Detailed request logging
+- Health check endpoint
 
 ## How It Works
 
@@ -42,6 +51,7 @@ WebSocket connections will automatically be proxied through the `/ws` endpoint.
 - `/api/*` - Proxy for REST API calls
 - `/ws/*` - Proxy for WebSocket connections
 - `/health` - Health check endpoint
+- `/admin/*` - Admin API endpoints (automatically adds /api prefix)
 
 ## Local Development
 
@@ -56,4 +66,6 @@ npm run dev
 - Keeps your API secure
 - Easy to deploy on Railway
 - Works with both HTTP and WebSocket connections
+- Handles authentication token forwarding
+- Detailed logging for debugging
 - Minimal configuration required
