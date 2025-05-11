@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	
 	"officestonks/internal/models"
 )
@@ -113,10 +115,6 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Debug admin status
-	debugInfo := h.userRepo.DebugIsUserAdmin(userID)
-	log.Printf("GetAdminStatus: Debug info: %s", debugInfo)
-
 	// Check if user is admin
 	isAdmin, err := h.userRepo.IsUserAdmin(userID)
 	log.Printf("GetAdminStatus: User %d, isAdmin: %v, err: %v", userID, isAdmin, err)
@@ -148,145 +146,172 @@ func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 
 	// Log request details for debugging
 	log.Printf("GetAllUsers called with method: %s from origin: %s", r.Method, origin)
-	log.Printf("GetAllUsers: Request headers: %v", r.Header)
-
-	// Debug User ID and Admin Status
-	userID, ok := r.Context().Value("userID").(int)
-	if ok {
-		log.Printf("GetAllUsers: User ID from context: %d", userID)
-		isAdmin, err := h.userRepo.IsUserAdmin(userID)
-		if err != nil {
-			log.Printf("GetAllUsers: Error checking admin status: %v", err)
-		} else {
-			log.Printf("GetAllUsers: User is admin: %v", isAdmin)
-		}
-	} else {
-		log.Printf("GetAllUsers: No user ID in context")
-	}
 
 	// Handle OPTIONS preflight
 	if r.Method == "OPTIONS" {
-		log.Printf("GetAllUsers: Handling OPTIONS preflight request")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// Get all users
-	log.Printf("GetAllUsers: Fetching users from repository")
+	// Get all users from the repository
+	log.Println("Getting all users from repository...")
 	users, err := h.userRepo.GetAllUsers()
 	if err != nil {
-		log.Printf("GetAllUsers: Error getting all users: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		log.Printf("Error getting users: %v", err)
+		http.Error(w, "Error retrieving users", http.StatusInternalServerError)
 		return
 	}
 
-	log.Printf("GetAllUsers: Repository returned %d users", len(users))
+	log.Printf("Found %d users", len(users))
 
+	// Return the users as JSON
 	w.Header().Set("Content-Type", "application/json")
-
-	// Make sure valid JSON is sent
-	if users == nil || len(users) == 0 {
-		log.Printf("GetAllUsers: No users found, returning empty array")
-		// Return empty array instead of null
-		w.Write([]byte("[]"))
-		return
-	}
-
-	// Debug user data
-	for i, user := range users {
-		log.Printf("GetAllUsers: User[%d]: id=%d, username=%s, isAdmin=%v",
-			i, user.ID, user.Username, user.IsAdmin)
-	}
-
-	// Encode the response
-	log.Printf("GetAllUsers: Encoding %d users to JSON", len(users))
-	err = json.NewEncoder(w).Encode(users)
-	if err != nil {
-		log.Printf("GetAllUsers: Error encoding users: %v", err)
-		// Return empty array in case of encoding error
-		w.Write([]byte("[]"))
-	} else {
-		log.Printf("GetAllUsers: Successfully encoded and sent users")
-	}
+	json.NewEncoder(w).Encode(users)
 }
 
 // UpdateUser updates a user's information (admin only)
 func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID from URL
-	path := strings.TrimPrefix(r.URL.Path, "/api/admin/users/")
-	userID, err := strconv.Atoi(path)
+	// Set CORS headers first, before anything else
+	origin := r.Header.Get("Origin")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Use wildcard for debugging
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Log request details for debugging
+	log.Printf("UpdateUser called with method: %s path: %s from origin: %s", r.Method, r.URL.Path, origin)
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Make sure it's a PUT request
+	if r.Method != "PUT" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract the user ID from the URL path
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 4 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+
+	userIDStr := pathParts[len(pathParts)-1]
+	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-	
+
+	log.Printf("Updating user ID: %d", userID)
+
 	// Parse request body
-	var updateRequest struct {
-		Username    string  `json:"username"`
+	var userData struct {
 		CashBalance float64 `json:"cash_balance"`
 		IsAdmin     bool    `json:"is_admin"`
 	}
-	
-	err = json.NewDecoder(r.Body).Decode(&updateRequest)
-	if err != nil {
+
+	if err := json.NewDecoder(r.Body).Decode(&userData); err != nil {
+		log.Printf("Error decoding request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
-	// Check if user exists
-	user, err := h.userRepo.GetUserByID(userID)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-	
-	// Update user
-	err = h.userRepo.UpdateUser(userID, updateRequest.CashBalance, updateRequest.IsAdmin)
+
+	log.Printf("Update data: CashBalance=%.2f, IsAdmin=%v", userData.CashBalance, userData.IsAdmin)
+
+	// Update the user
+	err = h.userRepo.UpdateUser(userID, userData.CashBalance, userData.IsAdmin)
 	if err != nil {
 		log.Printf("Error updating user: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, "Error updating user", http.StatusInternalServerError)
 		return
 	}
-	
-	// Return updated user
-	user.CashBalance = updateRequest.CashBalance
-	user.IsAdmin = updateRequest.IsAdmin
-	
+
+	// Get the updated user to return
+	user, err := h.userRepo.GetUserByID(userID)
+	if err != nil {
+		log.Printf("Error getting updated user: %v", err)
+		// Return a basic success message instead
+		response := map[string]interface{}{
+			"id":      userID,
+			"message": "User updated successfully",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Return the updated user
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
 }
 
 // DeleteUser deletes a user from the system (admin only)
 func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	// Extract user ID from URL
-	path := strings.TrimPrefix(r.URL.Path, "/api/admin/users/")
-	userID, err := strconv.Atoi(path)
+	// Set CORS headers first, before anything else
+	origin := r.Header.Get("Origin")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Use wildcard for debugging
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Log request details for debugging
+	log.Printf("DeleteUser called with method: %s path: %s from origin: %s", r.Method, r.URL.Path, origin)
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Make sure it's a DELETE request
+	if r.Method != "DELETE" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract the user ID from the URL path
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 4 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+
+	userIDStr := pathParts[len(pathParts)-1]
+	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-	
-	// Delete user
+
+	log.Printf("Deleting user ID: %d", userID)
+
+	// Delete the user
 	err = h.userRepo.DeleteUser(userID)
 	if err != nil {
 		log.Printf("Error deleting user: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, "Error deleting user", http.StatusInternalServerError)
 		return
 	}
-	
-	// Return success
-	w.WriteHeader(http.StatusOK)
-	response := map[string]string{
+
+	// Return success response
+	response := map[string]interface{}{
 		"message": "User deleted successfully",
+		"id":      userID,
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
-// ResetStockPrices resets all stock prices to random values (admin only)
+// ResetStockPrices resets all stock prices (admin only)
 func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers first, before anything else
 	origin := r.Header.Get("Origin")
-	w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins
+	w.Header().Set("Access-Control-Allow-Origin", "*") // Use wildcard for debugging
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")

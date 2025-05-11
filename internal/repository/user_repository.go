@@ -286,6 +286,7 @@ func (r *UserRepo) DeleteUser(userID int) error {
 	// Commit the transaction
 	return tx.Commit()
 }
+
 // For debugging purposes:
 func (r *UserRepo) DebugIsUserAdmin(userID int) string {
 	log.Printf("Debug IsUserAdmin: Checking admin status for user %d", userID)
@@ -307,7 +308,7 @@ func (r *UserRepo) DebugIsUserAdmin(userID int) string {
 		&user.UpdatedAt,
 	)
 	
-	if err \!= nil {
+	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Sprintf("User %d not found", userID)
 		}
@@ -319,7 +320,7 @@ func (r *UserRepo) DebugIsUserAdmin(userID int) string {
 	adminQuery := `SELECT is_admin FROM users WHERE id = ?`
 	err = r.db.QueryRow(adminQuery, userID).Scan(&isAdmin)
 	
-	if err \!= nil {
+	if err != nil {
 		return fmt.Sprintf("Error checking admin status for user %d: %v", userID, err)
 	}
 	
@@ -328,11 +329,10 @@ func (r *UserRepo) DebugIsUserAdmin(userID int) string {
 	schemaQuery := `SHOW COLUMNS FROM users WHERE Field = 'is_admin'`
 	err = r.db.QueryRow(schemaQuery).Scan(&columnInfo)
 	
-	if err \!= nil {
+	if err != nil {
 		columnInfo = fmt.Sprintf("Error checking is_admin column: %v", err)
 	}
 	
 	return fmt.Sprintf("User %d: Username=%s, IsAdmin=%v (direct query: %v), Column info: %s", 
 		userID, user.Username, user.IsAdmin, isAdmin, columnInfo)
 }
-EOF < /dev/null

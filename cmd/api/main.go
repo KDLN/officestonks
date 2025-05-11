@@ -96,8 +96,38 @@ func main() {
 	// Initialize router with middleware
 	r := mux.NewRouter()
 
+	// Define CORS middleware directly here
+	corsMw := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Get the origin from the request
+			origin := r.Header.Get("Origin")
+			
+			// If origin is provided, use it; otherwise use wildcard
+			if origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+			
+			// Set standard CORS headers
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Max-Age", "86400")
+			
+			// Handle OPTIONS requests immediately
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			
+			// Process the actual request
+			next.ServeHTTP(w, r)
+		})
+	}
+	
 	// IMPORTANT: Apply middleware at the top level
-	r.Use(corsMiddleware)
+	r.Use(corsMw)
 	r.Use(rateLimiter.RateLimit)
 
 	// Global OPTIONS handler to ensure CORS preflight works for all routes
@@ -141,9 +171,19 @@ func main() {
 	// Admin status check (for frontend)
 	protectedRouter.HandleFunc("/admin/status", adminHandler.GetAdminStatus).Methods("GET", "OPTIONS")
 
-	// Admin routes - protected by both auth middleware and admin middleware
+	// Admin routes - protected by both auth middleware and admin check
+	// Convert the AdminOnly middleware to a mux.MiddlewareFunc
+	muxAdminMiddleware := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			adminHandler.AdminOnly(func(w http.ResponseWriter, r *http.Request) {
+				next.ServeHTTP(w, r)
+			})(w, r)
+		})
+	}
+	
+	// Apply the converted middleware
 	adminRouter := protectedRouter.PathPrefix("/admin").Subrouter()
-	adminRouter.Use(adminHandler.AdminOnly)
+	adminRouter.Use(muxAdminMiddleware)
 
 	// Admin user management
 	adminRouter.HandleFunc("/users", adminHandler.GetAllUsers).Methods("GET", "OPTIONS")
@@ -199,8 +239,15 @@ func main() {
 		json.NewEncoder(w).Encode(rateLimiter.GetStats())
 	}).Methods("GET", "OPTIONS")
 
-	// Set up static file serving for frontend
-	setupStaticFileServer(r)
+	// Set up a simple handler for root path to return a welcome message
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Welcome to OfficeStonks API. Frontend is served separately.",
+			"status": "running",
+			"docs": "/api/health for health check",
+		})
+	})
 
 	// Get port from environment variable or use default
 	port := getPort()
@@ -232,5 +279,3 @@ func getMustString(command string) string {
 	}
 	return strings.TrimSpace(string(output))
 }
-
-// CORS middleware is now defined in cors.go

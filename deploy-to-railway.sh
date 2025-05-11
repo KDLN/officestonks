@@ -1,31 +1,57 @@
 #!/bin/bash
-# Script to prepare and deploy to Railway
+set -e
 
-echo "Preparing for Railway deployment..."
+# Script to prepare and deploy to Railway after cleanup
+
+echo "=================================="
+echo "OfficeStonks Railway Deployment"
+echo "=================================="
 
 # Build Go binary
 echo "Building Go binary..."
-go build -o server ./cmd/api
+go build -o server ./cmd/api/main.go
 
-# Commit changes to git
-echo "Committing changes to Git..."
-git add cmd/api/cors.go cmd/api/main.go start.sh start-server.sh
-git commit -m "Update CORS handling for cross-origin requests"
+# Check if build was successful
+if [ ! -f "./server" ]; then
+  echo "Server build failed! Aborting deployment."
+  exit 1
+fi
 
-# Push to Railway
-echo "Pushing to Railway..."
+echo "Build successful!"
+
+# Ensure all files are executable
+chmod +x docker-entrypoint.sh
+chmod +x start.sh
+chmod +x start-server.sh
+
+# Check if the Railway CLI is installed
+if ! command -v railway &> /dev/null; then
+  echo "Railway CLI not found. Please install it with:"
+  echo "npm i -g @railway/cli"
+  exit 1
+fi
+
+# Verify Railway login status
+echo "Checking Railway login status..."
+railway whoami || {
+  echo "Not logged in to Railway. Please run 'railway login' first."
+  exit 1
+}
+
+# Commit the cleanup changes (optional - uncomment if you want to commit)
+# echo "Committing changes to Git..."
+# git add -A
+# git commit -m "Clean up repository structure and fix CORS/database issues"
+
+# Deploy to Railway
+echo "Deploying to Railway..."
 railway up
 
-echo "Deployment to Railway complete. Check the Railway dashboard for deployment status."
-echo "Test the new CORS configuration by visiting:"
-echo "https://web-copy-production-5b48.up.railway.app/api/debug/cors"
-echo "from your browser."
-
-# Provide some help for testing
-echo ""
-echo "To test the CORS configuration from the frontend, run:"
-echo "curl -I -X OPTIONS -H \"Origin: https://officestonks-frontend.vercel.app\" https://web-copy-production-5b48.up.railway.app/api/auth/login"
-echo ""
-echo "The response should include:"
-echo "Access-Control-Allow-Origin: https://officestonks-frontend.vercel.app"
-echo "Access-Control-Allow-Credentials: true"
+echo "=================================="
+echo "Deployment completed!"
+echo "=================================="
+echo "Note: Your application should now be building on Railway."
+echo "Check the Railway dashboard for build status and logs."
+echo "To test the CORS configuration, run:"
+echo "curl -I -X OPTIONS -H \"Origin: https://officestonks-frontend-production.up.railway.app\" https://web-production-1e26.up.railway.app/api/auth/login"
+echo "=================================="

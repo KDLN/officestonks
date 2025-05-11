@@ -117,13 +117,7 @@ func (r *ChatRepo) ClearAllMessages() error {
 	query := `DELETE FROM chat_messages`
 
 	// Execute the delete
-	result, err := r.db.Exec(query)
-	if err != nil {
-		return err
-	}
-
-	// Get affected rows
-	affected, err := result.RowsAffected()
+	_, err = r.db.Exec(query)
 	if err != nil {
 		return err
 	}
@@ -145,4 +139,3 @@ func (r *ChatRepo) ClearAllMessages() error {
 
 	return nil
 }
-EOF < /dev/null

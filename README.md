@@ -9,10 +9,11 @@ Office Stonks is an online multiplayer stock market simulation that allows playe
 - See real-time price updates via WebSockets
 - Compete on leaderboards with other players
 - Chat with other players
+- Manage their portfolios and view transaction history
 
 ## Tech Stack
 
-- **Backend**: Go with standard library/Gorilla Mux
+- **Backend**: Go with standard library
 - **Frontend**: React with a simple component library
 - **Database**: MySQL
 - **Hosting**: Railway
@@ -20,10 +21,19 @@ Office Stonks is an online multiplayer stock market simulation that allows playe
 
 ## Project Structure
 
-- `/backend`: Go server code
-  - `/cmd/api`: Application entry point
-  - `/internal`: Internal packages (models, handlers, etc.)
-  - `/pkg`: Shared packages
+The repository follows standard Go project layout:
+
+- `/cmd/api`: Application entry point
+- `/internal`: Internal packages (models, handlers, etc.)
+  - `/auth`: Authentication utilities
+  - `/handlers`: HTTP route handlers
+  - `/middleware`: HTTP middleware
+  - `/models`: Data models
+  - `/repository`: Database access
+  - `/services`: Business logic
+  - `/websocket`: WebSocket handling
+- `/pkg`: Shared packages
+  - `/market`: Market simulation logic
 - `/frontend`: React frontend
   - `/src`: Source code
   - `/public`: Static assets
@@ -31,27 +41,23 @@ Office Stonks is an online multiplayer stock market simulation that allows playe
   - `Dockerfile.backend`: Backend production container
   - `Dockerfile.frontend`: Frontend production container
   - `docker-compose.yml`: Local development setup
-  - `docker-compose.test.yml`: Testing environment
 
 ## Getting Started
 
 ### Prerequisites
 - Git
-- GitHub account
-- Railway account
-
-### Deployment
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+- Go 1.20+
+- Node.js 18+
+- MySQL database
 
 ### Local Development
 
 1. Clone this repository
-2. Start backend:
+2. Start the backend:
    ```
-   cd backend
    go run cmd/api/main.go
    ```
-3. Start frontend:
+3. Start the frontend:
    ```
    cd frontend
    npm install
@@ -64,31 +70,36 @@ cd docker
 docker-compose up
 ```
 
-## Testing
+## Deployment
 
-See [TESTING.md](TESTING.md) for information on running tests.
+This application is deployed on Railway. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
 
-## MVP Plan
+## Features
 
-Our MVP approach includes:
+### Stock Trading
+- Buy and sell virtual stocks based on simulated market dynamics
+- Real-time price updates via WebSockets
+- Portfolio management with transaction history
 
-1. **Core Features**:
-   - Stock trading system
-   - User portfolios
-   - Real-time price updates
-   - Simple leaderboard
+### User System
+- Registration and authentication
+- JWT-based secure login
+- Cash balance management
+- Admin privileges for system management
 
-2. **Development Phases**:
-   - Backend foundation
-   - Trading and real-time features
-   - User experience and interface
-   - Testing and deployment
+### Community Features
+- Real-time chat system
+- Leaderboard showing top performing traders
+- Portfolio comparisons
 
-For more details, see [STEP_BY_STEP_MVP.md](STEP_BY_STEP_MVP.md).
+### Admin Panel
+- User management
+- System status monitoring
+- Market reset capabilities
 
 ## Contributing
 
-We welcome contributions! Please feel free to submit a Pull Request.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 

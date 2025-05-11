@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"officestonks/internal/models"
@@ -28,24 +29,24 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
-	// Validate input
+
+	// Validate request
 	if req.Username == "" || req.Password == "" {
 		http.Error(w, "Username and password are required", http.StatusBadRequest)
 		return
 	}
-	
-	// Register the user
-	authResp, err := h.authService.Register(req.Username, req.Password)
+
+	// Register user
+	resp, err := h.authService.Register(req.Username, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Printf("Error registering user: %v", err)
+		http.Error(w, "Error registering user", http.StatusInternalServerError)
 		return
 	}
-	
-	// Return the response
+
+	// Return response
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(authResp)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // Login handles user login
@@ -56,24 +57,30 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
-	// Validate input
+
+	// Validate request
 	if req.Username == "" || req.Password == "" {
 		http.Error(w, "Username and password are required", http.StatusBadRequest)
 		return
 	}
-	
-	// Login the user
-	authResp, err := h.authService.Login(req.Username, req.Password)
+
+	// Login user
+	resp, err := h.authService.Login(req.Username, req.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		log.Printf("Error logging in user: %v", err)
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
-	
-	// Log the auth response for debugging
-	log.Printf("Login successful for user %s (ID: %d), is_admin: %v", req.Username, authResp.UserID, authResp.IsAdmin)
 
-	// Return the response
+	// Return response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(authResp)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// Logout handles user logout (no server-side state to clear currently)
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	// JWT-based auth doesn't require server-side logout
+	w.Header().Set("Content-Type", "application/json")
+	resp := map[string]string{"message": "Logged out successfully"}
+	json.NewEncoder(w).Encode(resp)
 }
