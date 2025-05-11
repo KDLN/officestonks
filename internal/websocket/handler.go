@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -43,6 +44,9 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 
+	// Log the origin for debugging
+	log.Printf("WebSocket connection attempted from origin: %s", origin)
+
 	// Handle preflight requests for WebSockets
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
@@ -67,9 +71,13 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		// Log the error details
+		log.Printf("WebSocket upgrade failed: %v", err)
+		log.Printf("Request headers: %v", r.Header)
 		http.Error(w, "Could not upgrade connection", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("WebSocket connection successfully established for user ID: %d", claims.UserID)
 
 	// Create a new client
 	client := NewClient(h.hub, conn, claims.UserID)

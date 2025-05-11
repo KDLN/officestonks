@@ -25,7 +25,7 @@ export const initWebSocket = () => {
 
   // Create WebSocket connection with token
   // Get the backend URL from environment or default to Railway URL
-  const apiUrl = process.env.REACT_APP_API_URL || 'https://web-copy-production-5b48.up.railway.app';
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
 
   // Replace http/https with ws/wss
   const wsBase = apiUrl.replace(/^http/, 'ws');
@@ -154,6 +154,10 @@ export const initWebSocket = () => {
   // Connection error
   socket.addEventListener('error', (error) => {
     console.error('WebSocket error:', error);
+    // Add more detailed error information
+    console.error('WebSocket connection failed - possible CORS issue or server unavailable');
+    console.error('If this is a CORS error, ensure the backend allows WebSocket connections from this origin');
+    console.error('Current origin:', window.location.origin);
     // Socket will automatically close after error
   });
 
