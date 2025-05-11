@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// RegisterDebugHandlers registers debug handlers with the provided mux
-func RegisterDebugHandlers(mux *http.ServeMux, userRepo interface{}) {
+// RegisterJWTDebugHandlers registers JWT debug handlers
+func RegisterJWTDebugHandlers(mux *http.ServeMux, userRepo interface{}) {
 	// Debug handler for admin JWT parsing
 	mux.HandleFunc("/debug-admin-jwt", func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
