@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"time"
 
@@ -21,6 +22,31 @@ func InitDB() (*sql.DB, error) {
 	host := getEnv("MYSQLHOST", getEnv("DB_HOST", "mysql.railway.internal"))
 	port := getEnv("MYSQLPORT", getEnv("DB_PORT", "3306"))
 	dbname := getEnv("MYSQLDATABASE", getEnv("MYSQL_DATABASE", getEnv("DB_NAME", "railway")))
+
+	// Attempt to resolve the host to IP address first for better reliability
+	log.Printf("Attempting to resolve MySQL host: %s", host)
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		log.Printf("Failed to resolve host: %v, continuing with hostname", err)
+	} else if len(ips) > 0 {
+		log.Printf("Resolved %s to %v, using first IP", host, ips)
+		// Prefer IPv4 addresses if available
+		var ipv4Address string
+		for _, ip := range ips {
+			if ip.To4() != nil {
+				ipv4Address = ip.String()
+				break
+			}
+		}
+
+		if ipv4Address != "" {
+			log.Printf("Using IPv4 address: %s", ipv4Address)
+			host = ipv4Address
+		} else {
+			log.Printf("No IPv4 address found, using first IP: %s", ips[0].String())
+			host = ips[0].String()
+		}
+	}
 
 	// Log database connection details (excluding password)
 	log.Printf("Database connection details:")
@@ -46,7 +72,10 @@ func InitDB() (*sql.DB, error) {
 	// Create connection string with SSL disabled for Railway
 	// Add allowNativePasswords=true and multiStatements=true for better compatibility
 	// Also add timeout, readTimeout and writeTimeout for better connection resilience
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
+	// Force IPv4 to avoid IPv6 connectivity issues
+	// Log the full connection details for troubleshooting
+	log.Printf("Attempting to connect to MySQL at %s:%s as user %s to database %s", host, port, username, dbname)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s&tcp4=true",
 		username, password, host, port, dbname)
 
 	// Open connection
@@ -65,9 +94,71 @@ func InitDB() (*sql.DB, error) {
 
 	// Check connection
 	log.Println("Pinging database to verify connection...")
-	if err := db.Ping(); err != nil {
-		log.Printf("Error pinging database: %v", err)
-		return nil, err
+	pingErr := db.Ping()
+	if pingErr != nil {
+		log.Printf("Error pinging database with IPv4 forced: %v", pingErr)
+		log.Println("Trying alternative connection method...")
+
+		// Try an alternative connection without forcing IPv4
+		alternativeDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=60s",
+			username, password, host, port, dbname)
+
+		// Close the previous connection
+		db.Close()
+
+		// Try to open new connection
+		log.Println("Opening alternative database connection...")
+		db, err = sql.Open("mysql", alternativeDsn)
+		if err != nil {
+			log.Printf("Error opening alternative database connection: %v", err)
+			return nil, err
+		}
+
+		// Try to ping with the alternative connection
+		if err := db.Ping(); err != nil {
+			log.Printf("Error pinging with alternative connection: %v", err)
+
+			// One last try with IP resolution info
+			log.Printf("Attempting to resolve host: %s", host)
+			ips, resolveErr := net.LookupIP(host)
+			if resolveErr != nil {
+				log.Printf("Failed to resolve host: %v", resolveErr)
+			} else {
+				log.Printf("Host %s resolved to: %v", host, ips)
+
+				// Try direct IP connection if resolved
+				if len(ips) > 0 {
+					ipToUse := ips[0].String()
+					log.Printf("Trying direct IP connection to: %s", ipToUse)
+
+					directDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&timeout=60s",
+						username, password, ipToUse, port, dbname)
+
+					// Close previous connection
+					db.Close()
+
+					// Try with direct IP
+					db, err = sql.Open("mysql", directDsn)
+					if err != nil {
+						log.Printf("Error opening direct IP database connection: %v", err)
+						return nil, err
+					}
+
+					if err := db.Ping(); err != nil {
+						log.Printf("Error pinging with direct IP connection: %v", err)
+						return nil, err
+					}
+
+					log.Println("Direct IP connection successful!")
+					return db, nil
+				}
+			}
+
+			return nil, err
+		}
+
+		log.Println("Alternative connection successful!")
+		return db, nil
 	}
 
 	log.Println("Database connection established successfully")
