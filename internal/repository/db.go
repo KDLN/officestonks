@@ -72,10 +72,9 @@ func InitDB() (*sql.DB, error) {
 	// Create connection string with SSL disabled for Railway
 	// Add allowNativePasswords=true and multiStatements=true for better compatibility
 	// Also add timeout, readTimeout and writeTimeout for better connection resilience
-	// Force IPv4 to avoid IPv6 connectivity issues
 	// Log the full connection details for troubleshooting
 	log.Printf("Attempting to connect to MySQL at %s:%s as user %s to database %s", host, port, username, dbname)
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s&tcp4=true",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=30s&readTimeout=30s&writeTimeout=30s",
 		username, password, host, port, dbname)
 
 	// Open connection
@@ -99,8 +98,8 @@ func InitDB() (*sql.DB, error) {
 		log.Printf("Error pinging database with IPv4 forced: %v", pingErr)
 		log.Println("Trying alternative connection method...")
 
-		// Try an alternative connection without forcing IPv4
-		alternativeDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=60s",
+		// Try an alternative connection with different parameters
+		alternativeDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&allowNativePasswords=true&multiStatements=true&timeout=60s&readTimeout=60s&writeTimeout=60s",
 			username, password, host, port, dbname)
 
 		// Close the previous connection
@@ -131,7 +130,7 @@ func InitDB() (*sql.DB, error) {
 					ipToUse := ips[0].String()
 					log.Printf("Trying direct IP connection to: %s", ipToUse)
 
-					directDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&timeout=60s",
+					directDsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&tls=false&timeout=60s&readTimeout=60s&writeTimeout=60s",
 						username, password, ipToUse, port, dbname)
 
 					// Close previous connection
