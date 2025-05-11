@@ -37,6 +37,7 @@ COPY --from=builder /app/server .
 COPY --from=builder /app/schema.sql .
 COPY --from=builder /app/internal/repository/schema.go ./internal/repository/
 COPY --from=builder /app/verify-db.sh .
+COPY --from=builder /app/diagnose-db.sh .
 
 # Switch to non-root user
 USER appuser

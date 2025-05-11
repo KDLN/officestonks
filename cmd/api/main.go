@@ -54,9 +54,15 @@ func main() {
 		log.Println("All attempts to connect using environment variables failed. Trying hardcoded connection...")
 		db, err = repository.InitDBHardcoded()
 		if err != nil {
-			log.Fatalf("All database connection attempts failed, including hardcoded fallback: %v", err)
+			log.Println("Hardcoded connection also failed. Trying alternative connection methods...")
+			db, err = repository.TryAlternativeConnections()
+			if err != nil {
+				log.Fatalf("All database connection attempts failed: %v", err)
+			}
+			log.Println("Successfully connected to database using alternative connection methods!")
+		} else {
+			log.Println("Successfully connected to database using hardcoded parameters!")
 		}
-		log.Println("Successfully connected to database using hardcoded parameters!")
 	}
 
 	// Verify connection with a simple query
