@@ -11,10 +11,10 @@ import (
 )
 
 // Key type for context values
-type contextKey string
+type ContextKey string
 
 // UserIDKey is the context key for the user ID
-const UserIDKey contextKey = "userID"
+const UserIDKey ContextKey = "userID"
 
 // AuthMiddleware handles authentication for protected routes
 type AuthMiddleware struct {

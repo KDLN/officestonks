@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"officestonks/internal/middleware"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -76,7 +77,7 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// Get user ID from context (set by auth middleware)
-		userID, ok := r.Context().Value("userID").(int)
+		userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 		log.Printf("AdminOnly: UserID from context: %v, ok: %v", userID, ok)
 
 		if !ok {
@@ -170,7 +171,7 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user ID from context (set by auth middleware)
-	userID, ok := r.Context().Value("userID").(int)
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
 	log.Printf("GetAdminStatus: userID from context: %v, ok: %v", userID, ok)
 
 	if !ok {
