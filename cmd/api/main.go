@@ -444,6 +444,113 @@ func main() {
 		})
 	})
 
+	// ROOT LEVEL DEBUG ENDPOINTS FOR TESTING
+	r.HandleFunc("/debug_admin_status", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("ROOT DEBUG ENDPOINT ACCESSED: /debug_admin_status from %s", r.Header.Get("Origin"))
+
+		// Set CORS headers
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Get user ID from query parameter (optional)
+		userIDStr := r.URL.Query().Get("user_id")
+		userID := 3 // Default to user 3 (KDLN)
+		if userIDStr != "" {
+			var err error
+			userID, err = strconv.Atoi(userIDStr)
+			if err != nil {
+				log.Printf("Invalid user ID: %s", userIDStr)
+				userID = 3
+			}
+		}
+
+		// Check if user is admin
+		isAdmin, err := userRepo.IsUserAdmin(userID)
+		if err != nil {
+			log.Printf("ROOT DEBUG: Error checking admin status: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Internal Server Error",
+				"message": fmt.Sprintf("Error checking admin status: %v", err),
+				"user_id": userID,
+			})
+			return
+		}
+
+		// Also get detailed debug info
+		debugInfo := userRepo.DebugIsUserAdmin(userID)
+
+		log.Printf("ROOT DEBUG: User %d isAdmin=%v, debug info: %s", userID, isAdmin, debugInfo)
+
+		// Return users as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "Debug admin status endpoint - NO AUTHENTICATION",
+			"user_id": userID,
+			"is_admin": isAdmin,
+			"debug_info": debugInfo,
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	})
+
+	r.HandleFunc("/debug_users", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("ROOT DEBUG ENDPOINT ACCESSED: /debug_users from %s", r.Header.Get("Origin"))
+
+		// Set CORS headers
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Try to get users
+		users, err := userRepo.GetAllUsers()
+		if err != nil {
+			log.Printf("ROOT DEBUG: Error getting users: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Internal Server Error",
+				"message": fmt.Sprintf("Error getting users: %v", err),
+			})
+			return
+		}
+
+		log.Printf("ROOT DEBUG: Successfully retrieved %d users", len(users))
+
+		// Return users as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "Debug users endpoint - NO AUTHENTICATION",
+			"user_count": len(users),
+			"users": users,
+		})
+	})
+
 	// Get port from environment variable or use default
 	port := getPort()
 	fmt.Printf("Server starting on port %d...\n", port)
