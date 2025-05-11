@@ -43,11 +43,28 @@ This guide explains how to deploy Office Stonks using GitHub and Railway.
    - Go to your backend service's "Variables" tab
    - Add the following variables (use MySQL service's values):
      ```
+     # Primary Database Connection
      DB_HOST=
      DB_USER=
      DB_PASSWORD=
      DB_NAME=
      DB_PORT=3306
+
+     # Fallback Database Connection (if primary fails)
+     FALLBACK_DB_HOST=
+     FALLBACK_DB_PORT=
+     FALLBACK_DB_USER=
+     FALLBACK_DB_PASSWORD=
+     FALLBACK_DB_NAME=
+
+     # Alternative Database Connection (last resort)
+     ALT_DB_HOST=
+     ALT_DB_PORT=
+     ALT_DB_USER=
+     ALT_DB_PASSWORD=
+     ALT_DB_NAME=
+
+     # Application Configuration
      JWT_SECRET=your-secret-key
      PORT=8080
      ```
@@ -126,6 +143,8 @@ railway up
 1. **Database Connection Issues**:
    - Verify environment variables are correct
    - Check firewall settings in Railway
+   - Ensure all database connection variables are set (primary, fallback, and alternative)
+   - Check logs for connection attempts
 
 2. **Failed Deployments**:
    - Check GitHub Actions logs for errors
