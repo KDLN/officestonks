@@ -8,12 +8,13 @@ WORKDIR /app
 # Copy pre-built binary and resources
 COPY ./server /app/server
 COPY ./schema.sql /app/schema.sql
+COPY ./docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Make binary executable
-RUN chmod +x /app/server
+# Make binary and entrypoint executable
+RUN chmod +x /app/server /app/docker-entrypoint.sh
 
 # Expose port
 EXPOSE 8080
 
-# Run the server directly
-CMD ["/app/server"]
+# Use the entrypoint script
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
