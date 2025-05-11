@@ -1,0 +1,12 @@
+FROM mysql:8.0
+
+# Copy schema.sql to the initialization directory
+COPY schema.sql /docker-entrypoint-initdb.d/
+
+# MySQL environment variables will be set by Railway
+ENV MYSQL_ALLOW_EMPTY_PASSWORD=no
+ENV MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-defaultpassword}
+ENV MYSQL_DATABASE=${MYSQL_DATABASE:-railway}
+
+# Expose MySQL port
+EXPOSE 3306
