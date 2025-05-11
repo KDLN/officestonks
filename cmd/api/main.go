@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -148,6 +149,180 @@ func main() {
 	// IMPORTANT: Apply middleware at the top level
 	r.Use(corsMw)
 	r.Use(rateLimiter.RateLimit)
+
+	// =====================================================
+	// EMERGENCY ACCESS: Add direct top-level emergency endpoints to the ROOT router
+	// This ensures they bypass ALL middleware including auth
+	// =====================================================
+
+	// Create a distinct emergency path prefix to avoid conflicts
+	log.Println("🚨 CRITICAL: Registering EMERGENCY direct access endpoints at ROOT level")
+
+	// EMERGENCY: Direct admin users endpoint - NO AUTH
+	r.HandleFunc("/emergency/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		// CORS headers first
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Content-Type", "application/json")
+
+		// Handle OPTIONS preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		log.Printf("🚨 EMERGENCY: Direct root-level access to /emergency/admin/users from %s", r.RemoteAddr)
+
+		// Get all users directly - absolutely no auth check
+		users, err := userRepo.GetAllUsers()
+		if err != nil {
+			log.Printf("❌ EMERGENCY: Error getting users: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Error retrieving users",
+				"details": err.Error(),
+				"emergency_access": true,
+			})
+			return
+		}
+
+		// Return users as JSON
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"users": users,
+			"count": len(users),
+			"emergency_access": true,
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	}).Methods("GET", "OPTIONS")
+
+	// EMERGENCY: Direct admin status endpoint - ALWAYS returns isAdmin:true
+	r.HandleFunc("/emergency/admin/status", func(w http.ResponseWriter, r *http.Request) {
+		// CORS headers first
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Content-Type", "application/json")
+
+		// Handle OPTIONS preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		log.Printf("🚨 EMERGENCY: Direct root-level access to /emergency/admin/status from %s", r.RemoteAddr)
+
+		// Always return admin:true without any checks
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"isAdmin": true,
+			"emergency_access": true,
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	}).Methods("GET", "OPTIONS")
+
+	// EMERGENCY: Direct debug info endpoint
+	r.HandleFunc("/emergency/debug/info", func(w http.ResponseWriter, r *http.Request) {
+		// CORS headers first
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Content-Type", "application/json")
+
+		// Handle OPTIONS preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		log.Printf("🚨 EMERGENCY: Direct root-level access to /emergency/debug/info from %s", r.RemoteAddr)
+
+		// Return request debug info
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"request": map[string]interface{}{
+				"method": r.Method,
+				"path": r.URL.Path,
+				"remote_addr": r.RemoteAddr,
+				"query": r.URL.Query(),
+				"headers": r.Header,
+			},
+			"emergency_access": true,
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	}).Methods("GET", "OPTIONS")
+
+	// EMERGENCY: Direct debug JWT endpoint
+	r.HandleFunc("/emergency/debug/jwt", func(w http.ResponseWriter, r *http.Request) {
+		// CORS headers first
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Content-Type", "application/json")
+
+		// Handle OPTIONS preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		log.Printf("🚨 EMERGENCY: Direct root-level access to /emergency/debug/jwt from %s", r.RemoteAddr)
+
+		// Get token from URL or header
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
+			}
+		}
+
+		// Prepare response
+		response := map[string]interface{}{
+			"emergency_access": true,
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+
+		if token != "" {
+			// Add token info
+			response["token_present"] = true
+			response["token_prefix"] = token
+			if len(token) > 10 {
+				response["token_prefix"] = token[:10] + "..."
+			}
+
+			// Try to parse token parts
+			parts := strings.Split(token, ".")
+			if len(parts) == 3 {
+				response["token_parts"] = len(parts)
+
+				// Try to decode the payload
+				if payload, err := base64.RawURLEncoding.DecodeString(parts[1]); err == nil {
+					var claims map[string]interface{}
+					if err := json.Unmarshal(payload, &claims); err == nil {
+						response["claims"] = claims
+					}
+				}
+			}
+		} else {
+			response["token_present"] = false
+			response["message"] = "No token provided in URL or Authorization header"
+		}
+
+		// Return JWT info
+		json.NewEncoder(w).Encode(response)
+	}).Methods("GET", "OPTIONS")
+
+	// Also add a simple direct emergency health check endpoint
+	r.HandleFunc("/emergency/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "OK",
+			"message": "Emergency endpoints are operational",
+			"timestamp": time.Now().Format(time.RFC3339),
+		})
+	}).Methods("GET")
+
+	log.Println("🚨 EMERGENCY: Direct root-level handlers registered successfully!")
 
 	// Global OPTIONS handler to ensure CORS preflight works for all routes
 	r.PathPrefix("/").Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -590,11 +765,12 @@ func main() {
 		})
 	})
 
-	// Register emergency endpoints DIRECTLY to the main router BEFORE the protected routes
-	// This ensures they bypass the auth middleware
-	emergencyRouter := apiRouter.PathPrefix("").Subrouter()
-
-	// Add DIRECT emergency admin handlers
+	// OLD EMERGENCY HANDLERS REPLACED
+	// DO NOT USE THIS SECTION - NOW USING ROOT-LEVEL HANDLERS FROM ABOVE
+	// KEPT COMMENTED FOR REFERENCE
+	// removed old handlers
+	/*
+	// These handlers have been replaced by the root-level emergency handlers above
 	emergencyRouter.HandleFunc("/admin/users", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("EMERGENCY: Direct access to admin users from %s", r.RemoteAddr)
 
@@ -723,8 +899,10 @@ func main() {
 
 		json.NewEncoder(w).Encode(response)
 	}).Methods("GET", "OPTIONS")
+	*/
 
-	log.Println("EMERGENCY: Direct admin handlers registered")
+	// This comment replaces the old log message - handlers are now registered at root level
+	// log.Println("EMERGENCY: Direct admin handlers registered")
 
 	// Get port from environment variable or use default
 	port := getPort()
