@@ -290,14 +290,44 @@ func main() {
 			return
 		}
 
-		// Return health status
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		// Check if this is a debug request
+		debug := r.URL.Query().Get("debug") == "true"
+
+		// Basic health check
+		response := map[string]interface{}{
 			"status": "healthy",
 			"service": "OfficeStonks API",
 			"version": "1.0",
 			"time": time.Now().Format(time.RFC3339),
-		})
+		}
+
+		// Add debug info if requested
+		if debug {
+			// Check user 3 (KDLN) admin status
+			isAdmin, err := userRepo.IsUserAdmin(3)
+			adminInfo := "error checking"
+			if err == nil {
+				adminInfo = fmt.Sprintf("isAdmin=%v", isAdmin)
+			}
+
+			// Get all users count
+			users, err := userRepo.GetAllUsers()
+			userCount := -1
+			if err == nil {
+				userCount = len(users)
+			}
+
+			// Add debug info to response
+			response["debug"] = true
+			response["user_count"] = userCount
+			response["admin_check"] = adminInfo
+			response["detailed_admin_info"] = userRepo.DebugIsUserAdmin(3)
+			response["users"] = users
+		}
+
+		// Return health status with optional debug info
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}).Methods("GET", "OPTIONS")
 
 	// TEMPORARY DEBUG API: Admin users without authentication
