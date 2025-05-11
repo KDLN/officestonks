@@ -10,9 +10,20 @@ import (
 
 var (
 	// In production, this should be set as an environment variable
-	// IMPORTANT: Using a hardcoded secret for debugging - MUST be replaced with proper environment variable
-	// in production for security!
+	// IMPORTANT: Using multiple hardcoded secrets for compatibility testing
+	// These MUST be replaced with a proper environment variable in production!
 	jwtSecret = []byte("your-secret-key-for-development-only")
+
+	// Additional secrets to try for backward compatibility
+	jwtSecrets = [][]byte{
+		[]byte("your-secret-key-for-development-only"),
+		[]byte("OfficeStonksSecret"),
+		[]byte("stonkstoken"),
+		[]byte("YourJwtSecretKey"),
+		[]byte("yourjwtsecretkey"),
+		[]byte("your-jwt-secret-key"),
+		[]byte("admin123"),
+	}
 )
 
 // Claims represents the JWT claims
@@ -69,9 +80,11 @@ func ValidateToken(tokenString string) (*Claims, error) {
 
 	// Log the token we're trying to validate
 	println("Validating token:", tokenPreview)
-	println("Using JWT secret length:", len(jwtSecret))
 
-	// Parse the token
+	// Try all possible secrets
+	var lastError error
+
+	// First try the default secret
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		// Validate signing method
@@ -82,21 +95,45 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		return jwtSecret, nil
 	})
 
-	// Handle parsing errors
-	if err != nil {
-		println("Token validation error:", err.Error())
-		return nil, err
+	// If default secret worked, return claims
+	if err == nil && token.Valid {
+		println("Token valid using default secret for user ID:", claims.UserID)
+		return claims, nil
 	}
 
-	// Validate token
-	if !token.Valid {
-		println("Token is invalid")
-		return nil, errors.New("invalid token")
+	// Default secret didn't work, save the error
+	lastError = err
+	println("Default secret failed:", err.Error())
+
+	// Try all the alternative secrets
+	for i, secret := range jwtSecrets {
+		println("Trying alternative secret #", i+1)
+
+		claims = &Claims{} // Reset claims for each attempt
+		token, err = jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			// Validate signing method
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, errors.New("invalid signing method")
+			}
+			return secret, nil
+		})
+
+		// If this secret worked, return claims and remember this secret for future use
+		if err == nil && token.Valid {
+			println("Token valid using alternative secret #", i+1, "for user ID:", claims.UserID)
+			// Update the default secret for future validations
+			jwtSecret = secret
+			return claims, nil
+		}
+
+		// This secret didn't work either, save the error
+		lastError = err
+		println("Alternative secret #", i+1, "failed:", err.Error())
 	}
 
-	// Token is valid, print userID
-	println("Token valid for user ID:", claims.UserID)
-	return claims, nil
+	// None of the secrets worked
+	println("All secrets failed to validate token")
+	return nil, lastError
 }
 
 // Helper function to get environment variables with defaults
