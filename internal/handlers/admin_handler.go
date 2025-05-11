@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
 	"officestonks/internal/models"
 )
 
@@ -35,11 +35,14 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 		origin := r.Header.Get("Origin")
 
 		// Always allow the production frontend origin unconditionally
+		// Explicitly check for the frontend domain
 		if origin == "https://officestonks-frontend-production.up.railway.app" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		} else if origin != "" {
+			// Allow any other origin that provides Origin header
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		} else {
+			// Fall back to wildcard for requests without Origin
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 		}
 
@@ -47,6 +50,7 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+		w.Header().Set("Access-Control-Max-Age", "86400") // Cache preflight for 24 hours
 
 		// Log all request details for debugging
 		log.Printf("AdminOnly middleware: Method=%s Path=%s Origin=%s",
@@ -66,6 +70,7 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 			if len(token) > 10 {
 				tokenPrefix = token[:10] + "..."
 			}
+			// Add token to Authorization header
 			r.Header.Set("Authorization", "Bearer "+token)
 			log.Printf("AdminOnly: Added token from URL parameter: %s", tokenPrefix)
 		}
@@ -76,8 +81,16 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 
 		if !ok {
 			log.Printf("AdminOnly: No userID in context, responding with 401")
-			// Add CORS headers to error response
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			// Return specific 401 error for debugging
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Unauthorized",
+				"message": "Authentication required for admin access",
+				"path": r.URL.Path,
+				"method": r.Method,
+				"has_token": r.Header.Get("Authorization") != "",
+			})
 			return
 		}
 
@@ -87,13 +100,24 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 
 		if err != nil {
 			log.Printf("AdminOnly: Error checking admin status: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Internal Server Error",
+				"message": "Error checking admin status",
+			})
 			return
 		}
 
 		if !isAdmin {
 			log.Printf("AdminOnly: User %d is not an admin, responding with 403", userID)
-			http.Error(w, "Forbidden: Admin access required", http.StatusForbidden)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Forbidden",
+				"message": "Admin access required",
+				"user_id": fmt.Sprintf("%d", userID),
+			})
 			return
 		}
 
@@ -105,13 +129,58 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 
 // GetAdminStatus returns the admin status of the current user
 func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers first, before anything else
+	origin := r.Header.Get("Origin")
+
+	// Explicitly check for the frontend domain
+	if origin == "https://officestonks-frontend-production.up.railway.app" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else if origin != "" {
+		// Allow any other origin that provides Origin header
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		// Fall back to wildcard for requests without Origin
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+
+	// Set all other CORS headers
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+	w.Header().Set("Access-Control-Max-Age", "86400") // Cache preflight for 24 hours
+
+	// Log request details
+	log.Printf("GetAdminStatus called with method: %s from origin: %s, path: %s",
+		r.Method, origin, r.URL.Path)
+
+	// Handle OPTIONS preflight
+	if r.Method == "OPTIONS" {
+		log.Printf("GetAdminStatus: Responding to OPTIONS preflight request")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Check for token in URL
+	if token := r.URL.Query().Get("token"); token != "" {
+		tokenPrefix := token
+		if len(token) > 10 {
+			tokenPrefix = token[:10] + "..."
+		}
+		log.Printf("GetAdminStatus: Found token in URL: %s", tokenPrefix)
+	}
+
 	// Get user ID from context (set by auth middleware)
 	userID, ok := r.Context().Value("userID").(int)
 	log.Printf("GetAdminStatus: userID from context: %v, ok: %v", userID, ok)
 
 	if !ok {
 		log.Printf("GetAdminStatus: No userID in context")
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Unauthorized",
+			"message": "Authentication required",
+		})
 		return
 	}
 
@@ -121,7 +190,12 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Printf("Error checking admin status: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Internal Server Error",
+			"message": "Error checking admin status",
+		})
 		return
 	}
 
@@ -140,17 +214,41 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers first, before anything else
 	origin := r.Header.Get("Origin")
-	w.Header().Set("Access-Control-Allow-Origin", "*") // Use wildcard for debugging
+
+	// Explicitly check for the frontend domain
+	if origin == "https://officestonks-frontend-production.up.railway.app" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else if origin != "" {
+		// Allow any other origin that provides Origin header
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		// Fall back to wildcard for requests without Origin
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+
+	// Set all other CORS headers
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+	w.Header().Set("Access-Control-Max-Age", "86400") // Cache preflight for 24 hours
 
 	// Log request details for debugging
-	log.Printf("GetAllUsers called with method: %s from origin: %s", r.Method, origin)
+	log.Printf("GetAllUsers called with method: %s from origin: %s, path: %s", r.Method, origin, r.URL.Path)
 
 	// Handle OPTIONS preflight
 	if r.Method == "OPTIONS" {
+		log.Printf("GetAllUsers: Responding to OPTIONS preflight request")
 		w.WriteHeader(http.StatusOK)
 		return
+	}
+
+	// Log if there's a token in the URL
+	if token := r.URL.Query().Get("token"); token != "" {
+		tokenPrefix := token
+		if len(token) > 10 {
+			tokenPrefix = token[:10] + "..."
+		}
+		log.Printf("GetAllUsers: Found token in URL: %s", tokenPrefix)
 	}
 
 	// Get all users from the repository
@@ -158,7 +256,12 @@ func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userRepo.GetAllUsers()
 	if err != nil {
 		log.Printf("Error getting users: %v", err)
-		http.Error(w, "Error retrieving users", http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Internal Server Error",
+			"message": "Error retrieving users",
+		})
 		return
 	}
 
