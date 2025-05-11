@@ -23,7 +23,7 @@ app.get('/health', (req, res) => {
 
 // Configure proxy middleware
 const backendUrl = process.env.BACKEND_URL || 'https://web-production-1e26.up.railway.app';
-const wsBackendUrl = backendUrl.replace(/^https?:\/\//, '');
+console.log(`Proxy configured to forward requests to: ${backendUrl}`);
 
 // Log all requests
 app.use((req, res, next) => {
@@ -39,13 +39,33 @@ app.use('/ws', createProxyMiddleware({
   pathRewrite: {
     '^/ws': '/ws' // Keep the /ws path
   },
+  // Special handling for WebSocket upgrade
   onProxyReq: (proxyReq, req, res) => {
-    // Add any request modifications here if needed
-    console.log(`Proxying WebSocket request to: ${backendUrl}/ws`);
+    // Log WebSocket connection attempt
+    console.log(`Proxying WebSocket initial request to: ${backendUrl}/ws`);
+    console.log(`  Origin: ${req.headers.origin || 'unknown'}`);
+
+    // Copy authentication token if present
+    const token = req.query.token;
+    if (token) {
+      console.log('  Authentication token present');
+    }
   },
+  // Handle WebSocket specific errors
   onError: (err, req, res) => {
-    console.error('Proxy error:', err);
-    res.status(502).json({ error: 'Proxy error', message: err.message });
+    console.error('WebSocket proxy error:', err);
+    // Try to send error if headers not sent yet
+    if (!res.headersSent) {
+      res.status(502).json({
+        error: 'WebSocket Proxy Error',
+        message: err.message,
+        code: 'WS_PROXY_ERROR'
+      });
+    }
+  },
+  // Log when WebSocket connection is established
+  onProxyRes: (proxyRes, req, res) => {
+    console.log(`WebSocket response status: ${proxyRes.statusCode}`);
   }
 }));
 
@@ -53,13 +73,40 @@ app.use('/ws', createProxyMiddleware({
 app.use('/api', createProxyMiddleware({
   target: backendUrl,
   changeOrigin: true,
+  pathRewrite: {
+    '^/api': '/api' // Keep the /api path
+  },
   onProxyReq: (proxyReq, req, res) => {
-    // Add any request modifications here if needed
-    console.log(`Proxying API request to: ${backendUrl}${req.url}`);
+    // Log each API request for debugging
+    console.log(`Proxying API request: ${req.method} ${req.url}`);
+    console.log(`  To: ${backendUrl}${req.url}`);
+    console.log(`  From origin: ${req.headers.origin || 'unknown'}`);
+
+    // Preserve original headers
+    if (req.headers.authorization) {
+      console.log('  Authorization header present');
+    }
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // Ensure CORS headers are present in the response
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    // Log response status for debugging
+    console.log(`API response status: ${proxyRes.statusCode} for ${req.method} ${req.url}`);
   },
   onError: (err, req, res) => {
-    console.error('Proxy error:', err);
-    res.status(502).json({ error: 'Proxy error', message: err.message });
+    console.error('API proxy error:', err);
+    console.error(`  Failed request: ${req.method} ${req.url}`);
+
+    if (!res.headersSent) {
+      res.status(502).json({
+        error: 'API Proxy Error',
+        message: err.message,
+        code: 'API_PROXY_ERROR',
+        path: req.url
+      });
+    }
   }
 }));
 
