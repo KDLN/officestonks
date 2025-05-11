@@ -220,20 +220,65 @@ func main() {
 		wsHandler.HandleConnection(w, r)
 	})
 
-	// WebSocket health check endpoint
+	// WebSocket health check endpoint with proper CORS handling
 	r.HandleFunc("/ws/health", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("WebSocket health check requested from: %s", r.Header.Get("Origin"))
+
+		// Handle CORS properly
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Return health status
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "WebSocket endpoint is available",
 			"time": time.Now().Format(time.RFC3339),
+			"server": "OfficeStonks Backend",
 		})
 	})
 
-	// Health check endpoint
+	// Health check endpoint with proper CORS handling
 	apiRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("API is running"))
+		log.Printf("API health check requested from: %s", r.Header.Get("Origin"))
+
+		// Handle CORS properly
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Return health status
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "healthy",
+			"service": "OfficeStonks API",
+			"version": "1.0",
+			"time": time.Now().Format(time.RFC3339),
+		})
 	}).Methods("GET", "OPTIONS")
 
 	// CORS debug endpoint

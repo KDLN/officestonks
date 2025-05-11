@@ -28,23 +28,40 @@ export const initWebSocket = () => {
   const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
 
   // First check if the backend is available by making a fetch request to health endpoint
-  fetch(`${apiUrl}/api/health`)
+  fetch(`${apiUrl}/api/health`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+    }
+  })
     .then(response => {
       if (!response.ok) {
-        console.error(`Backend health check failed: ${response.status}`);
+        console.error(`Backend health check failed: ${response.status} ${response.statusText}`);
       } else {
         console.log('Backend health check passed');
+        return response.json();
       }
+    })
+    .then(data => {
+      if (data) console.log('Backend API status:', data);
     })
     .catch(error => {
       console.error('Backend health check error:', error);
+      console.error('Backend API server may be unreachable - check server status');
     });
 
-  // Also check WebSocket health endpoint
-  fetch(`${apiUrl}/ws/health`)
+  // Also check WebSocket health endpoint with proper error handling
+  fetch(`${apiUrl}/ws/health`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+    }
+  })
     .then(response => {
       if (!response.ok) {
-        console.error(`WebSocket health check failed: ${response.status}`);
+        console.error(`WebSocket health check failed: ${response.status} ${response.statusText}`);
       } else {
         console.log('WebSocket health check passed');
         return response.json();
@@ -54,7 +71,11 @@ export const initWebSocket = () => {
       if (data) console.log('WebSocket health data:', data);
     })
     .catch(error => {
-      console.error('WebSocket health check error:', error);
+      console.error('WebSocket server health check failed:', error);
+      console.error('WebSocket server may be unreachable');
+
+      // Recommend alternative approach if health check fails
+      console.log('Trying to establish WebSocket connection anyway...');
     });
 
   // Replace http/https with ws/wss
