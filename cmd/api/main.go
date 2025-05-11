@@ -300,6 +300,106 @@ func main() {
 		})
 	}).Methods("GET", "OPTIONS")
 
+	// TEMPORARY DEBUG API: Admin users without authentication
+	apiRouter.HandleFunc("/debug/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("DEBUG Admin users endpoint accessed from: %s", r.Header.Get("Origin"))
+
+		// Set CORS headers
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Get users directly without authentication
+		users, err := userRepo.GetAllUsers()
+		if err != nil {
+			log.Printf("DEBUG Admin: Error getting users: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error": "Internal Server Error",
+				"message": fmt.Sprintf("Error getting users: %v", err),
+			})
+			return
+		}
+
+		log.Printf("DEBUG Admin: Found %d users, returning them without auth", len(users))
+
+		// Return users as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+	}).Methods("GET", "OPTIONS")
+
+	// TEMPORARY DEBUG API: Admin status check without authentication
+	apiRouter.HandleFunc("/debug/admin/status", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("DEBUG Admin status endpoint accessed from: %s", r.Header.Get("Origin"))
+
+		// Set CORS headers
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Get user ID from query parameter (optional)
+		userIDStr := r.URL.Query().Get("user_id")
+		userID := 3 // Default to user 3 (KDLN)
+		if userIDStr != "" {
+			var err error
+			userID, err = strconv.Atoi(userIDStr)
+			if err != nil {
+				log.Printf("Invalid user ID: %s", userIDStr)
+				userID = 3
+			}
+		}
+
+		// Check if user is admin
+		isAdmin, err := userRepo.IsUserAdmin(userID)
+		if err != nil {
+			log.Printf("DEBUG Admin status: Error checking admin status: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]any{
+				"error": "Internal Server Error",
+				"message": fmt.Sprintf("Error checking admin status: %v", err),
+				"user_id": userID,
+			})
+			return
+		}
+
+		// Return debug info
+		log.Printf("DEBUG Admin status: User %d isAdmin=%v", userID, isAdmin)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"user_id": userID,
+			"is_admin": isAdmin,
+			"timestamp": time.Now().Format(time.RFC3339),
+			"debug_info": userRepo.DebugIsUserAdmin(userID),
+		})
+	}).Methods("GET", "OPTIONS")
+
 	// CORS debug endpoint
 	apiRouter.HandleFunc("/debug/cors", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("CORS Debug Request: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
