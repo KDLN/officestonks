@@ -30,28 +30,41 @@ func main() {
 	log.Printf("Available files: %s\n", getMustString("ls -la"))
 	log.Printf("Environment variables: %s\n", os.Environ())
 
-	// Initialize database connection with retries
+	// Initialize database connection with retries and fallback
 	var db *sql.DB
 	var err error
 
-	// Try to connect to the database with retries
-	for i := 0; i < 5; i++ {
-		log.Printf("Attempting database connection (attempt %d of 5)...", i+1)
+	// Try to connect to the database with retries using environment variables
+	for i := 0; i < 3; i++ {
+		log.Printf("Attempting database connection with environment variables (attempt %d of 3)...", i+1)
 		db, err = repository.InitDB()
 		if err == nil {
-			log.Println("Successfully connected to database!")
+			log.Println("Successfully connected to database using environment variables!")
 			break
 		}
-		log.Printf("Failed to connect to database: %v", err)
-		if i < 4 {
+		log.Printf("Failed to connect to database using environment variables: %v", err)
+		if i < 2 {
 			log.Printf("Retrying in 5 seconds...")
 			time.Sleep(5 * time.Second)
 		}
 	}
 
-	// If all retries failed, exit
+	// If environment variable connection failed, try hardcoded parameters
 	if err != nil {
-		log.Fatalf("All database connection attempts failed: %v", err)
+		log.Println("All attempts to connect using environment variables failed. Trying hardcoded connection...")
+		db, err = repository.InitDBHardcoded()
+		if err != nil {
+			log.Fatalf("All database connection attempts failed, including hardcoded fallback: %v", err)
+		}
+		log.Println("Successfully connected to database using hardcoded parameters!")
+	}
+
+	// Verify connection with a simple query
+	var version string
+	if err := db.QueryRow("SELECT VERSION()").Scan(&version); err != nil {
+		log.Printf("Warning: Could not verify database connection with query: %v", err)
+	} else {
+		log.Printf("Database connection verified. MySQL version: %s", version)
 	}
 	// Create repositories
 	userRepo := repository.NewUserRepo(db)

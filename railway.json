@@ -15,6 +15,11 @@
   "environmental": {
     "GODEBUG": "netdns=go",
     "MYSQL_TCP_PROTOCOL": "4",
-    "IPV6_DISABLED": "true"
+    "IPV6_DISABLED": "true",
+    "MYSQLHOST": "turntable.proxy.rlwy.net",
+    "MYSQLPORT": "28889",
+    "MYSQLUSER": "root",
+    "MYSQLPASSWORD": "EJhRJRIwfkyeXofeEDCGLnlwFuhWAHAY",
+    "MYSQLDATABASE": "railway"
   }
 }

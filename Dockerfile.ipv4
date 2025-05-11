@@ -23,8 +23,8 @@ FROM alpine:3.19
 # Set IPv4 preference in Alpine
 RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf
 
-# Install necessary packages
-RUN apk --no-cache add ca-certificates tzdata
+# Install necessary packages including MySQL client and netcat for verification
+RUN apk --no-cache add ca-certificates tzdata mysql-client netcat-openbsd bash
 
 # Create a non-root user
 RUN adduser -D -H -h /app appuser
@@ -36,6 +36,7 @@ COPY --from=builder /app/server .
 # Copy any required assets
 COPY --from=builder /app/schema.sql .
 COPY --from=builder /app/internal/repository/schema.go ./internal/repository/
+COPY --from=builder /app/verify-db.sh .
 
 # Switch to non-root user
 USER appuser
@@ -48,5 +49,8 @@ ENV MYSQL_TCP_PROTOCOL=4
 # Expose port
 EXPOSE 8080
 
-# Define the command to run the application
-CMD ["/app/server"]
+# Create a wrapper script to run verification before starting the app
+COPY --from=builder /app/start-with-verify.sh /app/
+
+# Define the command to run the verification and application
+CMD ["/bin/bash", "/app/start-with-verify.sh"]
