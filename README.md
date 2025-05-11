@@ -37,10 +37,16 @@ The repository follows standard Go project layout:
 - `/frontend`: React frontend
   - `/src`: Source code
   - `/public`: Static assets
-- `/docker`: Docker configuration files
-  - `Dockerfile.backend`: Backend production container
-  - `Dockerfile.frontend`: Frontend production container
-  - `docker-compose.yml`: Local development setup
+- `/cors-proxy`: CORS proxy for API requests
+- `/docs`: Consolidated documentation
+
+## Documentation
+
+All project documentation is organized in the `/docs` directory:
+
+- [Project Documentation](docs/PROJECT.md) - Overview, structure, and development guidelines
+- [Deployment Guide](docs/DEPLOYMENT.md) - Complete deployment instructions
+- [Cleanup Summary](docs/CLEANUP.md) - Repository cleanup and organization
 
 ## Getting Started
 
@@ -72,7 +78,7 @@ docker-compose up
 
 ## Deployment
 
-This application is deployed on Railway. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+This application is deployed on Railway. See [Deployment Guide](docs/DEPLOYMENT.md) for detailed deployment instructions.
 
 ## Features
 
@@ -99,7 +105,7 @@ This application is deployed on Railway. See [DEPLOYMENT.md](DEPLOYMENT.md) for 
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+We welcome contributions! Please see [Contributing Guidelines](docs/PROJECT.md#contributing) for details.
 
 ## License
 
