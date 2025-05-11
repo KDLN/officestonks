@@ -25,25 +25,59 @@ func NewMarketHandler(marketService *services.MarketService) *MarketHandler {
 
 // GetAllStocks returns a list of all available stocks
 func (h *MarketHandler) GetAllStocks(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers for this public endpoint
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	stocks, err := h.marketService.GetAllStocks()
 	if err != nil {
 		http.Error(w, "Failed to retrieve stocks", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stocks)
 }
 
 // GetStockByID returns details for a specific stock
 func (h *MarketHandler) GetStockByID(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers for this public endpoint
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	vars := mux.Vars(r)
 	stockID, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	stock, err := h.marketService.GetStockByID(stockID)
 	if err != nil {
 		http.Error(w, "Stock not found", http.StatusNotFound)
@@ -56,19 +90,36 @@ func (h *MarketHandler) GetStockByID(w http.ResponseWriter, r *http.Request) {
 
 // GetUserPortfolio returns the user's portfolio
 func (h *MarketHandler) GetUserPortfolio(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers first
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Get the user ID from the request context
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
+
 	portfolio, err := h.marketService.GetUserPortfolio(userID)
 	if err != nil {
 		http.Error(w, "Failed to retrieve portfolio", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(portfolio)
 }
@@ -122,26 +173,43 @@ func (h *MarketHandler) TradeStock(w http.ResponseWriter, r *http.Request) {
 
 // GetTransactionHistory returns the user's transaction history
 func (h *MarketHandler) GetTransactionHistory(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers first
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Get the user ID from the request context
 	userID, ok := middleware.GetUserID(r)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	
+
 	// Parse pagination parameters
 	limit := 50
 	offset := 0
-	
+
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
-	
+
 	if limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
 			limit = l
 		}
 	}
-	
+
 	if offsetStr != "" {
 		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
 			offset = o

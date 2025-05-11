@@ -32,37 +32,55 @@ func NewWebSocketHandler(hub *Hub) *WebSocketHandler {
 
 // HandleConnection handles a new websocket connection
 func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers for WebSocket handshake
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+	// Handle preflight requests for WebSockets
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	// Extract token from query parameter
 	token := r.URL.Query().Get("token")
 	if token == "" {
 		http.Error(w, "Missing authentication token", http.StatusUnauthorized)
 		return
 	}
-	
+
 	// Validate token
 	claims, err := auth.ValidateToken(token)
 	if err != nil {
 		http.Error(w, "Invalid authentication token", http.StatusUnauthorized)
 		return
 	}
-	
+
 	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		// Log the error details
 		http.Error(w, "Could not upgrade connection", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Create a new client
 	client := NewClient(h.hub, conn, claims.UserID)
-	
+
 	// Register the client
 	h.hub.register <- client
-	
+
 	// Start the client's pumps
 	go client.writePump()
 	go client.readPump()
-	
+
 	// Send initial data to the client
 	h.sendInitialData(client)
 }

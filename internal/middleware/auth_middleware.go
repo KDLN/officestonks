@@ -29,32 +29,58 @@ func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
 // Authenticate verifies the JWT token and adds the user ID to the request context
 func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Get the Authorization header
+		// Always set CORS headers first, before any authentication checks
+		origin := r.Header.Get("Origin")
+		if origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		} else {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		}
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Check for token in query string
+		tokenParam := r.URL.Query().Get("token")
+
+		// Get the Authorization header if token not in query string
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Authorization header required", http.StatusUnauthorized)
+		var tokenString string
+
+		if tokenParam != "" {
+			// Use token from query parameter
+			tokenString = tokenParam
+		} else if authHeader != "" {
+			// Check if the header has the "Bearer " prefix
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+				return
+			}
+
+			// Extract the token from Authorization header
+			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		} else {
+			// No token provided in either place
+			http.Error(w, "Authentication token required", http.StatusUnauthorized)
 			return
 		}
-		
-		// Check if the header has the "Bearer " prefix
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
-			return
-		}
-		
-		// Extract the token
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		
+
 		// Validate the token
 		userID, err := m.authService.ValidateToken(tokenString)
 		if err != nil {
 			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 			return
 		}
-		
+
 		// Add the user ID to the request context
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
-		
+
 		// Call the next handler with the updated context
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
