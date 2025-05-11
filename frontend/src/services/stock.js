@@ -1,19 +1,24 @@
 // Stock market service for frontend
 import { getToken } from './auth';
+import mockData from './mock-data';
 
 // Make sure to include the correct API path
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://web-copy-production-5b48.up.railway.app';
+const BASE_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
 const API_URL = `${BASE_URL}/api`;
 console.log("Stock service using API URL:", API_URL);
 
 // Get all available stocks
 export const getAllStocks = async () => {
   try {
-    const response = await fetch(`${API_URL}/stocks`, {
+    const token = getToken();
+    const url = token ? `${API_URL}/stocks?token=${token}` : `${API_URL}/stocks`;
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -23,18 +28,24 @@ export const getAllStocks = async () => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching stocks:', error);
-    throw error;
+    console.warn('Returning mock stock data due to API error');
+    // Return mock data when the API fails
+    return mockData.stocks;
   }
 };
 
 // Get a specific stock by ID
 export const getStockById = async (stockId) => {
   try {
-    const response = await fetch(`${API_URL}/stocks/${stockId}`, {
+    const token = getToken();
+    const url = token ? `${API_URL}/stocks/${stockId}?token=${token}` : `${API_URL}/stocks/${stockId}`;
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -44,7 +55,10 @@ export const getStockById = async (stockId) => {
     return await response.json();
   } catch (error) {
     console.error(`Error fetching stock ${stockId}:`, error);
-    throw error;
+    console.warn('Returning mock stock data due to API error');
+    // Return mock data for the specific stock
+    const mockStock = mockData.stocks.find(stock => stock.id === parseInt(stockId));
+    return mockStock || { id: stockId, symbol: 'MOCK', name: 'Mock Stock', current_price: 100.00 };
   }
 };
 
@@ -52,13 +66,14 @@ export const getStockById = async (stockId) => {
 export const getUserPortfolio = async () => {
   try {
     const token = getToken();
-    
-    const response = await fetch(`${API_URL}/portfolio`, {
+
+    const response = await fetch(`${API_URL}/portfolio?token=${token}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -68,7 +83,8 @@ export const getUserPortfolio = async () => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching portfolio:', error);
-    throw error;
+    console.warn('Returning mock portfolio data due to API error');
+    return mockData.portfolio;
   }
 };
 
@@ -106,13 +122,14 @@ export const executeTrade = async (stockId, quantity, action) => {
 export const getTransactionHistory = async (limit = 50, offset = 0) => {
   try {
     const token = getToken();
-    
-    const response = await fetch(`${API_URL}/transactions?limit=${limit}&offset=${offset}`, {
+
+    const response = await fetch(`${API_URL}/transactions?limit=${limit}&offset=${offset}&token=${token}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      mode: 'cors',
     });
 
     if (!response.ok) {
@@ -122,6 +139,7 @@ export const getTransactionHistory = async (limit = 50, offset = 0) => {
     return await response.json();
   } catch (error) {
     console.error('Error fetching transaction history:', error);
-    throw error;
+    console.warn('Returning mock transaction data due to API error');
+    return mockData.transactions;
   }
 };

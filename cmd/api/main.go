@@ -49,22 +49,68 @@ func main() {
 		}
 	}
 
-	// If all retries failed, check if we're in dev mode
+	// If all retries failed, continue with a degraded mode that has working CORS
 	if err != nil {
-		if os.Getenv("OFFICESTONKS_DEV_MODE") == "true" {
-			log.Println("DEV MODE: Starting without database connection")
-			// Create a simple health endpoint and exit
-			http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("Office Stonks API is running in DEV mode without DB"))
+		log.Printf("WARNING: All database connection attempts failed: %v", err)
+		log.Println("Starting in DEGRADED MODE: API will work with CORS but database operations will fail")
+
+		// Create a router with just the CORS middleware
+		r := mux.NewRouter()
+		r.Use(corsMiddleware)
+
+		// Global OPTIONS handler for CORS preflight
+		r.PathPrefix("/").Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log.Printf("Global OPTIONS handler for: %s", r.URL.Path)
+			w.WriteHeader(http.StatusOK)
+		})
+
+		// Add health check endpoint
+		apiRouter := r.PathPrefix("/api").Subrouter()
+		apiRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "degraded",
+				"message": "API is running but database connection failed",
+				"error": err.Error(),
+				"timestamp": time.Now().String(),
 			})
-			port := getPort()
-			log.Printf("Server starting on port %d (DEV MODE)...\n", port)
-			log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
-			return
-		} else {
-			log.Fatalf("All database connection attempts failed: %v", err)
-		}
+		}).Methods("GET", "OPTIONS")
+
+		// Handle all other routes with degraded service response
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set CORS headers for all responses
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+
+			// Handle OPTIONS requests
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			// For all other requests, return a degraded service response
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Database connection failed",
+				"message": "Service is running in degraded mode",
+				"path": r.URL.Path,
+				"timestamp": time.Now().String(),
+			})
+		})
+
+		port := getPort()
+		log.Printf("Server starting on port %d (DEGRADED MODE)...\n", port)
+		log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), r))
+		return
 	}
 	defer db.Close()
 
