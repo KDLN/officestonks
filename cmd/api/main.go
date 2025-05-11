@@ -590,9 +590,18 @@ func main() {
 		})
 	})
 
-	// Register emergency admin handlers
-	handlers.RegisterEmergencyAdminHandlers(r, userRepo)
-	handlers.RegisterDebugEndpoints(r)
+	// Create ServeMux for direct access
+	directMux := http.NewServeMux()
+	// Register emergency admin handlers on the direct mux
+	handlers.RegisterEmergencyAdminHandlers(directMux, userRepo)
+	handlers.RegisterDebugEndpoints(directMux)
+
+	// Register the direct mux handlers to the main router
+	r.PathPrefix("/api/admin/users").Handler(directMux)
+	r.PathPrefix("/api/admin/status").Handler(directMux)
+	r.PathPrefix("/api/debug/info").Handler(directMux)
+	r.PathPrefix("/api/debug/jwt").Handler(directMux)
+
 	log.Println("EMERGENCY: Direct admin handlers registered")
 
 	// Get port from environment variable or use default

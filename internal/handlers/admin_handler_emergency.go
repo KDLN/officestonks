@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 
-	"officestonks/internal/middleware"
-	"officestonks/internal/repository"
+	"officestonks/internal/models"
 )
 
 // EMERGENCY DIRECT HANDLER - Bypasses all normal auth checks
-func RegisterEmergencyAdminHandlers(router *http.ServeMux, userRepo repository.UserRepository) {
+func RegisterEmergencyAdminHandlers(router *http.ServeMux, userRepo models.UserRepository) {
 	log.Println("EMERGENCY: Registering direct admin handlers")
 	
 	// Direct admin users handler with no auth checks
