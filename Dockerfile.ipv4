@@ -1,0 +1,52 @@
+# Use a smaller base image
+FROM golang:1.21-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install required packages
+RUN apk add --no-cache git gcc musl-dev
+
+# Copy module files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application with IPv4 force flag
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/api
+
+# Use a minimal alpine image for the final stage
+FROM alpine:3.19
+
+# Set IPv4 preference in Alpine
+RUN echo 'precedence ::ffff:0:0/96  100' >> /etc/gai.conf
+
+# Install necessary packages
+RUN apk --no-cache add ca-certificates tzdata
+
+# Create a non-root user
+RUN adduser -D -H -h /app appuser
+WORKDIR /app
+
+# Copy the binary from the builder stage
+COPY --from=builder /app/server .
+
+# Copy any required assets
+COPY --from=builder /app/schema.sql .
+COPY --from=builder /app/internal/repository/schema.go ./internal/repository/
+
+# Switch to non-root user
+USER appuser
+
+# Set environment variables for IPv4 preference
+ENV GODEBUG=netdns=go
+ENV IPV6_DISABLED=true
+ENV MYSQL_TCP_PROTOCOL=4
+
+# Expose port
+EXPOSE 8080
+
+# Define the command to run the application
+CMD ["/app/server"]

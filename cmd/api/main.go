@@ -328,7 +328,18 @@ func main() {
 	// Get port from environment variable or use default
 	port := getPort()
 	fmt.Printf("Server starting on port %d...\n", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), r))
+
+	// Force IPv4 binding only - this helps with Railway's routing
+	server := &http.Server{
+		Addr:         fmt.Sprintf("0.0.0.0:%d", port),  // Bind to IPv4 only
+		Handler:      r,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	fmt.Printf("Server binding to 0.0.0.0:%d (IPv4 only)...\n", port)
+	log.Fatal(server.ListenAndServe())
 }
 
 // Get port from environment or use default 8080
