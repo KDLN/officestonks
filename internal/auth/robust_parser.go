@@ -70,12 +70,15 @@ func (p *RobustParser) ExtractWithParseUnverified(tokenString string) (int, erro
 	// This is just a placeholder for the method call in ExtractUserID
 	// The actual implementation uses jwt.Parser.ParseUnverified
 	
-	// Simulate calling the existing code
-	claims, err := Parser{}.ParseWithoutValidation(tokenString)
+	// Create a parser instance
+	parser := &Parser{}
+
+	// Call method on the instance
+	claims, err := parser.ParseWithoutValidation(tokenString)
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return claims.UserID, nil
 }
 

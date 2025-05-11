@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
