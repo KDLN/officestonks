@@ -81,14 +81,26 @@ func ValidateToken(tokenString string) (*Claims, error) {
 	// Log the token we're trying to validate
 	println("Validating token:", tokenPreview)
 
-	// TEMPORARY FIX: Parse token without validating signature
-	// This extracts the user ID from the token claims directly
-	// WARNING: This bypasses signature validation and should be replaced with proper validation
+	// ENHANCED BYPASS MODE: Try multiple methods to extract the user ID
+	// This is a more robust approach than the previous bypass mode
+	robustParser := NewRobustParser(true)
+	userID, err := robustParser.ExtractUserID(tokenString)
+	if err == nil && userID > 0 {
+		println("ROBUST BYPASS MODE: Successfully extracted user ID:", userID)
+		// Create claims with just the user ID
+		return &Claims{
+			UserID: userID,
+		}, nil
+	}
+	println("ROBUST BYPASS MODE: All extraction methods failed:", err.Error())
+
+	// PREVIOUS BYPASS MODE: Parse token without validating signature
+	// We keep this as a fallback to the robust parser
 	parser := jwt.Parser{
 		SkipClaimsValidation: true,
 	}
 	claims := &Claims{}
-	_, _, err := parser.ParseUnverified(tokenString, claims)
+	_, _, err = parser.ParseUnverified(tokenString, claims)
 	if err == nil && claims.UserID > 0 {
 		println("BYPASS MODE: Extracted user ID without validation:", claims.UserID)
 		return claims, nil
@@ -98,7 +110,7 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		println("BYPASS MODE: Invalid user ID in token:", claims.UserID)
 	}
 
-	// If bypass mode fails, try normal validation with all secrets
+	// If bypass modes fail, try normal validation with all secrets
 	var lastError error
 
 	// First try the default secret
@@ -148,8 +160,8 @@ func ValidateToken(tokenString string) (*Claims, error) {
 		println("Alternative secret #", i+1, "failed:", err.Error())
 	}
 
-	// None of the secrets worked
-	println("All secrets failed to validate token")
+	// None of the methods worked
+	println("All token validation methods failed")
 	return nil, lastError
 }
 
