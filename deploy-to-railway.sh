@@ -20,9 +20,10 @@ fi
 echo "Build successful!"
 
 # Ensure all files are executable
-chmod +x docker-entrypoint.sh
-chmod +x start.sh
-chmod +x start-server.sh
+# Check if files exist before making them executable
+[ -f "docker-entrypoint.sh" ] && chmod +x docker-entrypoint.sh
+[ -f "start.sh" ] && chmod +x start.sh
+[ -f "start-server.sh" ] && chmod +x start-server.sh
 
 # Check if the Railway CLI is installed
 if ! command -v railway &> /dev/null; then
