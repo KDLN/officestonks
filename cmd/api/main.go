@@ -444,6 +444,13 @@ func main() {
 		})
 	})
 
+	// ABSOLUTELY MINIMAL HEALTH CHECK
+	r.Methods("GET").Path("/health-check").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Write([]byte("OK"))
+	})
+
 	// ROOT LEVEL DEBUG ENDPOINTS FOR TESTING
 	// Explicitly allow GET and OPTIONS methods
 	r.Methods("GET", "OPTIONS").Path("/debug_admin_status").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
