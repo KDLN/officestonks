@@ -27,6 +27,36 @@ export const initWebSocket = () => {
   // Get the backend URL from environment or default to Railway URL
   const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
 
+  // First check if the backend is available by making a fetch request to health endpoint
+  fetch(`${apiUrl}/api/health`)
+    .then(response => {
+      if (!response.ok) {
+        console.error(`Backend health check failed: ${response.status}`);
+      } else {
+        console.log('Backend health check passed');
+      }
+    })
+    .catch(error => {
+      console.error('Backend health check error:', error);
+    });
+
+  // Also check WebSocket health endpoint
+  fetch(`${apiUrl}/ws/health`)
+    .then(response => {
+      if (!response.ok) {
+        console.error(`WebSocket health check failed: ${response.status}`);
+      } else {
+        console.log('WebSocket health check passed');
+        return response.json();
+      }
+    })
+    .then(data => {
+      if (data) console.log('WebSocket health data:', data);
+    })
+    .catch(error => {
+      console.error('WebSocket health check error:', error);
+    });
+
   // Replace http/https with ws/wss
   const wsBase = apiUrl.replace(/^http/, 'ws');
 

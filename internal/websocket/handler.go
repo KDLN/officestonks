@@ -18,8 +18,13 @@ type WebSocketHandler struct {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	// Allow all origins for development
+	// Allow all origins for development and production
 	CheckOrigin: func(r *http.Request) bool {
+		// Log the origin attempting to connect
+		origin := r.Header.Get("Origin")
+		log.Printf("WebSocket CheckOrigin function called with origin: %s", origin)
+
+		// Always return true to accept all origins
 		return true
 	},
 }

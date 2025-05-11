@@ -196,8 +196,39 @@ func main() {
 	// Admin chat management
 	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("GET", "POST", "OPTIONS")
 
-	// WebSocket route
-	r.HandleFunc("/ws", wsHandler.HandleConnection)
+	// WebSocket route with explicit OPTIONS handling
+	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("WebSocket request received: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
+
+		// Special handling for OPTIONS requests
+		if r.Method == "OPTIONS" {
+			// Set CORS headers
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			} else {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			}
+			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// For actual WebSocket connections, use the handler
+		wsHandler.HandleConnection(w, r)
+	})
+
+	// WebSocket health check endpoint
+	r.HandleFunc("/ws/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "WebSocket endpoint is available",
+			"time": time.Now().Format(time.RFC3339),
+		})
+	})
 
 	// Health check endpoint
 	apiRouter.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
