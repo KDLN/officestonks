@@ -132,7 +132,8 @@ func main() {
 
 	// Initialize the market simulator after setting up the hub
 	if err := marketService.InitializeSimulator(); err != nil {
-		log.Fatalf("Failed to initialize market simulator: %v", err)
+		log.Printf("WARNING: Failed to initialize market simulator: %v", err)
+		log.Println("Continuing in degraded mode without market simulator")
 	}
 
 	// Create chat service with the websocket hub

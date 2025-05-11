@@ -2,9 +2,14 @@
 import { getToken } from './auth';
 import mockData from './mock-data';
 
+// Check the current hostname to determine if we're running locally
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 // Make sure to include the correct API path
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
-const API_URL = `${BASE_URL}/api`;
+const BASE_URL = isLocalhost
+  ? process.env.REACT_APP_API_URL || '/api'
+  : 'https://web-production-1e26.up.railway.app';
+const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 
 // Get recent chat messages
 export const getRecentMessages = async (limit = 50) => {
