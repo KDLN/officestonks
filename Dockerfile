@@ -8,13 +8,15 @@ WORKDIR /app
 # Copy pre-built binary and resources
 COPY ./server /app/server
 COPY ./schema.sql /app/schema.sql
-COPY ./docker-entrypoint.sh /app/docker-entrypoint.sh
 
-# Make binary and entrypoint executable
-RUN chmod +x /app/server /app/docker-entrypoint.sh
+# Make binary executable
+RUN chmod +x /app/server
 
 # Expose port
 EXPOSE 8080
 
-# Use the entrypoint script
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# Set environment variables for debugging and logging
+ENV PATH="/app:${PATH}"
+
+# Default CMD for Railway
+CMD ["/app/server"]
