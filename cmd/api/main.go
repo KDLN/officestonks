@@ -435,7 +435,7 @@ func main() {
 	}).Methods("GET", "OPTIONS")
 
 	// Set up a simple handler for root path to return a welcome message
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	r.Methods("GET", "OPTIONS").Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"message": "Welcome to OfficeStonks API. Frontend is served separately.",
@@ -445,7 +445,8 @@ func main() {
 	})
 
 	// ROOT LEVEL DEBUG ENDPOINTS FOR TESTING
-	r.HandleFunc("/debug_admin_status", func(w http.ResponseWriter, r *http.Request) {
+	// Explicitly allow GET and OPTIONS methods
+	r.Methods("GET", "OPTIONS").Path("/debug_admin_status").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ROOT DEBUG ENDPOINT ACCESSED: /debug_admin_status from %s", r.Header.Get("Origin"))
 
 		// Set CORS headers
@@ -507,7 +508,8 @@ func main() {
 		})
 	})
 
-	r.HandleFunc("/debug_users", func(w http.ResponseWriter, r *http.Request) {
+	// Explicitly allow GET and OPTIONS methods
+	r.Methods("GET", "OPTIONS").Path("/debug_users").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ROOT DEBUG ENDPOINT ACCESSED: /debug_users from %s", r.Header.Get("Origin"))
 
 		// Set CORS headers
