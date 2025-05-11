@@ -590,6 +590,11 @@ func main() {
 		})
 	})
 
+	// Register emergency admin handlers
+	handlers.RegisterEmergencyAdminHandlers(r, userRepo)
+	handlers.RegisterDebugEndpoints(r)
+	log.Println("EMERGENCY: Direct admin handlers registered")
+
 	// Get port from environment variable or use default
 	port := getPort()
 	fmt.Printf("Server starting on port %d...\n", port)
