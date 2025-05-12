@@ -30,20 +30,32 @@ export const initWebSocket = () => {
   // For backward compatibility
   const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
 
-  // First check if the backend is available by making a fetch request to health endpoint
+  // First check if the backend is available with a fetch request to health endpoint
   fetch(`${corsProxyUrl}/api/health`, {
     method: 'GET',
     credentials: 'include',
     headers: {
-      'Accept': 'application/json',
+      'Accept': 'application/json, text/plain',
     }
   })
     .then(response => {
       if (!response.ok) {
         console.error(`Backend health check failed: ${response.status} ${response.statusText}`);
+        return null;
       } else {
         console.log('Backend health check passed');
-        return response.json();
+
+        // Try to get content type to handle non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return response.json();
+        } else {
+          // Handle text response (not JSON)
+          return response.text().then(text => {
+            console.log('Backend health response (text):', text);
+            return { status: 'ok', message: text };
+          });
+        }
       }
     })
     .then(data => {
@@ -51,7 +63,7 @@ export const initWebSocket = () => {
     })
     .catch(error => {
       console.error('Backend health check error:', error);
-      console.error('Backend API server may be unreachable - check server status');
+      console.log('Health check failed, but continuing WebSocket connection attempt anyway');
     });
 
   // Also check WebSocket health endpoint with proper error handling
@@ -59,15 +71,27 @@ export const initWebSocket = () => {
     method: 'GET',
     credentials: 'include',
     headers: {
-      'Accept': 'application/json',
+      'Accept': 'application/json, text/plain',
     }
   })
     .then(response => {
       if (!response.ok) {
         console.error(`WebSocket health check failed: ${response.status} ${response.statusText}`);
+        return null;
       } else {
         console.log('WebSocket health check passed');
-        return response.json();
+
+        // Try to get content type to handle non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          return response.json();
+        } else {
+          // Handle text response (not JSON)
+          return response.text().then(text => {
+            console.log('WebSocket health response (text):', text);
+            return { status: 'ok', message: text };
+          });
+        }
       }
     })
     .then(data => {
@@ -75,10 +99,7 @@ export const initWebSocket = () => {
     })
     .catch(error => {
       console.error('WebSocket server health check failed:', error);
-      console.error('WebSocket server may be unreachable');
-
-      // Recommend alternative approach if health check fails
-      console.log('Trying to establish WebSocket connection anyway...');
+      console.log('WebSocket health check failed, but continuing connection attempt anyway');
     });
 
   // Replace http/https with ws/wss - Use CORS proxy URL for WebSocket connection
