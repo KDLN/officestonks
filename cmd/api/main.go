@@ -123,26 +123,44 @@ func main() {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get the origin from the request
 			origin := r.Header.Get("Origin")
-			
-			// If origin is provided, use it; otherwise use wildcard
-			if origin != "" {
-				w.Header().Set("Access-Control-Allow-Origin", origin)
-			} else {
-				w.Header().Set("Access-Control-Allow-Origin", "*")
+
+			// Define allowed origins
+			allowedOrigins := []string{
+				"https://officestonks-frontend-production.up.railway.app",
+				"http://localhost:3000",
 			}
-			
+
+			// Check if origin is allowed
+			originAllowed := false
+			for _, allowedOrigin := range allowedOrigins {
+				if origin == allowedOrigin {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					originAllowed = true
+					break
+				}
+			}
+
+			// If origin is not in allowed list, use wildcard as fallback
+			if !originAllowed {
+				if origin != "" {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+				} else {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+				}
+			}
+
 			// Set standard CORS headers
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "86400")
-			
+
 			// Handle OPTIONS requests immediately
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			
+
 			// Process the actual request
 			next.ServeHTTP(w, r)
 		})
