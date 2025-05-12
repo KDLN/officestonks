@@ -11,8 +11,12 @@ import (
 func setupStaticFileServer(router *mux.Router) {
 	// Root handler for the API
 	router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip API and WebSocket routes
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws") {
+		// Skip API, WebSocket, emergency, and debug routes
+		if strings.HasPrefix(r.URL.Path, "/api/") ||
+		   strings.HasPrefix(r.URL.Path, "/ws") ||
+		   strings.HasPrefix(r.URL.Path, "/emergency/") ||
+		   strings.HasPrefix(r.URL.Path, "/debug_") ||
+		   strings.HasPrefix(r.URL.Path, "/health-check") {
 			return
 		}
 
@@ -20,5 +24,5 @@ func setupStaticFileServer(router *mux.Router) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"message": "Office Stonks API is running. Access the API at /api endpoints."}`))
-	}).Methods("GET")
+	}).Methods("GET", "OPTIONS")
 }

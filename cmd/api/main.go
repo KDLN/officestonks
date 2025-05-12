@@ -29,7 +29,9 @@ func main() {
 	log.Println("Starting Office Stonks API server...")
 	log.Printf("Working directory: %s\n", getMustString("pwd"))
 	log.Printf("Available files: %s\n", getMustString("ls -la"))
-	log.Printf("Environment variables: %s\n", os.Environ())
+
+	// Remove reference to environment variables for production security
+	log.Println("Environment loaded")
 
 	// Initialize database connection with retries and fallback
 	var db *sql.DB
@@ -324,12 +326,24 @@ func main() {
 
 	log.Println("🚨 EMERGENCY: Direct root-level handlers registered successfully!")
 
+	// Register a duplicate health check endpoint at the root level that accepts GET
+	// This should help for Railway healthchecks
+	r.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Write([]byte("OK"))
+	}).Methods("GET", "OPTIONS")
+
 	// Global OPTIONS handler to ensure CORS preflight works for all routes
 	r.PathPrefix("/").Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Global OPTIONS handler for: %s", r.URL.Path)
 		// CORS headers are set by the middleware, just return 200 OK
 		w.WriteHeader(http.StatusOK)
 	})
+
+	// Explicitly register static file handler AFTER emergency endpoints
+	// This ensures emergency routes have higher priority
+	setupStaticFileServer(r)
 
 	// Set up API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()
