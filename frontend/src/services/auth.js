@@ -2,9 +2,17 @@
 
 // API URL
 // Make sure to include the correct API path
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://web-copy-production-5b48.up.railway.app';
-const API_URL = `${BASE_URL}/api`;
-console.log("Using API URL:", API_URL);
+// Check the current hostname to determine if we're running locally
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// For production, use direct API URL (no CORS proxy)
+const BASE_URL = isLocalhost
+  ? '/api'  // Use relative URL when running locally
+  : 'https://web-production-1e26.up.railway.app/api';  // Direct connection to API in production
+
+// Ensure we have the right URL format
+const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
+console.log("Auth service using API URL:", API_URL);
 
 // Register a new user
 export const register = async (username, password) => {
