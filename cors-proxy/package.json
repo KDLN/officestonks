@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "simple": "node simple-cors-fix.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {
