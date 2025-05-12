@@ -1,10 +1,14 @@
-# OfficeStonks CORS Proxy (v1.1.0)
+# OfficeStonks CORS Proxy (v1.1.1)
 
-A comprehensive CORS proxy service for OfficeStonks that eliminates CORS issues between the frontend and backend, with enhanced handling for admin routes.
+A comprehensive CORS proxy service for OfficeStonks that eliminates CORS issues between the frontend and backend, with enhanced handling for all routes.
 
 ## Overview
 
-**⚠️ IMPORTANT UPDATE (v1.1.0)**: This version includes enhanced CORS handling for admin routes to fix the CORS preflight issues with admin API endpoints.
+**⚠️ IMPORTANT UPDATE (v1.1.1)**:
+- This version includes enhanced CORS handling for all routes including login/auth endpoints
+- Fixes the "No 'Access-Control-Allow-Origin' header" errors for login requests
+- Adds special handling for preflight OPTIONS requests on all API routes
+- Specifically targets the frontend URL: `https://officestonks-frontend-production.up.railway.app`
 
 This proxy service sits between your frontend and backend, handling CORS headers properly and forwarding requests to the backend service. It supports both regular HTTP requests and WebSocket connections.
 
@@ -101,10 +105,15 @@ Once deployed, test the CORS proxy:
 
 2. Test admin routes preflight:
    ```
-   curl -X OPTIONS -i https://your-cors-proxy-url.up.railway.app/api/admin/stocks/reset -H "Origin: https://your-frontend-url.com"
+   curl -X OPTIONS -i https://your-cors-proxy-url.up.railway.app/api/admin/stocks/reset -H "Origin: https://officestonks-frontend-production.up.railway.app"
    ```
 
-   This should return HTTP 204 with proper CORS headers.
+3. Test auth routes preflight (new in v1.1.1):
+   ```
+   curl -X OPTIONS -i https://your-cors-proxy-url.up.railway.app/api/auth/login -H "Origin: https://officestonks-frontend-production.up.railway.app"
+   ```
+
+   Both should return HTTP 204 with proper CORS headers.
 
 ### Usage in Frontend
 
@@ -123,25 +132,39 @@ WebSocket connections will automatically be proxied through the `/ws` endpoint.
 ## Endpoints
 
 - `/api/*` - Proxy for REST API calls
+- `/api/auth/*` - Authentication endpoints with special CORS handling (new in v1.1.1)
+- `/api/admin/*` - Admin endpoints with special CORS handling
 - `/ws/*` - Proxy for WebSocket connections
 - `/health` - Health check endpoint
 - `/emergency/*` - Emergency admin endpoints
 - `/debug_admin_status` - Debug endpoint for admin status
 - `/debug/headers` - Debug endpoint to check request headers
 
-## Admin API Routes
+## Special Route Handling
 
-This version (v1.1.0) includes enhanced CORS handling specifically for admin routes. The following improvements have been made:
+This version (v1.1.1) includes enhanced CORS handling for all API routes with special focus on:
 
-1. Special handling for preflight OPTIONS requests to admin endpoints
-2. Dedicated middleware for admin API routes with proper CORS headers
-3. Extra CORS headers in all responses to ensure compatibility with frontend clients
-4. Fixed the "No 'Access-Control-Allow-Origin' header" error for admin routes
+### Auth API Routes (New in v1.1.1)
 
-When using admin endpoints:
-- Always ensure proper authentication
-- Admin requests should use the path `/api/admin/*`
-- Example: `/api/admin/stocks/reset`
+- Enhanced support for login and authentication endpoints
+- Dedicated middleware for authentication routes
+- Fixed CORS issues with the login process
+- Auth requests use the path `/api/auth/*` (Example: `/api/auth/login`)
+
+### Admin API Routes
+
+- Special handling for preflight OPTIONS requests to admin endpoints
+- Dedicated middleware for admin API routes with proper CORS headers
+- Fixed the "No 'Access-Control-Allow-Origin' header" error for admin routes
+- Admin requests use the path `/api/admin/*` (Example: `/api/admin/stocks/reset`)
+
+### Global Improvements
+
+- Enhanced preflight OPTIONS handling for all endpoints
+- Extra CORS headers in all responses to ensure compatibility
+- Explicit frontend URL allowance in CORS configuration
+- Detailed logging for troubleshooting CORS issues
+
 
 ## Local Development
 

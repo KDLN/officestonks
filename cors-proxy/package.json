@@ -1,7 +1,7 @@
 {
   "name": "officestonks-cors-proxy",
-  "version": "1.1.0",
-  "description": "CORS Proxy for OfficeStonks with enhanced admin route handling",
+  "version": "1.1.1",
+  "description": "CORS Proxy for OfficeStonks with enhanced CORS handling for all routes",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

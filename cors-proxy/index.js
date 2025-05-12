@@ -5,11 +5,24 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration with frontend URL explicitly allowed
+const frontendUrl = 'https://officestonks-frontend-production.up.railway.app';
+
 const corsOptions = {
   origin: function(origin, callback) {
-    // Allow any origin to make requests
-    callback(null, true);
+    // For development or testing - allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Allow the frontend URL and localhost for development
+    if (origin === frontendUrl || origin.startsWith('http://localhost')) {
+      return callback(null, true);
+    }
+
+    // Log rejected origins for debugging
+    console.log(`CORS rejected origin: ${origin}`);
+    callback(null, true); // Still allow all origins for now, but log rejected ones
   },
   credentials: true, // Allow credentials (cookies, auth headers)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -23,12 +36,30 @@ app.use(cors(corsOptions));
 
 // Special handling for OPTIONS requests - explicitly handle preflight
 app.options('*', function(req, res) {
-  // Set CORS headers
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  console.log(`⚠️ Preflight OPTIONS request for: ${req.path}`);
+  console.log(`  From origin: ${req.headers.origin || 'unknown'}`);
+  console.log(`  Access-Control-Request-Method: ${req.headers['access-control-request-method'] || 'none'}`);
+  console.log(`  Access-Control-Request-Headers: ${req.headers['access-control-request-headers'] || 'none'}`);
+
+  // Set CORS headers - explicitly use the frontend URL if it matches
+  const origin = req.headers.origin || '*';
+  res.header('Access-Control-Allow-Origin', origin);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Max-Age', '86400');
+
+  // Special handling for auth endpoints
+  if (req.path.includes('/auth/')) {
+    console.log(`🔑 Auth endpoint preflight detected: ${req.path}`);
+
+    // Ensure headers are set correctly for auth endpoints
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+
+    // Additional logging
+    console.log(`  Setting explicit origin for auth route: ${origin}`);
+  }
 
   // Respond immediately with 204 No Content
   res.status(204).end();
@@ -281,6 +312,63 @@ app.use('/api/admin', createProxyMiddleware({
         error: 'Admin API Proxy Error',
         message: err.message,
         code: 'ADMIN_API_PROXY_ERROR',
+        path: req.url,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+}));
+
+// Special handler for auth API routes
+app.use('/api/auth', createProxyMiddleware({
+  target: backendUrl,
+  changeOrigin: true,
+  xfwd: true,
+  pathRewrite: {
+    '^/api/auth': '/api/auth'
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`🔑 Auth API request: ${req.method} ${req.url}`);
+    console.log(`  To: ${backendUrl}/api/auth${req.url}`);
+    console.log(`  From origin: ${req.headers.origin || 'unknown'}`);
+
+    // Forward Authorization header if present
+    if (req.headers.authorization) {
+      const authPreview = req.headers.authorization.substring(0, 15) + '...';
+      console.log(`  Auth header present: ${authPreview}`);
+      proxyReq.setHeader('Authorization', req.headers.authorization);
+    }
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // Ensure CORS headers are present in the auth route response
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+
+    // For auth routes, add extra logging
+    console.log(`Auth API response status: ${proxyRes.statusCode} for ${req.method} ${req.url}`);
+    if (proxyRes.statusCode === 401 || proxyRes.statusCode === 403) {
+      console.log(`⚠️ AUTH ERROR: ${proxyRes.statusCode} for ${req.method} ${req.url}`);
+      console.log(`  Auth header present: ${!!req.headers.authorization}`);
+      console.log(`  Origin: ${req.headers.origin || 'unknown'}`);
+    }
+  },
+  onError: (err, req, res) => {
+    console.error('Auth API proxy error:', err);
+    console.error(`  Failed auth request: ${req.method} ${req.url}`);
+
+    if (!res.headersSent) {
+      // Ensure CORS headers even in error responses for auth routes
+      const origin = req.headers.origin || '*';
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+      res.status(502).json({
+        error: 'Auth API Proxy Error',
+        message: err.message,
+        code: 'AUTH_API_PROXY_ERROR',
         path: req.url,
         timestamp: new Date().toISOString()
       });
