@@ -127,6 +127,7 @@ func main() {
 			// Define allowed origins
 			allowedOrigins := []string{
 				"https://officestonks-frontend-production.up.railway.app",
+				"https://officestonks-proxy-production.up.railway.app",
 				"http://localhost:3000",
 			}
 
