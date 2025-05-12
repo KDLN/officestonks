@@ -25,13 +25,18 @@ export const checkAdminStatus = async () => {
   console.log('Checking admin status with token prefix:', token ? token.substring(0, 10) + '...' : 'no token');
 
   try {
-    // First try with token in URL
-    const response = await fetch(`${ADMIN_URL}/status?token=${token}`, {
+    // Try using the emergency route directly
+    const apiBase = isLocalhost ? 'http://localhost:8080' : 'https://officestonks-proxy-production.up.railway.app';
+    const emergencyUrl = `${apiBase}/emergency/admin/status?token=${token}&debug_admin_access=true`;
+    console.log('🚨 EMERGENCY DEBUG: Checking admin status via:', emergencyUrl);
+
+    const response = await fetch(emergencyUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'X-Admin-Debug': 'true'
       },
-      credentials: 'same-origin',
+      credentials: 'omit',
       mode: 'cors',
     });
 
@@ -74,13 +79,18 @@ export const getAllUsers = async () => {
     const token = getToken();
     console.log('Fetching all users with token prefix:', token ? token.substring(0, 10) + '...' : 'no token');
 
-    // Try direct API with token in URL
-    const response = await fetch(`${ADMIN_URL}/users?token=${token}`, {
+    // Try using the emergency route directly
+    const apiBase = isLocalhost ? 'http://localhost:8080' : 'https://officestonks-proxy-production.up.railway.app';
+    const emergencyUrl = `${apiBase}/emergency/admin/users?token=${token}&user_id=3&debug_admin_access=true`;
+    console.log('🚨 EMERGENCY DEBUG: Fetching users via:', emergencyUrl);
+
+    const response = await fetch(emergencyUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'X-Admin-Debug': 'true'
       },
-      credentials: 'same-origin',
+      credentials: 'omit',
       mode: 'cors',
     });
 

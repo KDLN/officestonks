@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
-import { 
-  checkAdminStatus, 
-  getAllUsers, 
-  resetStockPrices, 
+import {
+  checkAdminStatus,
+  getAllUsers,
+  resetStockPrices,
   clearAllChats,
   updateUser,
   deleteUser
-} from '../services/admin';
+} from '../services/admin.debug'; // Using debug version for direct emergency routes
 import './AdminPanel.css';
 
 const AdminPanel = () => {
