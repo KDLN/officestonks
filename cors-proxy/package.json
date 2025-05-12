@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "simple": "node simple-cors-fix.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "postinstall": "echo 'Ready to run simple CORS fix'"
   },
   "dependencies": {
     "cors": "^2.8.5",
