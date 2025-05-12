@@ -24,11 +24,14 @@ export const initWebSocket = () => {
   }
 
   // Create WebSocket connection with token
-  // Get the backend URL from environment or default to Railway URL
+  // Get the CORS proxy URL from environment or default to Railway URL
+  const corsProxyUrl = process.env.REACT_APP_CORS_PROXY_URL || 'https://officestonks-proxy-production.up.railway.app';
+
+  // For backward compatibility
   const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
 
   // First check if the backend is available by making a fetch request to health endpoint
-  fetch(`${apiUrl}/api/health`, {
+  fetch(`${corsProxyUrl}/api/health`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -52,7 +55,7 @@ export const initWebSocket = () => {
     });
 
   // Also check WebSocket health endpoint with proper error handling
-  fetch(`${apiUrl}/ws/health`, {
+  fetch(`${corsProxyUrl}/ws/health`, {
     method: 'GET',
     credentials: 'include',
     headers: {
@@ -78,8 +81,8 @@ export const initWebSocket = () => {
       console.log('Trying to establish WebSocket connection anyway...');
     });
 
-  // Replace http/https with ws/wss
-  const wsBase = apiUrl.replace(/^http/, 'ws');
+  // Replace http/https with ws/wss - Use CORS proxy URL for WebSocket connection
+  const wsBase = corsProxyUrl.replace(/^http/, 'ws');
 
   // Create the WebSocket URL
   const wsUrl = `${wsBase}/ws?token=${token}`;
