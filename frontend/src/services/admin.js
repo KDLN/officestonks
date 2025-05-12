@@ -6,16 +6,22 @@ import mockData from './mock-data';
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// For Railway deployment, we now directly connect to the API with proper CORS headers
+// Get configuration from environment variables with fallbacks
+const CORS_PROXY_URL = process.env.REACT_APP_CORS_PROXY_URL || 'https://officestonks-proxy-production.up.railway.app';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
+
+// For Railway deployment, use the CORS proxy to avoid CORS issues
 // Use the API URL that matches the environment
 const API_URL = isLocalhost
   ? '/api'  // Use relative URL when running locally
-  : 'https://web-production-1e26.up.railway.app/api';  // Use absolute URL in production
+  : `${CORS_PROXY_URL}/api`;  // Use CORS proxy in production
 
-// Admin endpoints now connect directly to the API with token in URL
+// Admin endpoints now connect through the CORS proxy with token in URL
 const ADMIN_URL = `${API_URL}/admin`;
 
-console.log('Admin service using API URL:', API_URL);
+console.log('======= ADMIN API URL SET TO:', CORS_PROXY_URL, '=======');
+console.log('Admin requests will use the CORS proxy to avoid preflight issues');
+console.log('Admin requests require special handling through the CORS proxy');
 
 // Check if current user has admin privileges
 export const checkAdminStatus = async () => {

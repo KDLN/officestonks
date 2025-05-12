@@ -5,14 +5,27 @@
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// For production, use direct API URL (no CORS proxy)
+// Get configuration from environment variables with fallbacks
+const CORS_PROXY_URL = process.env.REACT_APP_CORS_PROXY_URL || 'https://officestonks-proxy-production.up.railway.app';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
+
+// For production, use CORS proxy URL (not direct API connection)
 const BASE_URL = isLocalhost
   ? '/api'  // Use relative URL when running locally
-  : 'https://web-production-1e26.up.railway.app/api';  // Direct connection to API in production
+  : `${CORS_PROXY_URL}/api`;  // Use CORS proxy in production
 
 // Ensure we have the right URL format
 const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 console.log("Auth service using API URL:", API_URL);
+
+// Log full configuration for debugging
+console.log("API Config:", {
+  isLocalhost,
+  BACKEND_URL,
+  API_URL,
+  CORS_PROXY_URL,
+  WS_URL: `wss://${CORS_PROXY_URL.replace(/^https?:\/\//, '')}/ws`
+});
 
 // Register a new user
 export const register = async (username, password) => {

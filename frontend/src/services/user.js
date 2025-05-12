@@ -1,9 +1,18 @@
 // User service for frontend
 import { getToken } from './auth';
 
+// Check the current hostname to determine if we're running locally
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// Get configuration from environment variables with fallbacks
+const CORS_PROXY_URL = process.env.REACT_APP_CORS_PROXY_URL || 'https://officestonks-proxy-production.up.railway.app';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
+
 // Make sure to include the correct API path
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
-const API_URL = `${BASE_URL}/api`;
+const BASE_URL = isLocalhost
+  ? process.env.REACT_APP_API_URL || '/api'
+  : CORS_PROXY_URL;
+const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 
 // Get leaderboard data
 export const getLeaderboard = async (limit = 10) => {
