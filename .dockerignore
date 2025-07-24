@@ -5,7 +5,6 @@
 # Development
 node_modules
 frontend/node_modules
-frontend/build
 .env
 .env.local
 
