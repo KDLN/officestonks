@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserPortfolio, getUserTransactions } from '../services/stock';
+import { getUserPortfolio, getTransactionHistory } from '../services/stock';
 import { ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/solid';
 
 function Portfolio() {
@@ -21,7 +21,7 @@ function Portfolio() {
       // Load portfolio and transactions in parallel
       const [portfolioData, transactionsData] = await Promise.all([
         getUserPortfolio(),
-        getUserTransactions(50, 0)
+        getTransactionHistory(50, 0)
       ]);
 
       setPortfolio(portfolioData);
