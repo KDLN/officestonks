@@ -373,30 +373,61 @@ func main() {
 
 	// Serve static files from frontend build directory
 	staticDir := "./frontend/build/"
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir+"static/"))))
 	
-	// Serve favicon and other root assets
-	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, staticDir+"favicon.ico")
-	})
-	r.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, staticDir+"manifest.json")
-	})
-	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, staticDir+"robots.txt")
-	})
-	
-	// Serve index.html for all non-API routes (SPA routing)
-	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip API routes
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws") || r.URL.Path == "/health" || r.URL.Path == "/health-check" {
-			http.NotFound(w, r)
-			return
-		}
+	// Check if frontend build exists
+	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
+		log.Printf("WARNING: Frontend build directory not found at %s", staticDir)
+		log.Printf("Current working directory: %s", getMustString("pwd"))
+		log.Printf("Directory contents: %s", getMustString("ls -la"))
 		
-		// Serve index.html for all other routes (React Router will handle routing)
-		http.ServeFile(w, r, staticDir+"index.html")
-	})
+		// Serve a simple message instead of 404
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip API routes
+			if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws") || r.URL.Path == "/health" || r.URL.Path == "/health-check" {
+				http.NotFound(w, r)
+				return
+			}
+			
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte(`
+				<html>
+				<body>
+					<h1>Office Stonks API Server</h1>
+					<p>Frontend not found. The API is running at /api endpoints.</p>
+					<p><a href="/api/health">Check API Health</a></p>
+				</body>
+				</html>
+			`))
+		})
+	} else {
+		log.Printf("Frontend build directory found at %s", staticDir)
+		
+		// Serve static files
+		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir+"static/"))))
+		
+		// Serve favicon and other root assets
+		r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, staticDir+"favicon.ico")
+		})
+		r.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, staticDir+"manifest.json")
+		})
+		r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, staticDir+"robots.txt")
+		})
+		
+		// Serve index.html for all non-API routes (SPA routing)
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip API routes
+			if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws") || r.URL.Path == "/health" || r.URL.Path == "/health-check" {
+				http.NotFound(w, r)
+				return
+			}
+			
+			// Serve index.html for all other routes (React Router will handle routing)
+			http.ServeFile(w, r, staticDir+"index.html")
+		})
+	}
 
 	// ABSOLUTELY MINIMAL HEALTH CHECK
 	r.Methods("GET").Path("/health-check").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
