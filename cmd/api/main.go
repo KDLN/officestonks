@@ -68,24 +68,34 @@ func main() {
 		}
 	}
 	// Create repositories
+	log.Println("Creating database repositories...")
 	userRepo := repository.NewUserRepo(db)
 	stockRepo := repository.NewStockRepo(db)
 	portfolioRepo := repository.NewPortfolioRepo(db)
 	transactionRepo := repository.NewTransactionRepo(db)
 	chatRepo := repository.NewChatRepo(db)
+	log.Println("✅ Repositories created successfully")
 
 	// Create services
+	log.Println("Creating application services...")
 	authService := services.NewAuthService(userRepo)
 	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo)
 	userService := services.NewUserService(userRepo, portfolioRepo)
+	log.Println("✅ Services created successfully")
 
 	// Create websocket hub and initiate market simulator
+	log.Println("Creating WebSocket hub...")
 	wsHub := websocket.NewHub(marketService.GetSimulatorUpdates())
 	go wsHub.Run()
+	log.Println("✅ WebSocket hub started")
 
 	// Initialize the market simulator after setting up the hub
+	log.Println("Initializing market simulator...")
 	if err := marketService.InitializeSimulator(); err != nil {
-		log.Fatalf("Failed to initialize market simulator: %v", err)
+		log.Printf("❌ Failed to initialize market simulator: %v", err)
+		log.Printf("Server will continue but market simulation will not work")
+	} else {
+		log.Println("✅ Market simulator initialized successfully")
 	}
 
 	// Create chat service with the websocket hub
