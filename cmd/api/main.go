@@ -51,17 +51,21 @@ func main() {
 		}
 	}
 
-	// If all attempts failed, exit with error
+	// If all attempts failed, log error but continue (allow health check to respond)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v. Please ensure database environment variables are set.", err)
+		log.Printf("Failed to connect to database: %v. Server will start but database operations will fail.", err)
+		log.Printf("Please ensure database environment variables are set correctly.")
+		// Continue with nil db - services will need to handle this gracefully
 	}
 
-	// Verify connection with a simple query
-	var version string
-	if err := db.QueryRow("SELECT VERSION()").Scan(&version); err != nil {
-		log.Printf("Warning: Could not verify database connection with query: %v", err)
-	} else {
-		log.Printf("Database connection verified. MySQL version: %s", version)
+	// Verify connection with a simple query (only if db is not nil)
+	if db != nil {
+		var version string
+		if err := db.QueryRow("SELECT VERSION()").Scan(&version); err != nil {
+			log.Printf("Warning: Could not verify database connection with query: %v", err)
+		} else {
+			log.Printf("Database connection verified. MySQL version: %s", version)
+		}
 	}
 	// Create repositories
 	userRepo := repository.NewUserRepo(db)
@@ -314,6 +318,18 @@ func main() {
 			"service": "OfficeStonks API",
 			"version": "1.0",
 			"time": time.Now().Format(time.RFC3339),
+		}
+
+		// Add database status
+		if db != nil {
+			if err := db.Ping(); err != nil {
+				response["database"] = "disconnected"
+				response["database_error"] = err.Error()
+			} else {
+				response["database"] = "connected"
+			}
+		} else {
+			response["database"] = "not_initialized"
 		}
 
 		// Return health status
