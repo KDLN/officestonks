@@ -11,21 +11,24 @@ import (
 	"time"
 
 	"officestonks/internal/models"
+	"officestonks/internal/services"
 )
 
 // AdminHandler handles admin-specific endpoints
 type AdminHandler struct {
-	userRepo    models.UserRepository
-	stockRepo   models.StockRepository
-	chatRepo    models.ChatRepository
+	userRepo      models.UserRepository
+	stockRepo     models.StockRepository
+	chatRepo      models.ChatRepository
+	marketService *services.MarketService
 }
 
 // NewAdminHandler creates a new admin handler
-func NewAdminHandler(userRepo models.UserRepository, stockRepo models.StockRepository, chatRepo models.ChatRepository) *AdminHandler {
+func NewAdminHandler(userRepo models.UserRepository, stockRepo models.StockRepository, chatRepo models.ChatRepository, marketService *services.MarketService) *AdminHandler {
 	return &AdminHandler{
-		userRepo:  userRepo,
-		stockRepo: stockRepo,
-		chatRepo:  chatRepo,
+		userRepo:      userRepo,
+		stockRepo:     stockRepo,
+		chatRepo:      chatRepo,
+		marketService: marketService,
 	}
 }
 
@@ -545,6 +548,16 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 		log.Printf("Error resetting stock prices: %v", err)
 		http.Error(w, fmt.Sprintf("Error resetting stock prices: %v", err), http.StatusInternalServerError)
 		return
+	}
+
+	// Reload the market simulator with new prices from database
+	log.Println("Reloading market simulator with new prices...")
+	err = h.marketService.ReloadSimulatorPrices()
+	if err != nil {
+		log.Printf("Error reloading simulator prices: %v", err)
+		// Continue anyway since the database reset was successful
+	} else {
+		log.Println("✅ Market simulator reloaded with new prices")
 	}
 
 	// Verify that stocks were updated by reading them again

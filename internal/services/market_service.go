@@ -239,3 +239,19 @@ func (s *MarketService) GetUserTransactions(userID, limit, offset int) ([]*model
 func (s *MarketService) GetSimulatorUpdates() <-chan market.StockUpdate {
 	return s.simulator.GetUpdateChannel()
 }
+
+// ReloadSimulatorPrices reloads all stock prices from database into the simulator
+func (s *MarketService) ReloadSimulatorPrices() error {
+	// Load current stock prices from database
+	stocks, err := s.stockRepo.LoadStocksForSimulation()
+	if err != nil {
+		return err
+	}
+	
+	// Update each stock's price in the simulator
+	for id, stock := range stocks {
+		s.simulator.ReloadStock(id, stock.Price)
+	}
+	
+	return nil
+}

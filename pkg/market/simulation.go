@@ -177,6 +177,17 @@ func (s *MarketSimulator) updatePrices() {
 	}
 }
 
+// ReloadStock updates the base price for a stock (used after admin price resets)
+func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	if stock, exists := s.stocksInfo[stockID]; exists {
+		stock.BasePrice = newPrice
+		s.stocksInfo[stockID] = stock
+	}
+}
+
 // ProcessTransaction simulates market impact of a transaction
 func (s *MarketSimulator) ProcessTransaction(stockID int, quantity int, isBuy bool) {
 	s.mu.Lock()

@@ -113,7 +113,7 @@ func main() {
 	marketHandler := handlers.NewMarketHandler(marketService)
 	userHandler := handlers.NewUserHandler(userService)
 	chatHandler := handlers.NewChatHandler(chatService)
-	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo)
+	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
