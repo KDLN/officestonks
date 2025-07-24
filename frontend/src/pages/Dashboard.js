@@ -151,7 +151,17 @@ const Dashboard = () => {
       <Navigation />
       <div className="dashboard-container">
         <div className="dashboard-header">
-          <h1>Dashboard</h1>
+          <div>
+            <h1>Dashboard</h1>
+            <p style={{ 
+              color: 'var(--accent-primary)', 
+              fontSize: '0.9rem', 
+              margin: '0.5rem 0 0 0',
+              fontWeight: '500'
+            }}>
+              ✨ New: Mobile responsive design + Light/Dark mode toggle! 🌓
+            </p>
+          </div>
           <div className="portfolio-value">
             <h2>Total Portfolio Value</h2>
             <div className="value">${(portfolio?.total_value || 0).toFixed(2)}</div>
