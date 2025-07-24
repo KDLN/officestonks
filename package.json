@@ -1,5 +1,17 @@
 {
+  "name": "officestonks",
+  "version": "1.0.0",
+  "description": "Real-time multiplayer stock market simulation game",
+  "scripts": {
+    "build": "cd frontend && npm ci && npm run build && cd .. && go build -o out ./cmd/api",
+    "dev": "go run ./cmd/api",
+    "frontend:dev": "cd frontend && npm start",
+    "frontend:build": "cd frontend && npm run build"
+  },
   "dependencies": {
     "mysql2": "^3.14.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }
