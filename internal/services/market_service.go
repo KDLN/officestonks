@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"officestonks/internal/models"
@@ -240,6 +241,16 @@ func (s *MarketService) GetSimulatorUpdates() <-chan market.StockUpdate {
 	return s.simulator.GetUpdateChannel()
 }
 
+// PauseSimulator pauses the market simulation
+func (s *MarketService) PauseSimulator() {
+	s.simulator.Pause()
+}
+
+// ResumeSimulator resumes the market simulation
+func (s *MarketService) ResumeSimulator() {
+	s.simulator.Resume()
+}
+
 // ReloadSimulatorPrices reloads all stock prices from database into the simulator
 func (s *MarketService) ReloadSimulatorPrices() error {
 	// Load current stock prices from database
@@ -251,6 +262,33 @@ func (s *MarketService) ReloadSimulatorPrices() error {
 	// Update each stock's price in the simulator
 	for id, stock := range stocks {
 		s.simulator.ReloadStock(id, stock.Price)
+	}
+	
+	return nil
+}
+
+// AtomicResetStockPrices performs an atomic reset of all stock prices
+func (s *MarketService) AtomicResetStockPrices() error {
+	// Step 1: Pause the simulator to prevent race conditions
+	s.simulator.Pause()
+	defer func() {
+		// Always resume the simulator, even if there was an error
+		s.simulator.Resume()
+	}()
+	
+	// Small delay to ensure pause takes effect
+	time.Sleep(100 * time.Millisecond)
+	
+	// Step 2: Reset prices in database
+	err := s.stockRepo.ResetAllStockPrices()
+	if err != nil {
+		return fmt.Errorf("failed to reset stock prices in database: %w", err)
+	}
+	
+	// Step 3: Reload simulator with new prices from database
+	err = s.ReloadSimulatorPrices()
+	if err != nil {
+		return fmt.Errorf("failed to reload simulator prices: %w", err)
 	}
 	
 	return nil

@@ -541,24 +541,15 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 		log.Printf("Stock before reset: %s (ID: %d) - Price: %.2f", s.Symbol, s.ID, s.CurrentPrice)
 	}
 
-	// Reset stock prices
-	log.Println("Starting stock price reset...")
-	err = h.stockRepo.ResetAllStockPrices()
+	// Perform atomic reset of stock prices (pause simulator, reset DB, reload simulator, resume)
+	log.Println("Starting atomic stock price reset...")
+	err = h.marketService.AtomicResetStockPrices()
 	if err != nil {
-		log.Printf("Error resetting stock prices: %v", err)
+		log.Printf("Error during atomic stock price reset: %v", err)
 		http.Error(w, fmt.Sprintf("Error resetting stock prices: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	// Reload the market simulator with new prices from database
-	log.Println("Reloading market simulator with new prices...")
-	err = h.marketService.ReloadSimulatorPrices()
-	if err != nil {
-		log.Printf("Error reloading simulator prices: %v", err)
-		// Continue anyway since the database reset was successful
-	} else {
-		log.Println("✅ Market simulator reloaded with new prices")
-	}
+	log.Println("✅ Atomic stock price reset completed successfully")
 
 	// Verify that stocks were updated by reading them again
 	updatedStocks, err := h.stockRepo.GetAllStocks()

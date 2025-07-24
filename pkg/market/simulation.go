@@ -22,6 +22,8 @@ type MarketSimulator struct {
 	mu             sync.RWMutex
 	updateChan     chan StockUpdate
 	stopChan       chan struct{}
+	pauseChan      chan bool
+	isPaused       bool
 }
 
 // StockInfo contains information about a stock for simulation
@@ -42,6 +44,8 @@ func NewMarketSimulator(updateInterval time.Duration, volatility float64) *Marke
 		volatility:     volatility,
 		updateChan:     make(chan StockUpdate, 100),
 		stopChan:       make(chan struct{}),
+		pauseChan:      make(chan bool, 1),
+		isPaused:       false,
 	}
 }
 
@@ -90,7 +94,18 @@ func (s *MarketSimulator) simulationLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			s.updatePrices()
+			// Only update prices if not paused
+			s.mu.RLock()
+			paused := s.isPaused
+			s.mu.RUnlock()
+			
+			if !paused {
+				s.updatePrices()
+			}
+		case pauseState := <-s.pauseChan:
+			s.mu.Lock()
+			s.isPaused = pauseState
+			s.mu.Unlock()
 		case <-s.stopChan:
 			close(s.updateChan)
 			return
@@ -174,6 +189,26 @@ func (s *MarketSimulator) updatePrices() {
 		default:
 			// Channel is full, skip this update
 		}
+	}
+}
+
+// Pause pauses the market simulation (prevents price updates)
+func (s *MarketSimulator) Pause() {
+	select {
+	case s.pauseChan <- true:
+		// Successfully sent pause signal
+	default:
+		// Channel is full, but that's okay - we're already paused or will be soon
+	}
+}
+
+// Resume resumes the market simulation
+func (s *MarketSimulator) Resume() {
+	select {
+	case s.pauseChan <- false:
+		// Successfully sent resume signal
+	default:
+		// Channel is full, but that's okay - we're already resumed or will be soon
 	}
 }
 
