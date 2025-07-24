@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
-import { ArrowUpIcon, ArrowDownIcon, CurrencyDollarIcon } from '@heroicons/react/24/solid';
+import Navigation from '../components/Navigation';
+import './Dashboard.css';  // Import Dashboard styles for consistent UI
+import './Portfolio.css';
 
 function Portfolio() {
   const [portfolio, setPortfolio] = useState(null);
@@ -56,12 +59,7 @@ function Portfolio() {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
+    return `$${amount.toFixed(2)}`;
   };
 
   const formatPercentage = (value) => {
@@ -80,17 +78,19 @@ function Portfolio() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="portfolio-page">
+        <Navigation />
+        <div className="loading">Loading portfolio data...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="container mx-auto p-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-          {error}
+      <div className="portfolio-page">
+        <Navigation />
+        <div className="portfolio-container">
+          <div className="error">{error}</div>
         </div>
       </div>
     );
@@ -99,220 +99,172 @@ function Portfolio() {
   const { amount: totalGainLoss, percentage: totalGainLossPercentage } = calculateTotalGainLoss();
 
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">My Portfolio</h1>
-
-      {/* Portfolio Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-sm font-medium text-gray-500">Total Value</h3>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(portfolio?.total_value || 0)}</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-sm font-medium text-gray-500">Cash Balance</h3>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(portfolio?.cash_balance || 0)}</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-sm font-medium text-gray-500">Stock Value</h3>
-          <p className="text-2xl font-bold text-gray-900">{formatCurrency(portfolio?.stock_value || 0)}</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-sm font-medium text-gray-500">Total Gain/Loss</h3>
-          <p className={`text-2xl font-bold ${totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatCurrency(totalGainLoss)}
-          </p>
-          <p className={`text-sm ${totalGainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {formatPercentage(totalGainLossPercentage)}
-          </p>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('holdings')}
-              className={`${
-                activeTab === 'holdings'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}
-            >
-              Holdings
-            </button>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`${
-                activeTab === 'transactions'
-                  ? 'border-indigo-500 text-indigo-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm`}
-            >
-              Transaction History
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'holdings' && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Current Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Market Value
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Avg Cost
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Cost
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Gain/Loss
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {portfolio?.portfolio_items?.map((item) => {
-                  const marketValue = item.quantity * item.stock.current_price;
-                  const avgCost = item.average_cost || item.stock.current_price;
-                  const totalCost = item.quantity * avgCost;
-                  const gainLoss = marketValue - totalCost;
-                  const gainLossPercentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
-
-                  return (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{item.stock.symbol}</div>
-                          <div className="text-sm text-gray-500">{item.stock.name}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.quantity}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(item.stock.current_price)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(marketValue)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(avgCost)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(totalCost)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className={`flex items-center ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {gainLoss >= 0 ? (
-                            <ArrowUpIcon className="h-4 w-4 mr-1" />
-                          ) : (
-                            <ArrowDownIcon className="h-4 w-4 mr-1" />
-                          )}
-                          <span className="font-medium">{formatCurrency(Math.abs(gainLoss))}</span>
-                          <span className="ml-2 text-xs">({formatPercentage(gainLossPercentage)})</span>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {(!portfolio?.portfolio_items || portfolio.portfolio_items.length === 0) && (
-            <div className="text-center py-8 text-gray-500">
-              No holdings yet. Start by buying some stocks!
+    <div className="portfolio-page">
+      <Navigation />
+      <div className="portfolio-container">
+        <div className="portfolio-header">
+          <h1>My Portfolio</h1>
+          
+          {/* Portfolio Summary */}
+          <div className="portfolio-summary">
+            <div className="summary-card">
+              <h3>Total Value</h3>
+              <div className="value">{formatCurrency(portfolio?.total_value || 0)}</div>
             </div>
+            
+            <div className="summary-card">
+              <h3>Cash Balance</h3>
+              <div className="value">{formatCurrency(portfolio?.cash_balance || 0)}</div>
+            </div>
+            
+            <div className="summary-card">
+              <h3>Stock Value</h3>
+              <div className="value">{formatCurrency(portfolio?.stock_value || 0)}</div>
+            </div>
+            
+            <div className="summary-card">
+              <h3>Total Gain/Loss</h3>
+              <div className={`value ${totalGainLoss >= 0 ? 'positive' : 'negative'}`}>
+                {formatCurrency(totalGainLoss)}
+              </div>
+              <div className={`percentage ${totalGainLoss >= 0 ? 'positive' : 'negative'}`}>
+                {formatPercentage(totalGainLossPercentage)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="portfolio-tabs">
+          <button
+            className={`tab-button ${activeTab === 'holdings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('holdings')}
+          >
+            Holdings
+          </button>
+          <button
+            className={`tab-button ${activeTab === 'transactions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('transactions')}
+          >
+            Transaction History
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        <div className="portfolio-content">
+          {activeTab === 'holdings' && (
+            <>
+              {portfolio?.portfolio_items && portfolio.portfolio_items.length > 0 ? (
+                <table className="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Stock</th>
+                      <th>Quantity</th>
+                      <th>Current Price</th>
+                      <th>Market Value</th>
+                      <th>Avg Cost</th>
+                      <th>Total Cost</th>
+                      <th>Gain/Loss</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {portfolio.portfolio_items.map((item) => {
+                      const marketValue = item.quantity * item.stock.current_price;
+                      const avgCost = item.average_cost || item.stock.current_price;
+                      const totalCost = item.quantity * avgCost;
+                      const gainLoss = marketValue - totalCost;
+                      const gainLossPercentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
+
+                      return (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="stock-info">
+                              <span className="stock-symbol">{item.stock.symbol}</span>
+                              <span className="stock-name">{item.stock.name}</span>
+                            </div>
+                          </td>
+                          <td>{item.quantity}</td>
+                          <td>{formatCurrency(item.stock.current_price)}</td>
+                          <td><strong>{formatCurrency(marketValue)}</strong></td>
+                          <td>{formatCurrency(avgCost)}</td>
+                          <td>{formatCurrency(totalCost)}</td>
+                          <td>
+                            <div className={`gain-loss ${gainLoss >= 0 ? 'positive' : 'negative'}`}>
+                              <span>{gainLoss >= 0 ? '▲' : '▼'}</span>
+                              <span>{formatCurrency(Math.abs(gainLoss))}</span>
+                              <span>({formatPercentage(gainLossPercentage)})</span>
+                            </div>
+                          </td>
+                          <td>
+                            <Link to={`/stock/${item.stock_id}`} className="trade-button">
+                              Trade
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-portfolio">
+                  <p>You don't own any stocks yet.</p>
+                  <Link to="/stocks" className="action-button">Start Trading</Link>
+                </div>
+              )}
+            </>
+          )}
+
+          {activeTab === 'transactions' && (
+            <>
+              {transactions && transactions.length > 0 ? (
+                <table className="dashboard-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Stock</th>
+                      <th>Quantity</th>
+                      <th>Price</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((transaction) => {
+                      const total = transaction.quantity * transaction.price;
+                      const isBuy = transaction.transaction_type === 'buy';
+
+                      return (
+                        <tr key={transaction.id}>
+                          <td>{formatDate(transaction.created_at)}</td>
+                          <td>
+                            <span className={`transaction-type ${isBuy ? 'buy' : 'sell'}`}>
+                              {isBuy ? 'BUY' : 'SELL'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="stock-info">
+                              <span className="stock-symbol">{transaction.stock.symbol}</span>
+                              <span className="stock-name">{transaction.stock.name}</span>
+                            </div>
+                          </td>
+                          <td>{transaction.quantity}</td>
+                          <td>{formatCurrency(transaction.price)}</td>
+                          <td><strong>{formatCurrency(total)}</strong></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty-portfolio">
+                  <p>No transactions yet.</p>
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
-
-      {activeTab === 'transactions' && (
-        <div className="bg-white rounded-lg shadow">
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {transactions?.map((transaction) => {
-                  const total = transaction.quantity * transaction.price;
-                  const isBuy = transaction.transaction_type === 'buy';
-
-                  return (
-                    <tr key={transaction.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(transaction.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          isBuy ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {isBuy ? 'BUY' : 'SELL'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{transaction.stock.symbol}</div>
-                        <div className="text-sm text-gray-500">{transaction.stock.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {transaction.quantity}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(transaction.price)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {formatCurrency(total)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {(!transactions || transactions.length === 0) && (
-            <div className="text-center py-8 text-gray-500">
-              No transactions yet.
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
