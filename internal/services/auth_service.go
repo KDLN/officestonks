@@ -3,8 +3,6 @@ package services
 import (
 	"errors"
 	"log"
-	"strconv"
-	"strings"
 
 	"officestonks/internal/auth"
 	"officestonks/internal/models"
