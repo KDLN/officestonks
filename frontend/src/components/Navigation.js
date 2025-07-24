@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../services/auth';
 import { checkAdminStatus } from '../services/admin';
+import ThemeToggle from './ThemeToggle';
 import './Navigation.css';
 
 const Navigation = () => {
@@ -51,6 +52,9 @@ const Navigation = () => {
             <Link to="/admin" className="admin-link">Admin</Link>
           </li>
         )}
+        <li>
+          <ThemeToggle />
+        </li>
         <li>
           <button onClick={handleLogout} className="logout-button">Logout</button>
         </li>

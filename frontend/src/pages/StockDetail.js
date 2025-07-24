@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getStockById, executeTrade, getUserPortfolio } from '../services/stock';
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
+import TradeConfirmationModal from '../components/TradeConfirmationModal';
 import './StockDetail.css';
 
 const StockDetail = () => {
@@ -19,6 +20,7 @@ const StockDetail = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [priceChange, setPriceChange] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Fetch stock and portfolio data
   useEffect(() => {
@@ -89,8 +91,8 @@ const StockDetail = () => {
     }
   }, [action, maxBuyQuantity, maxSellQuantity, quantity]);
 
-  // Handle trade execution
-  const handleTrade = async (e) => {
+  // Handle trade form submission (show confirmation modal)
+  const handleTrade = (e) => {
     e.preventDefault();
     
     if (quantity <= 0) {
@@ -112,6 +114,11 @@ const StockDetail = () => {
     }
     
     setError(null);
+    setShowConfirmModal(true);
+  };
+
+  // Execute the actual trade after confirmation
+  const executeConfirmedTrade = async () => {
     setSuccess(null);
     setExecuting(true);
     
@@ -124,9 +131,11 @@ const StockDetail = () => {
       
       setSuccess(`Successfully ${action === 'buy' ? 'bought' : 'sold'} ${quantity} shares of ${stock.symbol}`);
       setExecuting(false);
+      setShowConfirmModal(false);
     } catch (err) {
       setError(err.message || 'Failed to execute trade. Please try again.');
       setExecuting(false);
+      setShowConfirmModal(false);
     }
   };
 
@@ -235,6 +244,17 @@ const StockDetail = () => {
           </button>
         </div>
       </div>
+
+      <TradeConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={executeConfirmedTrade}
+        stock={stock}
+        action={action}
+        quantity={quantity}
+        totalCost={totalCost}
+        loading={executing}
+      />
     </div>
   );
 };

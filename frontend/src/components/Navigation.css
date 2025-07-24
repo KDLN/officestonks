@@ -2,16 +2,26 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #2c3e50;
-  padding: 15px 30px;
-  color: white;
+  background-color: var(--nav-bg);
+  padding: var(--spacing-md) var(--spacing-xl);
+  color: var(--nav-text);
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: all 0.3s ease;
 }
 
 .nav-logo a {
-  font-size: 24px;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: bold;
-  color: white;
+  color: var(--nav-text);
   text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.nav-logo a:hover {
+  opacity: 0.9;
 }
 
 .nav-links {
@@ -19,45 +29,125 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  align-items: center;
+  gap: var(--spacing-sm);
 }
 
 .nav-links li {
-  margin-left: 20px;
+  display: flex;
+  align-items: center;
 }
 
 .nav-links a {
-  color: white;
+  color: var(--nav-text);
   text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .nav-links a:hover {
-  background-color: #34495e;
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
 }
 
 .admin-link {
-  background-color: #e74c3c;
-  color: white;
+  background-color: var(--accent-danger) !important;
+  color: white !important;
   font-weight: bold;
 }
 
 .admin-link:hover {
   background-color: #c0392b !important;
+  transform: translateY(-1px);
 }
 
 .logout-button {
   background: none;
-  border: 1px solid white;
-  color: white;
-  padding: 8px 12px;
-  border-radius: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: var(--nav-text);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .logout-button:hover {
-  background-color: #e74c3c;
-  border-color: #e74c3c;
+  background-color: var(--accent-danger);
+  border-color: var(--accent-danger);
+  transform: translateY(-1px);
+}
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .navigation {
+    flex-direction: column;
+    padding: var(--spacing-md) var(--spacing-lg);
+    gap: var(--spacing-md);
+    position: static; /* Remove sticky on mobile for better UX */
+  }
+  
+  .nav-logo {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+  }
+  
+  .nav-links a,
+  .logout-button {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 0.9rem;
+    border-radius: var(--radius-md);
+  }
+  
+  /* Ensure theme toggle has proper spacing on mobile */
+  .nav-links li:has(.theme-toggle) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .navigation {
+    padding: var(--spacing-md) var(--spacing-md);
+  }
+  
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  
+  .nav-links a,
+  .logout-button {
+    width: auto;
+    min-width: 140px;
+    text-align: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  /* Stack theme toggle properly on very small screens */
+  .nav-links li:has(.theme-toggle) {
+    order: -1; /* Move theme toggle to top on mobile */
+    margin-bottom: var(--spacing-sm);
+  }
+}
+
+/* Improve focus states for accessibility */
+.nav-links a:focus,
+.logout-button:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
