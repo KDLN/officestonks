@@ -25,7 +25,7 @@ import (
 	"officestonks/internal/websocket"
 )
 
-//go:embed ../../frontend/build
+//go:embed frontend/build
 var frontendFiles embed.FS
 
 func main() {
@@ -379,8 +379,8 @@ func main() {
 	// Serve embedded frontend files
 	log.Printf("Setting up embedded frontend file serving...")
 	
-	// Create a sub-filesystem for the build directory
-	frontendFS, err := fs.Sub(frontendFiles, "build")
+	// Create a sub-filesystem for the frontend/build directory
+	frontendFS, err := fs.Sub(frontendFiles, "frontend/build")
 	if err != nil {
 		log.Printf("ERROR: Could not create frontend filesystem: %v", err)
 		log.Printf("Frontend files will not be served")
