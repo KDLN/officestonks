@@ -30,14 +30,14 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /go/bin/app /app/server
 
+# Copy frontend build files
+COPY --from=builder /go/src/app/frontend/build /app/frontend/build
+
 # Copy necessary files for running
 COPY schema.sql /app/schema.sql
-COPY start.sh /app/start.sh
-COPY start-server.sh /app/start-server.sh
-COPY init-db.sh /app/init-db.sh
 
-# Make all scripts executable
-RUN chmod +x /app/server /app/start.sh /app/start-server.sh /app/init-db.sh
+# Make the server executable
+RUN chmod +x /app/server
 
 # Expose the application port
 EXPOSE 8080
