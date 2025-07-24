@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["go_1_20", "mysql80Client"]
+nixPkgs = ["go_1_21"]
 
 [phases.build]
-cmds = ["go build -o bin/server ./cmd/api/main.go"]
+cmds = ["go mod download", "go build -o server ./cmd/api/main.go"]
 
 [start]
-cmd = "bin/server"
+cmd = "./server"

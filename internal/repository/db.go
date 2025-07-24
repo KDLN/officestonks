@@ -17,11 +17,16 @@ var DB *sql.DB
 func InitDB() (*sql.DB, error) {
 	// Get database connection details from environment variables
 	// Check for Railway's MySQL environment variables first, then fallback to generic ones
-	username := getEnv("MYSQLUSER", getEnv("DB_USER", "root"))
-	password := getEnv("MYSQLPASSWORD", getEnv("DB_PASSWORD", "DucukmJTCFzGLzfgcxnDiNnlHxFZyNzE"))
-	host := getEnv("MYSQLHOST", getEnv("DB_HOST", "mysql.railway.internal"))
+	username := getEnv("MYSQLUSER", getEnv("DB_USER", ""))
+	password := getEnv("MYSQLPASSWORD", getEnv("DB_PASSWORD", ""))
+	host := getEnv("MYSQLHOST", getEnv("DB_HOST", ""))
 	port := getEnv("MYSQLPORT", getEnv("DB_PORT", "3306"))
-	dbname := getEnv("MYSQLDATABASE", getEnv("MYSQL_DATABASE", getEnv("DB_NAME", "railway")))
+	dbname := getEnv("MYSQLDATABASE", getEnv("MYSQL_DATABASE", getEnv("DB_NAME", "")))
+
+	// Validate required environment variables
+	if username == "" || password == "" || host == "" || dbname == "" {
+		return nil, fmt.Errorf("missing required database environment variables. Please set MYSQLUSER, MYSQLPASSWORD, MYSQLHOST, and MYSQLDATABASE")
+	}
 
 	// Attempt to resolve the host to IP address first for better reliability
 	log.Printf("Attempting to resolve MySQL host: %s", host)

@@ -8,6 +8,12 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000; // 3 seconds
 
+// Check the current hostname to determine if we're running locally
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// Get configuration from environment variables with fallbacks
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
+
 // Initialize WebSocket connection
 export const initWebSocket = () => {
   if (socket) {
@@ -15,296 +21,144 @@ export const initWebSocket = () => {
     socket.close();
   }
 
-  // Socket will be initialized below
-
   const token = getToken();
   if (!token) {
     console.error('No authentication token available for WebSocket connection');
     return;
   }
 
-  // Create WebSocket connection with token
-  // Get the CORS proxy URL from environment or default to Railway URL
-  const corsProxyUrl = process.env.REACT_APP_CORS_PROXY_URL || 'https://officestonks-proxy-production.up.railway.app';
-
-  // For backward compatibility
-  const apiUrl = process.env.REACT_APP_API_URL || 'https://web-production-1e26.up.railway.app';
-
-  // First check if the backend is available with a fetch request to health endpoint
-  fetch(`${corsProxyUrl}/api/health`, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Accept': 'application/json, text/plain',
-    }
-  })
-    .then(response => {
-      if (!response.ok) {
-        console.error(`Backend health check failed: ${response.status} ${response.statusText}`);
-        return null;
-      } else {
-        console.log('Backend health check passed');
-
-        // Try to get content type to handle non-JSON responses
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          return response.json();
-        } else {
-          // Handle text response (not JSON)
-          return response.text().then(text => {
-            console.log('Backend health response (text):', text);
-            return { status: 'ok', message: text };
-          });
-        }
-      }
-    })
-    .then(data => {
-      if (data) console.log('Backend API status:', data);
-    })
-    .catch(error => {
-      console.error('Backend health check error:', error);
-      console.log('Health check failed, but continuing WebSocket connection attempt anyway');
-    });
-
-  // Also check WebSocket health endpoint with proper error handling
-  fetch(`${corsProxyUrl}/ws/health`, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {
-      'Accept': 'application/json, text/plain',
-    }
-  })
-    .then(response => {
-      if (!response.ok) {
-        console.error(`WebSocket health check failed: ${response.status} ${response.statusText}`);
-        return null;
-      } else {
-        console.log('WebSocket health check passed');
-
-        // Try to get content type to handle non-JSON responses
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          return response.json();
-        } else {
-          // Handle text response (not JSON)
-          return response.text().then(text => {
-            console.log('WebSocket health response (text):', text);
-            return { status: 'ok', message: text };
-          });
-        }
-      }
-    })
-    .then(data => {
-      if (data) console.log('WebSocket health data:', data);
-    })
-    .catch(error => {
-      console.error('WebSocket server health check failed:', error);
-      console.log('WebSocket health check failed, but continuing connection attempt anyway');
-    });
-
-  // Replace http/https with ws/wss - Use CORS proxy URL for WebSocket connection
-  const wsBase = corsProxyUrl.replace(/^http/, 'ws');
-
-  // Create the WebSocket URL
-  const wsUrl = `${wsBase}/ws?token=${token}`;
+  // Determine WebSocket URL based on environment
+  let wsUrl;
+  if (isLocalhost) {
+    // For local development, use ws:// with localhost
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname;
+    const wsPort = process.env.REACT_APP_WS_PORT || '8080';
+    wsUrl = `${wsProtocol}//${wsHost}:${wsPort}/ws?token=${token}`;
+  } else {
+    // For production, use wss:// with the backend URL
+    const wsHost = BACKEND_URL.replace(/^https?:\/\//, '');
+    wsUrl = `wss://${wsHost}/ws?token=${token}`;
+  }
 
   console.log('Connecting to WebSocket:', wsUrl);
-  socket = new WebSocket(wsUrl);
 
-  // Make socket and addListener available globally for other components
-  window.socket = socket;
-  window.addListener = addListener;
+  try {
+    socket = new WebSocket(wsUrl);
 
-  // Connection opened
-  socket.addEventListener('open', () => {
-    console.log('WebSocket connection established');
-    // Reset reconnect attempts on successful connection
-    reconnectAttempts = 0;
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
-  });
+    socket.onopen = () => {
+      console.log('WebSocket connected successfully');
+      reconnectAttempts = 0;
+      notifyListeners('connection', { status: 'connected' });
+    };
 
-  // Listen for messages
-  socket.addEventListener('message', (event) => {
-    try {
-      // Log raw message for debugging
-      console.log('Raw WebSocket message:', event.data);
-
-      // Clean the message string
-      let jsonStr = event.data;
-      if (typeof jsonStr === 'string') {
-        // Remove any BOM and control characters
-        jsonStr = jsonStr.replace(/^\ufeff/, ''); // Remove byte order mark
-        jsonStr = jsonStr.replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control chars except whitespace
-        jsonStr = jsonStr.trim(); // Remove leading/trailing whitespace
-
-        // Backend should now send each message separately, but keep handling for robustness
-        if (jsonStr.includes('}{')) {
-          console.log('Found multiple JSON objects in message - splitting');
-
-          // Split by finding object boundaries - this handles nested objects better
-          let objects = [];
-          let nesting = 0;
-          let start = 0;
-
-          for (let i = 0; i < jsonStr.length; i++) {
-            if (jsonStr[i] === '{') {
-              if (nesting === 0) start = i;
-              nesting++;
-            } else if (jsonStr[i] === '}') {
-              nesting--;
-              if (nesting === 0) {
-                // Extract complete object
-                objects.push(jsonStr.substring(start, i + 1));
-              }
-            }
-          }
-
-          console.log(`Split into ${objects.length} JSON objects`);
-
-          // Process each message individually
-          objects.forEach(jsonObj => {
-            try {
-              const parsedObj = JSON.parse(jsonObj);
-              processMessage(parsedObj);
-            } catch (innerErr) {
-              console.error('Error parsing individual JSON object:', innerErr);
-              console.error('Object content:', jsonObj);
-            }
-          });
-
-          return; // We've handled the multiple objects
-        }
-      }
-
-      // Process a single JSON message
+    socket.onmessage = (event) => {
       try {
-        const message = JSON.parse(jsonStr);
-        processMessage(message);
-      } catch (parseError) {
-        throw new Error(`Failed to parse JSON: ${parseError.message}`);
-      }
-    } catch (e) {
-      console.error('Error processing WebSocket message:', e);
-      console.error('Message content:', event.data);
-
-      // Final fallback attempt for malformed messages
-      try {
-        // Sometimes we might receive messages with extra characters or incorrect format
-        // Try to extract valid JSON objects using a regex
-        const messageStr = String(event.data);
-        const regex = /({[^}]+})/g;
-        const matches = messageStr.match(regex);
-
-        if (matches && matches.length > 0) {
-          console.log('Fallback: Found potential JSON objects:', matches.length);
-          matches.forEach(match => {
-            try {
-              // Try to clean and parse each match
-              const cleanMatch = match.replace(/[^\x20-\x7E]/g, '');
-              const parsedMsg = JSON.parse(cleanMatch);
-              console.log('Successfully parsed from fallback:', parsedMsg);
-              processMessage(parsedMsg);
-            } catch (matchErr) {
-              // Just log and continue
-              console.log('Failed to parse potential object:', match);
-            }
-          });
+        const data = JSON.parse(event.data);
+        console.log('WebSocket message received:', data);
+        
+        // Handle different message types
+        if (data.type === 'stock_update') {
+          notifyListeners('stockUpdate', data.data);
+        } else if (data.type === 'chat_message') {
+          notifyListeners('chatMessage', data.data);
+        } else {
+          notifyListeners('message', data);
         }
-      } catch (fallbackErr) {
-        console.error('All parsing attempts failed');
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
       }
-    }
-  });
-  
-  // Connection closed
-  socket.addEventListener('close', () => {
-    console.log('WebSocket connection closed');
-    // Attempt to reconnect
-    reconnect();
-  });
+    };
 
-  // Connection error
-  socket.addEventListener('error', (error) => {
-    console.error('WebSocket error:', error);
-    // Add more detailed error information
-    console.error('WebSocket connection failed - possible CORS issue or server unavailable');
-    console.error('If this is a CORS error, ensure the backend allows WebSocket connections from this origin');
-    console.error('Current origin:', window.location.origin);
-    // Socket will automatically close after error
-  });
+    socket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      notifyListeners('error', error);
+    };
 
-  return socket;
-};
-
-// Helper function to process a single parsed message
-function processMessage(message) {
-  // Call all listeners for this message type
-  if (listeners[message.type]) {
-    listeners[message.type].forEach(callback => callback(message));
-  }
-  
-  // Call general listeners
-  if (listeners['*']) {
-    listeners['*'].forEach(callback => callback(message));
-  }
-}
-
-// Add a listener for a specific message type
-export const addListener = (type, callback) => {
-  if (!listeners[type]) {
-    listeners[type] = [];
-  }
-  listeners[type].push(callback);
-  
-  // Return function to remove this listener
-  return () => {
-    if (listeners[type]) {
-      listeners[type] = listeners[type].filter(cb => cb !== callback);
-    }
-  };
-};
-
-// Remove a listener
-export const removeListener = (type, callback) => {
-  if (listeners[type]) {
-    listeners[type] = listeners[type].filter(cb => cb !== callback);
+    socket.onclose = (event) => {
+      console.log('WebSocket disconnected:', event.code, event.reason);
+      notifyListeners('connection', { status: 'disconnected' });
+      
+      // Attempt to reconnect if not a normal closure
+      if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        scheduleReconnect();
+      }
+    };
+  } catch (error) {
+    console.error('Error creating WebSocket connection:', error);
+    notifyListeners('error', error);
   }
 };
 
-// Close the WebSocket connection
+// Schedule a reconnection attempt
+const scheduleReconnect = () => {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+  }
+
+  reconnectAttempts++;
+  console.log(`Scheduling reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${RECONNECT_DELAY}ms`);
+  
+  reconnectTimer = setTimeout(() => {
+    console.log('Attempting to reconnect WebSocket...');
+    initWebSocket();
+  }, RECONNECT_DELAY);
+};
+
+// Close WebSocket connection
 export const closeWebSocket = () => {
-  if (socket) {
-    socket.close();
-    socket = null;
-  }
-  
-  // Clear reconnect timer
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   }
   
-  // Clear all listeners
-  listeners = {};
-};
-
-// Reconnect to WebSocket
-const reconnect = () => {
-  if (reconnectTimer || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error(`Failed to reconnect after ${MAX_RECONNECT_ATTEMPTS} attempts`);
-    }
-    return;
+  if (socket) {
+    socket.close(1000, 'Client closing connection');
+    socket = null;
   }
   
-  reconnectAttempts++;
-  
-  reconnectTimer = setTimeout(() => {
-    console.log(`Attempting to reconnect (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-    reconnectTimer = null;
-    initWebSocket();
-  }, RECONNECT_DELAY);
+  listeners = {};
+  reconnectAttempts = 0;
+};
+
+// Add event listener
+export const addWebSocketListener = (event, callback) => {
+  if (!listeners[event]) {
+    listeners[event] = [];
+  }
+  listeners[event].push(callback);
+};
+
+// Remove event listener
+export const removeWebSocketListener = (event, callback) => {
+  if (listeners[event]) {
+    listeners[event] = listeners[event].filter(cb => cb !== callback);
+  }
+};
+
+// Notify all listeners for an event
+const notifyListeners = (event, data) => {
+  if (listeners[event]) {
+    listeners[event].forEach(callback => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`Error in WebSocket listener for event ${event}:`, error);
+      }
+    });
+  }
+};
+
+// Send message through WebSocket
+export const sendWebSocketMessage = (message) => {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  } else {
+    console.error('WebSocket is not connected');
+  }
+};
+
+// Check if WebSocket is connected
+export const isWebSocketConnected = () => {
+  return socket && socket.readyState === WebSocket.OPEN;
 };
