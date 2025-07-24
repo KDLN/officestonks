@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
-import { initWebSocket, addListener, closeWebSocket } from '../services/websocket';
+import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import './Dashboard.css';
@@ -51,7 +51,7 @@ const Dashboard = () => {
     initWebSocket();
 
     // Listen for stock updates to refresh data
-    const removeListener = addListener('*', (message) => {
+    addWebSocketListener('*', (message) => {
       // Log the message for debugging
       console.log('Received message on dashboard:', message);
 
@@ -133,7 +133,7 @@ const Dashboard = () => {
 
     // Clean up on unmount
     return () => {
-      removeListener();
+      // Cleanup is handled by the websocket service
       closeWebSocket();
     };
   }, []);

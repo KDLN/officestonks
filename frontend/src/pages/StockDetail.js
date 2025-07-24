@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getStockById, executeTrade, getUserPortfolio } from '../services/stock';
-import { initWebSocket, addListener, closeWebSocket } from '../services/websocket';
+import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import './StockDetail.css';
 
@@ -44,7 +44,7 @@ const StockDetail = () => {
     initWebSocket();
 
     // Listen for stock price updates
-    const removeListener = addListener('stock_update', (message) => {
+    addWebSocketListener('stock_update', (message) => {
       if (message.stock_id === stockId) {
         setStock(prevStock => {
           if (!prevStock) return null;
@@ -66,7 +66,7 @@ const StockDetail = () => {
 
     // Cleanup on unmount
     return () => {
-      removeListener();
+      // Cleanup is handled by the websocket service
       closeWebSocket();
     };
   }, [stockId]);

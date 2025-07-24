@@ -3,15 +3,11 @@
 /backend/vendor/
 /backend/bin/
 
-# Frontend - ignoring entire directory
-/frontend/
-
-# Legacy frontend specific rules
+# Frontend development files
 /frontend/node_modules
 /frontend/.pnp
 /frontend/.pnp.js
 /frontend/coverage
-/frontend/build
 /frontend/.DS_Store
 /frontend/.env.local
 /frontend/.env.development.local
@@ -36,6 +32,7 @@
 *.dll
 *.so
 *.dylib
+out
 
 # Log files
 *.log

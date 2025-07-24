@@ -8,7 +8,7 @@ import {
   clearAllChats,
   updateUser,
   deleteUser
-} from '../services/admin.debug'; // Using debug version for direct emergency routes
+} from '../services/admin';
 import './AdminPanel.css';
 
 const AdminPanel = () => {

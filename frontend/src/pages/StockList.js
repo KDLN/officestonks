@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllStocks } from '../services/stock';
-import { initWebSocket, addListener, closeWebSocket } from '../services/websocket';
+import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import './StockList.css';
 
@@ -32,7 +32,7 @@ const StockList = () => {
     initWebSocket();
 
     // Listen for stock price updates
-    const removeListener = addListener('stock_update', (message) => {
+    addWebSocketListener('stock_update', (message) => {
       setStocks(prevStocks => 
         prevStocks.map(stock => 
           stock.id === message.stock_id 
@@ -48,7 +48,6 @@ const StockList = () => {
 
     // Cleanup on unmount
     return () => {
-      removeListener();
       closeWebSocket();
     };
   }, []);

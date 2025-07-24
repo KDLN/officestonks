@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getRecentMessages, sendChatMessage } from '../services/chat';
 import { getUserId } from '../services/auth';
+import { addWebSocketListener } from '../services/websocket';
 import './Chat.css';
 
 const Chat = () => {
@@ -30,24 +31,13 @@ const Chat = () => {
     fetchMessages();
 
     // Set up WebSocket listener for new messages
-    const setupWebSocketListener = () => {
-      if (window.socket) {
-        const removeListener = window.addListener('chat_message', (message) => {
-          setMessages(prevMessages => [...prevMessages, message.data]);
-        });
+    addWebSocketListener('chatMessage', (message) => {
+      setMessages(prevMessages => [...prevMessages, message]);
+    });
 
-        // Clean up on unmount
-        return removeListener;
-      }
-      return null;
-    };
-
-    const removeListener = setupWebSocketListener();
     
     return () => {
-      if (removeListener) {
-        removeListener();
-      }
+      // Cleanup is handled by the websocket service
     };
   }, []);
 

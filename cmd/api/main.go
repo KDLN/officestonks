@@ -371,14 +371,31 @@ func main() {
 		json.NewEncoder(w).Encode(rateLimiter.GetStats())
 	}).Methods("GET", "OPTIONS")
 
-	// Set up a simple handler for root path to return a welcome message
-	r.Methods("GET", "OPTIONS").Path("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Welcome to OfficeStonks API. Frontend is served separately.",
-			"status": "running",
-			"docs": "/api/health for health check",
-		})
+	// Serve static files from frontend build directory
+	staticDir := "./frontend/build/"
+	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir+"static/"))))
+	
+	// Serve favicon and other root assets
+	r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, staticDir+"favicon.ico")
+	})
+	r.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, staticDir+"manifest.json")
+	})
+	r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, staticDir+"robots.txt")
+	})
+	
+	// Serve index.html for all non-API routes (SPA routing)
+	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip API routes
+		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws") || r.URL.Path == "/health" || r.URL.Path == "/health-check" {
+			http.NotFound(w, r)
+			return
+		}
+		
+		// Serve index.html for all other routes (React Router will handle routing)
+		http.ServeFile(w, r, staticDir+"index.html")
 	})
 
 	// ABSOLUTELY MINIMAL HEALTH CHECK
