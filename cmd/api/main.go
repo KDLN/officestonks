@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -174,9 +173,6 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Explicitly register static file handler AFTER emergency endpoints
-	// This ensures emergency routes have higher priority
-	setupStaticFileServer(r)
 
 	// Set up API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()

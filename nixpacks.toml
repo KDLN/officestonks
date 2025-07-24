@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["go_1_21"]
+nixPkgs = ["go_1_21_5"]
 
 [phases.build]
-cmds = ["go mod download", "go build -o server ./cmd/api/main.go"]
+cmds = ["go mod tidy", "go build -o server ./cmd/api/main.go"]
 
 [start]
 cmd = "./server"
