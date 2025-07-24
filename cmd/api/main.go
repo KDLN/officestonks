@@ -379,6 +379,7 @@ func main() {
 		log.Printf("WARNING: Frontend build directory not found at %s", staticDir)
 		log.Printf("Current working directory: %s", getMustString("pwd"))
 		log.Printf("Directory contents: %s", getMustString("ls -la"))
+		log.Printf("Frontend directory contents: %s", getMustString("ls -la frontend/"))
 		
 		// Serve a simple message instead of 404
 		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
