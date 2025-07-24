@@ -18,6 +18,9 @@ COPY . .
 # Build the application with verbose output
 RUN go build -v -o /go/bin/app ./cmd/api/main.go
 
+# The frontend/build should already exist in the source code
+RUN ls -la frontend/build || echo "Frontend build directory not found"
+
 # Create a minimal image for runtime
 FROM debian:bullseye-slim
 
