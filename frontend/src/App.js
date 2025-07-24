@@ -14,7 +14,7 @@ import AdminPanel from './pages/AdminPanel';
 import Portfolio from './pages/Portfolio';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { isAuthenticated } from './services/auth';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Leaderboard component is now implemented
 
@@ -22,12 +22,13 @@ import { isAuthenticated } from './services/auth';
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
+    <AuthProvider>
+      <ThemeProvider>
+        <Router>
         <div className="App">
           <Routes>
-            <Route path="/login" element={!isAuthenticated() ? <Login /> : <Navigate to="/dashboard" />} />
-            <Route path="/register" element={!isAuthenticated() ? <Register /> : <Navigate to="/dashboard" />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             
             {/* Protected routes */}
             <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
@@ -39,11 +40,12 @@ function App() {
             <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} />} />
 
             {/* Default redirect */}
-            <Route path="*" element={<Navigate to={isAuthenticated() ? "/dashboard" : "/login"} />} />
+            <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
         </div>
-      </Router>
-    </ThemeProvider>
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

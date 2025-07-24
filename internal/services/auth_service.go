@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"log"
+	"strconv"
 	"strings"
 
 	"officestonks/internal/auth"
@@ -87,13 +88,22 @@ func (s *AuthService) Login(username, password string) (*models.AuthResponse, er
 
 // ValidateToken validates a JWT token and returns the user ID
 func (s *AuthService) ValidateToken(tokenString string) (int, error) {
-	// EMERGENCY BYPASS: Check for debug_admin_access in token
-	if strings.Contains(tokenString, "debug_admin_access") {
-		log.Printf("EMERGENCY BYPASS: Found debug_admin_access in token, returning admin user ID 3")
-		return 3, nil
+	// Try Supabase JWT first if enabled
+	if auth.IsSupabaseEnabled() {
+		supabaseClaims, err := auth.ValidateSupabaseToken(tokenString)
+		if err == nil {
+			// Get or create user based on Supabase claims
+			userID, err := s.getOrCreateSupabaseUser(supabaseClaims)
+			if err != nil {
+				log.Printf("Error getting/creating Supabase user: %v", err)
+				return 0, err
+			}
+			return userID, nil
+		}
+		log.Printf("Supabase token validation failed, trying custom JWT: %v", err)
 	}
 
-	// Validate the token
+	// Fallback to custom JWT validation
 	claims, err := auth.ValidateToken(tokenString)
 	if err != nil {
 		return 0, err
@@ -105,5 +115,38 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 		return 0, errors.New("invalid token: user not found")
 	}
 
+	return user.ID, nil
+}
+
+// getOrCreateSupabaseUser gets or creates a user based on Supabase claims
+func (s *AuthService) getOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int, error) {
+	// First try to find user by email or Supabase ID
+	// For now, we'll use email as the primary identifier
+	email := claims.Email
+	if email == "" {
+		return 0, errors.New("no email in Supabase token")
+	}
+
+	// Try to find user by username (we'll use email as username for Supabase users)
+	user, err := s.userRepo.GetUserByUsername(email)
+	if err == nil {
+		// User exists, return their ID
+		return user.ID, nil
+	}
+
+	// User doesn't exist, create them
+	// Generate a random password hash since Supabase handles auth
+	hashedPassword, err := auth.HashPassword("supabase_managed_" + claims.Sub)
+	if err != nil {
+		return 0, err
+	}
+
+	// Create user with email as username
+	user, err = s.userRepo.CreateUser(email, hashedPassword)
+	if err != nil {
+		return 0, err
+	}
+
+	log.Printf("Created new user from Supabase: ID=%d, Email=%s", user.ID, email)
 	return user.ID, nil
 }

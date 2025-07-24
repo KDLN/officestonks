@@ -37,3 +37,6 @@ out
 # Log files
 *.log
 **/.claude/settings.local.json
+
+#other
+dontup
