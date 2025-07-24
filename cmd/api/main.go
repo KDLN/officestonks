@@ -2,10 +2,8 @@ package main
 
 import (
 	"database/sql"
-	"embed"
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -25,8 +23,9 @@ import (
 	"officestonks/internal/websocket"
 )
 
-//go:embed frontend/build
-var frontendFiles embed.FS
+// Temporarily disabled embed to fix build
+// //go:embed frontend/build
+// var frontendFiles embed.FS
 
 func main() {
 	// Print startup information
@@ -376,14 +375,14 @@ func main() {
 		json.NewEncoder(w).Encode(rateLimiter.GetStats())
 	}).Methods("GET", "OPTIONS")
 
-	// Serve embedded frontend files
-	log.Printf("Setting up embedded frontend file serving...")
+	// Serve static files from frontend build directory (fallback to filesystem)
+	staticDir := "./frontend/build/"
 	
-	// Create a sub-filesystem for the frontend/build directory
-	frontendFS, err := fs.Sub(frontendFiles, "frontend/build")
-	if err != nil {
-		log.Printf("ERROR: Could not create frontend filesystem: %v", err)
-		log.Printf("Frontend files will not be served")
+	// Check if frontend build exists
+	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
+		log.Printf("WARNING: Frontend build directory not found at %s", staticDir)
+		log.Printf("Current working directory: %s", getMustString("pwd"))
+		log.Printf("Directory contents: %s", getMustString("ls -la"))
 		
 		// Serve a simple message instead of 404
 		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -398,49 +397,27 @@ func main() {
 				<html>
 				<body>
 					<h1>Office Stonks API Server</h1>
-					<p>Frontend files could not be loaded. The API is running at /api endpoints.</p>
+					<p>Frontend not found. The API is running at /api endpoints.</p>
 					<p><a href="/api/health">Check API Health</a></p>
 				</body>
 				</html>
 			`))
 		})
 	} else {
-		log.Printf("✅ Frontend files embedded successfully")
+		log.Printf("Frontend build directory found at %s", staticDir)
 		
-		// Serve static files (CSS, JS, etc.)
-		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.FS(frontendFS))))
+		// Serve static files
+		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir+"static/"))))
 		
 		// Serve favicon and other root assets
 		r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-			file, err := frontendFS.Open("favicon.ico")
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-			defer file.Close()
-			http.ServeContent(w, r, "favicon.ico", time.Time{}, file)
+			http.ServeFile(w, r, staticDir+"favicon.ico")
 		})
-		
 		r.HandleFunc("/manifest.json", func(w http.ResponseWriter, r *http.Request) {
-			file, err := frontendFS.Open("manifest.json")
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-			defer file.Close()
-			w.Header().Set("Content-Type", "application/json")
-			http.ServeContent(w, r, "manifest.json", time.Time{}, file)
+			http.ServeFile(w, r, staticDir+"manifest.json")
 		})
-		
 		r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
-			file, err := frontendFS.Open("robots.txt")
-			if err != nil {
-				http.NotFound(w, r)
-				return
-			}
-			defer file.Close()
-			w.Header().Set("Content-Type", "text/plain")
-			http.ServeContent(w, r, "robots.txt", time.Time{}, file)
+			http.ServeFile(w, r, staticDir+"robots.txt")
 		})
 		
 		// Serve index.html for all non-API routes (SPA routing)
@@ -452,16 +429,7 @@ func main() {
 			}
 			
 			// Serve index.html for all other routes (React Router will handle routing)
-			file, err := frontendFS.Open("index.html")
-			if err != nil {
-				log.Printf("ERROR: Could not open index.html: %v", err)
-				http.NotFound(w, r)
-				return
-			}
-			defer file.Close()
-			
-			w.Header().Set("Content-Type", "text/html")
-			http.ServeContent(w, r, "index.html", time.Time{}, file)
+			http.ServeFile(w, r, staticDir+"index.html")
 		})
 	}
 
