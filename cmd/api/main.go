@@ -162,6 +162,14 @@ func main() {
 	r.Use(rateLimiter.RateLimit)
 
 
+	// Simple health check for Railway (no dependencies)
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}).Methods("GET", "OPTIONS")
+	
 	// Register a duplicate health check endpoint at the root level that accepts GET
 	// This should help for Railway healthchecks
 	r.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
@@ -374,6 +382,10 @@ func main() {
 
 	// Get port from environment variable or use default
 	port := getPort()
+	log.Printf("=== Office Stonks Server Starting ===")
+	log.Printf("Port: %d", port)
+	log.Printf("Health check endpoint: /health")
+	log.Printf("API endpoints: /api/*")
 	fmt.Printf("Server starting on port %d...\n", port)
 
 	// Force IPv4 binding only - this helps with Railway's routing
@@ -385,7 +397,9 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	fmt.Printf("Server binding to 0.0.0.0:%d (IPv4 only)...\n", port)
+	log.Printf("Server binding to 0.0.0.0:%d (IPv4 only)...", port)
+	log.Printf("Health check URL: http://0.0.0.0:%d/health", port)
+	log.Printf("=== Server Ready to Accept Connections ===")
 	log.Fatal(server.ListenAndServe())
 }
 
