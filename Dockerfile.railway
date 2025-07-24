@@ -15,38 +15,32 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
-# Build the application with verbose output
-RUN go build -v -o /go/bin/app ./cmd/api
-
-# The frontend/build should already exist in the source code
-RUN ls -la frontend/build || echo "Frontend build directory not found"
+# Build the application
+RUN go build -o /go/bin/app ./cmd/api
 
 # Create a minimal image for runtime
 FROM debian:bullseye-slim
 
 # Install necessary system tools and certificates
-RUN apt-get update && apt-get install -y ca-certificates default-mysql-client && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
 # Copy the binary from the builder stage
-COPY --from=builder /go/bin/app /app/server
+COPY --from=builder /go/bin/app ./server
 
 # Copy frontend build files
-COPY --from=builder /go/src/app/frontend/build /app/frontend/build
+COPY --from=builder /go/src/app/frontend/build ./frontend/build
 
-# Copy necessary files for running
-COPY schema.sql /app/schema.sql
+# Copy schema.sql
+COPY schema.sql ./schema.sql
 
 # Make the server executable
-RUN chmod +x /app/server
-
-# Debug: Check what's in the app directory
-RUN ls -la /app/
+RUN chmod +x ./server
 
 # Expose the application port
 EXPOSE 8080
 
-# Run the application
-CMD ["/app/server"]
+# Set entrypoint to avoid any command interpretation issues
+ENTRYPOINT ["/app/server"]
