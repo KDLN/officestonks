@@ -10,7 +10,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,7 +33,14 @@ const Register = () => {
       const result = await signUp(email, password, { username });
       
       if (result.needsConfirmation) {
-        setError('Please check your email and confirm your account before logging in.');
+        // For Railway Supabase with noop mailer, try to sign in immediately
+        try {
+          await signIn(email, password);
+          navigate('/dashboard');
+        } catch (signInError) {
+          setError('Account created! Please log in with your credentials.');
+          navigate('/login');
+        }
       } else {
         navigate('/dashboard');
       }
