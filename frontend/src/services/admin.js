@@ -1,5 +1,5 @@
 // Admin service for frontend
-import { getToken } from './auth';
+import { authenticatedFetch } from './authBridge';
 
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -20,15 +20,11 @@ console.log('Admin service using API URL:', API_URL);
 // Check if current user has admin privileges
 export const checkAdminStatus = async () => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/admin/status`, {
+    const response = await authenticatedFetch(`${API_URL}/admin/status`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -47,15 +43,11 @@ export const checkAdminStatus = async () => {
 // Get all users (admin only)
 export const getAllUsers = async () => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${ADMIN_URL}/users`, {
+    const response = await authenticatedFetch(`${ADMIN_URL}/users`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -73,15 +65,11 @@ export const getAllUsers = async () => {
 // Update user (admin only)
 export const updateUser = async (userId, updates) => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${ADMIN_URL}/users/${userId}`, {
+    const response = await authenticatedFetch(`${ADMIN_URL}/users/${userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
       body: JSON.stringify(updates),
     });
 
@@ -100,15 +88,11 @@ export const updateUser = async (userId, updates) => {
 // Delete user (admin only)
 export const deleteUser = async (userId) => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${ADMIN_URL}/users/${userId}`, {
+    const response = await authenticatedFetch(`${ADMIN_URL}/users/${userId}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -126,15 +110,11 @@ export const deleteUser = async (userId) => {
 // Reset stock prices (admin only)
 export const resetStockPrices = async () => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${ADMIN_URL}/stocks/reset`, {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks/reset`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -152,15 +132,11 @@ export const resetStockPrices = async () => {
 // Clear all chats (admin only)
 export const clearAllChats = async () => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${ADMIN_URL}/chat/clear`, {
+    const response = await authenticatedFetch(`${ADMIN_URL}/chat/clear`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {

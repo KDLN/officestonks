@@ -1,5 +1,5 @@
 // WebSocket service for real-time updates
-import { getToken } from './auth';
+import { getAuthToken } from './authBridge';
 
 let socket = null;
 let listeners = {};
@@ -15,13 +15,13 @@ const isLocalhost = window.location.hostname === 'localhost' || window.location.
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
 
 // Initialize WebSocket connection
-export const initWebSocket = () => {
+export const initWebSocket = async () => {
   if (socket) {
     // Close existing connection before creating a new one
     socket.close();
   }
 
-  const token = getToken();
+  const token = await getAuthToken();
   if (!token) {
     console.error('No authentication token available for WebSocket connection');
     return;

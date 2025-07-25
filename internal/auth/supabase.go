@@ -37,11 +37,12 @@ func init() {
 
 // SupabaseClaims represents Supabase JWT claims
 type SupabaseClaims struct {
-	Sub   string                 `json:"sub"`
-	Email string                 `json:"email"`
-	Role  string                 `json:"role"`
-	App   map[string]interface{} `json:"app_metadata"`
-	User  map[string]interface{} `json:"user_metadata"`
+	Sub               string                 `json:"sub"`
+	Email             string                 `json:"email"`
+	EmailConfirmedAt  *time.Time             `json:"email_confirmed_at"`
+	Role              string                 `json:"role"`
+	App               map[string]interface{} `json:"app_metadata"`
+	User              map[string]interface{} `json:"user_metadata"`
 	jwt.StandardClaims
 }
 

@@ -91,7 +91,7 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 		supabaseClaims, err := auth.ValidateSupabaseToken(tokenString)
 		if err == nil {
 			// Get or create user based on Supabase claims
-			userID, err := s.getOrCreateSupabaseUser(supabaseClaims)
+			userID, err := s.GetOrCreateSupabaseUser(supabaseClaims)
 			if err != nil {
 				log.Printf("Error getting/creating Supabase user: %v", err)
 				return 0, err
@@ -116,8 +116,8 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 	return user.ID, nil
 }
 
-// getOrCreateSupabaseUser gets or creates a user based on Supabase claims
-func (s *AuthService) getOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int, error) {
+// GetOrCreateSupabaseUser gets or creates a user based on Supabase claims
+func (s *AuthService) GetOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int, error) {
 	// First try to find user by email or Supabase ID
 	// For now, we'll use email as the primary identifier
 	email := claims.Email
@@ -147,4 +147,9 @@ func (s *AuthService) getOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int,
 
 	log.Printf("Created new user from Supabase: ID=%d, Email=%s", user.ID, email)
 	return user.ID, nil
+}
+
+// GetUserByID retrieves a user by their ID
+func (s *AuthService) GetUserByID(userID int) (*models.User, error) {
+	return s.userRepo.GetUserByID(userID)
 }

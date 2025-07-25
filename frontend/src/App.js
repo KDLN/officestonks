@@ -13,6 +13,7 @@ import Transactions from './pages/Transactions';
 import AdminPanel from './pages/AdminPanel';
 import Portfolio from './pages/Portfolio';
 import ProtectedRoute from './components/ProtectedRoute';
+import AuthSync from './components/AuthSync';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -24,9 +25,10 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <Router>
-        <div className="App">
-          <Routes>
+        <AuthSync>
+          <Router>
+          <div className="App">
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             
@@ -42,8 +44,9 @@ function App() {
             {/* Default redirect */}
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
-        </div>
-        </Router>
+          </div>
+          </Router>
+        </AuthSync>
       </ThemeProvider>
     </AuthProvider>
   );

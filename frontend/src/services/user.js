@@ -1,5 +1,5 @@
 // User service for frontend
-import { getToken } from './auth';
+import { authenticatedFetch } from './authBridge';
 
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -38,15 +38,11 @@ export const getLeaderboard = async (limit = 10) => {
 // Get current user's profile
 export const getUserProfile = async () => {
   try {
-    const token = getToken();
-    
-    const response = await fetch(`${API_URL}/users/me`, {
+    const response = await authenticatedFetch(`${API_URL}/users/me`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {

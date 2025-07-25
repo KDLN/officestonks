@@ -1,5 +1,6 @@
 // Stock market service for frontend
 import { getToken } from './auth';
+import { authenticatedFetch } from './authBridge';
 
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -61,15 +62,11 @@ export const getStockById = async (stockId) => {
 // Get the user's portfolio
 export const getUserPortfolio = async () => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/portfolio`, {
+    const response = await authenticatedFetch(`${API_URL}/portfolio`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -86,15 +83,11 @@ export const getUserPortfolio = async () => {
 // Execute a trade (buy or sell)
 export const executeTrade = async (stockId, quantity, action) => {
   try {
-    const token = getToken();
-    
-    const response = await fetch(`${API_URL}/trading`, {
+    const response = await authenticatedFetch(`${API_URL}/trading`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
       body: JSON.stringify({
         stock_id: stockId,
         quantity: quantity,
@@ -117,15 +110,11 @@ export const executeTrade = async (stockId, quantity, action) => {
 // Get transaction history
 export const getTransactionHistory = async (limit = 50, offset = 0) => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/transactions?limit=${limit}&offset=${offset}`, {
+    const response = await authenticatedFetch(`${API_URL}/transactions?limit=${limit}&offset=${offset}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {

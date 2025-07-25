@@ -1,5 +1,5 @@
 // Chat service for frontend
-import { getToken } from './auth';
+import { authenticatedFetch } from './authBridge';
 
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -16,15 +16,11 @@ const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
 // Get recent chat messages
 export const getRecentMessages = async (limit = 50) => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/chat/messages?limit=${limit}`, {
+    const response = await authenticatedFetch(`${API_URL}/chat/messages?limit=${limit}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -41,15 +37,11 @@ export const getRecentMessages = async (limit = 50) => {
 // Send a chat message
 export const sendChatMessage = async (message) => {
   try {
-    const token = getToken();
-
-    const response = await fetch(`${API_URL}/chat/send`, {
+    const response = await authenticatedFetch(`${API_URL}/chat/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
       },
-      credentials: 'include',
       body: JSON.stringify({
         message,
       }),
