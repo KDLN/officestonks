@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { registerWithWorkaround } from '../services/supabaseWorkaround';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -30,21 +31,13 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const result = await signUp(email, password, { username });
+      // Use the workaround for noop mailer
+      const result = await registerWithWorkaround(email, password, username);
       
-      if (result.needsConfirmation) {
-        // For Railway Supabase with noop mailer, try to sign in immediately
-        try {
-          await signIn(email, password);
-          navigate('/dashboard');
-        } catch (signInError) {
-          setError('Account created! Please log in with your credentials.');
-          navigate('/login');
-        }
-      } else {
-        navigate('/dashboard');
-      }
+      // If successful, navigate to dashboard
+      navigate('/dashboard');
     } catch (error) {
+      console.error('Registration error:', error);
       setError(error.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);

@@ -42,7 +42,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	resp, err := h.authService.Register(req.Username, req.Password)
 	if err != nil {
 		log.Printf("Error registering user: %v", err)
-		http.Error(w, "Error registering user", http.StatusInternalServerError)
+		// Return a more specific error message
+		if err.Error() == "username already exists" {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, "Error registering user", http.StatusInternalServerError)
+		}
 		return
 	}
 

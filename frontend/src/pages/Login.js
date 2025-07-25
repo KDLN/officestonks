@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { loginWithWorkaround } from '../services/supabaseWorkaround';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,9 +17,11 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await signIn(email, password);
+      // Use the workaround for noop mailer issues
+      await loginWithWorkaround(email, password);
       navigate('/dashboard');
     } catch (error) {
+      console.error('Login error:', error);
       setError(error.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
