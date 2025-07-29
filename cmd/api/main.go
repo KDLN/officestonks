@@ -117,6 +117,7 @@ func main() {
 	chatHandler := handlers.NewChatHandler(chatService)
 	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)
 	newsHandler := handlers.NewNewsHandler(newsService)
+	gameConfigHandler := handlers.NewGameConfigHandler()
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -274,6 +275,12 @@ func main() {
 
 	// Admin news posting
 	adminRouter.HandleFunc("/news", newsHandler.CreateNews).Methods("POST", "OPTIONS")
+
+	// Admin game configuration
+	adminRouter.HandleFunc("/game-config", gameConfigHandler.GetGameConfig).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/game-config", gameConfigHandler.UpdateGameConfig).Methods("PUT", "OPTIONS")
+	adminRouter.HandleFunc("/game-config/reset", gameConfigHandler.ResetGameConfig).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/game-config/balanced", gameConfigHandler.LoadBalancedConfig).Methods("POST", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
