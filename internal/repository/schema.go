@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Add supabase_id column if it doesn't exist (for existing databases)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_id VARCHAR(255) NULL UNIQUE;
+-- MySQL doesn't support IF NOT EXISTS for ADD COLUMN, so we'll handle it in code
 
 -- Stocks Table
 CREATE TABLE IF NOT EXISTS stocks (
@@ -109,6 +109,13 @@ func InitSchema() error {
 
 	log.Println("Database schema created successfully.")
 
+	// Run migrations
+	err = runMigrations()
+	if err != nil {
+		log.Printf("Error running migrations: %v", err)
+		return err
+	}
+
 	// Check if stocks table has data with retry
 	var count int
 	err = RetryQueryRow(DB, "SELECT COUNT(*) FROM stocks").Scan(&count)
@@ -130,5 +137,39 @@ func InitSchema() error {
 		log.Printf("Stocks table already has %d records, skipping seed data.", count)
 	}
 
+	return nil
+}
+
+// runMigrations runs database migrations
+func runMigrations() error {
+	log.Println("Running database migrations...")
+	
+	// Check if supabase_id column exists
+	var columnExists bool
+	err := RetryQueryRow(DB, `
+		SELECT COUNT(*) > 0
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_SCHEMA = DATABASE() 
+		AND TABLE_NAME = 'users' 
+		AND COLUMN_NAME = 'supabase_id'
+	`).Scan(&columnExists)
+	
+	if err != nil {
+		log.Printf("Error checking if supabase_id column exists: %v", err)
+		return err
+	}
+	
+	if !columnExists {
+		log.Println("Adding supabase_id column to users table...")
+		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN supabase_id VARCHAR(255) NULL UNIQUE")
+		if err != nil {
+			log.Printf("Error adding supabase_id column: %v", err)
+			return err
+		}
+		log.Println("Successfully added supabase_id column")
+	} else {
+		log.Println("supabase_id column already exists, skipping migration")
+	}
+	
 	return nil
 }
