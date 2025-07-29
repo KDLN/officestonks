@@ -1,7 +1,7 @@
 import { getCurrentSession } from './supabaseAuth'
 import { getToken as getOfficeToken } from './auth'
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app'
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com'
 
 // Sync Supabase session with Office Stonks backend
 export const syncAuthWithBackend = async () => {

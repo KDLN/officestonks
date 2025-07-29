@@ -12,7 +12,7 @@ const RECONNECT_DELAY = 3000; // 3 seconds
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // Get configuration from environment variables with fallbacks
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com';
 
 // Initialize WebSocket connection
 export const initWebSocket = async () => {

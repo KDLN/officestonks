@@ -9,7 +9,7 @@ const isLocalhost =
 // Get configuration from environment variables with fallbacks
 const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL ||
-  "https://web-production-1e26.up.railway.app";
+  "https://officestonks.com";
 
 // Connect directly to backend (no CORS proxy needed)
 const BASE_URL = isLocalhost
