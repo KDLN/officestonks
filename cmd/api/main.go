@@ -209,6 +209,7 @@ func main() {
 	authRouter.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/supabase", authHandler.SupabaseAuth).Methods("POST", "OPTIONS")
+	authRouter.HandleFunc("/debug/supabase", authHandler.DebugSupabaseConfig).Methods("GET", "OPTIONS")
 
 	// Public market routes
 	apiRouter.HandleFunc("/stocks", marketHandler.GetAllStocks).Methods("GET", "OPTIONS")

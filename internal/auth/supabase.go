@@ -31,6 +31,7 @@ func init() {
 	if supabaseProjectRef != "" {
 		supabaseJWKSURL = fmt.Sprintf("https://%s.supabase.co/.well-known/jwks", supabaseProjectRef)
 		log.Printf("Supabase JWT validation enabled for project: %s", supabaseProjectRef)
+		log.Printf("Supabase JWKS URL: %s", supabaseJWKSURL)
 	} else {
 		log.Println("SUPABASE_PROJECT_REF not set - Supabase JWT validation disabled")
 	}
@@ -195,6 +196,11 @@ func jwkToECDSAPublicKey(jwk JWK) (*ecdsa.PublicKey, error) {
 func ValidateSupabaseToken(tokenString string) (*SupabaseClaims, error) {
 	if tokenString == "" {
 		return nil, errors.New("empty token")
+	}
+
+	// Check if Supabase is properly configured
+	if supabaseProjectRef == "" {
+		return nil, errors.New("Supabase not configured")
 	}
 
 	// Remove Bearer prefix if present

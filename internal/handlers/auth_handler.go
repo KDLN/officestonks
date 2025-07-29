@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"officestonks/internal/auth"
@@ -150,4 +151,23 @@ func (h *AuthHandler) SupabaseAuth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+// DebugSupabaseConfig returns debug info about Supabase configuration
+func (h *AuthHandler) DebugSupabaseConfig(w http.ResponseWriter, r *http.Request) {
+	projectRef := os.Getenv("SUPABASE_PROJECT_REF")
+	debug := map[string]interface{}{
+		"supabase_enabled":    auth.IsSupabaseEnabled(),
+		"has_project_ref":     projectRef != "",
+		"project_ref_length":  len(projectRef),
+	}
+	
+	if projectRef != "" && len(projectRef) > 8 {
+		debug["project_ref_first_chars"] = projectRef[:8]
+	} else if projectRef != "" {
+		debug["project_ref_first_chars"] = projectRef
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(debug)
 }
