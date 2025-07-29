@@ -11,7 +11,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signUp, signIn } = useAuth();
+  const { signInWithProvider } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,6 +40,18 @@ const Register = () => {
       console.error('Registration error:', error);
       setError(error.message || 'Registration failed. Please try again.');
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDiscordRegister = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithProvider('discord');
+    } catch (error) {
+      console.error('Discord registration error:', error);
+      setError(error.message || 'Registration failed. Please try again.');
       setLoading(false);
     }
   };
@@ -91,6 +103,9 @@ const Register = () => {
         </div>
         <button type="submit" className="btn" disabled={loading}>
           {loading ? 'Creating Account...' : 'Register'}
+        </button>
+        <button type="button" className="btn" onClick={handleDiscordRegister} disabled={loading} style={{ marginTop: '10px' }}>
+          {loading ? 'Redirecting...' : 'Register with Discord'}
         </button>
       </form>
       <p>

@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+  const { signInWithProvider } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,6 +24,18 @@ const Login = () => {
       console.error('Login error:', error);
       setError(error.message || 'Login failed. Please try again.');
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDiscordLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await signInWithProvider('discord');
+    } catch (error) {
+      console.error('Discord login error:', error);
+      setError(error.message || 'Login failed. Please try again.');
       setLoading(false);
     }
   };
@@ -55,6 +67,9 @@ const Login = () => {
         </div>
         <button type="submit" className="btn" disabled={loading}>
           {loading ? 'Logging in...' : 'Login'}
+        </button>
+        <button type="button" className="btn" onClick={handleDiscordLogin} disabled={loading} style={{ marginTop: '10px' }}>
+          {loading ? 'Redirecting...' : 'Login with Discord'}
         </button>
       </form>
       <p>
