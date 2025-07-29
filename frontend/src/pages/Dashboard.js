@@ -4,6 +4,7 @@ import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../servic
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
+import NewsDisplay from '../components/NewsDisplay';
 import './Dashboard.css';
 
 // Default empty states to prevent null references
@@ -153,14 +154,7 @@ const Dashboard = () => {
         <div className="dashboard-header">
           <div>
             <h1>Dashboard</h1>
-            <p style={{ 
-              color: 'var(--accent-primary)', 
-              fontSize: '0.9rem', 
-              margin: '0.5rem 0 0 0',
-              fontWeight: '500'
-            }}>
-              ✨ New: Mobile responsive design + Light/Dark mode toggle! 🌓
-            </p>
+            <NewsDisplay />
           </div>
           <div className="portfolio-value">
             <h2>Total Portfolio Value</h2>
