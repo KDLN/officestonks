@@ -170,6 +170,33 @@ func runMigrations() error {
 	} else {
 		log.Println("supabase_id column already exists, skipping migration")
 	}
+
+	// Check if status column exists in stocks table
+	var statusColumnExists bool
+	err = RetryQueryRow(DB, `
+		SELECT COUNT(*) > 0
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_SCHEMA = DATABASE() 
+		AND TABLE_NAME = 'stocks' 
+		AND COLUMN_NAME = 'status'
+	`).Scan(&statusColumnExists)
+	
+	if err != nil {
+		log.Printf("Error checking if status column exists: %v", err)
+		return err
+	}
+	
+	if !statusColumnExists {
+		log.Println("Adding status column to stocks table...")
+		_, err = RetryExec(DB, "ALTER TABLE stocks ADD COLUMN status ENUM('active', 'distressed', 'delisted') DEFAULT 'active'")
+		if err != nil {
+			log.Printf("Error adding status column: %v", err)
+			return err
+		}
+		log.Println("Successfully added status column")
+	} else {
+		log.Println("status column already exists, skipping migration")
+	}
 	
 	return nil
 }

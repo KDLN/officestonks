@@ -23,8 +23,9 @@ func NewStockRepo(db *sql.DB) *StockRepo {
 // GetAllStocks retrieves all stocks from the database
 func (r *StockRepo) GetAllStocks() ([]*models.Stock, error) {
 	query := `
-		SELECT id, symbol, name, sector, current_price, last_updated
+		SELECT id, symbol, name, sector, current_price, status, last_updated
 		FROM stocks
+		WHERE status != 'delisted'
 		ORDER BY symbol ASC
 	`
 	
@@ -37,17 +38,20 @@ func (r *StockRepo) GetAllStocks() ([]*models.Stock, error) {
 	var stocks []*models.Stock
 	for rows.Next() {
 		var stock models.Stock
+		var statusStr string
 		err := rows.Scan(
 			&stock.ID,
 			&stock.Symbol,
 			&stock.Name,
 			&stock.Sector,
 			&stock.CurrentPrice,
+			&statusStr,
 			&stock.LastUpdated,
 		)
 		if err != nil {
 			return nil, err
 		}
+		stock.Status = models.StockStatus(statusStr)
 		stocks = append(stocks, &stock)
 	}
 	
@@ -57,9 +61,10 @@ func (r *StockRepo) GetAllStocks() ([]*models.Stock, error) {
 // GetStockByID retrieves a stock by ID
 func (r *StockRepo) GetStockByID(id int) (*models.Stock, error) {
 	var stock models.Stock
+	var statusStr string
 	
 	query := `
-		SELECT id, symbol, name, sector, current_price, last_updated
+		SELECT id, symbol, name, sector, current_price, status, last_updated
 		FROM stocks
 		WHERE id = ?
 	`
@@ -70,6 +75,7 @@ func (r *StockRepo) GetStockByID(id int) (*models.Stock, error) {
 		&stock.Name,
 		&stock.Sector,
 		&stock.CurrentPrice,
+		&statusStr,
 		&stock.LastUpdated,
 	)
 	
@@ -79,6 +85,8 @@ func (r *StockRepo) GetStockByID(id int) (*models.Stock, error) {
 		}
 		return nil, err
 	}
+	
+	stock.Status = models.StockStatus(statusStr)
 	
 	return &stock, nil
 }
@@ -130,10 +138,12 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	Symbol   string
 	Sector   string
 	Price    float64
+	Status   models.StockStatus
 }, error) {
 	query := `
-		SELECT id, symbol, name, sector, current_price
+		SELECT id, symbol, name, sector, current_price, status
 		FROM stocks
+		WHERE status != 'delisted'
 	`
 	
 	rows, err := r.db.Query(query)
@@ -147,14 +157,16 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 		Symbol   string
 		Sector   string
 		Price    float64
+		Status   models.StockStatus
 	})
 	
 	for rows.Next() {
 		var id int
 		var symbol, name, sector string
 		var price float64
+		var statusStr string
 		
-		err := rows.Scan(&id, &symbol, &name, &sector, &price)
+		err := rows.Scan(&id, &symbol, &name, &sector, &price, &statusStr)
 		if err != nil {
 			return nil, err
 		}
@@ -164,11 +176,13 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 			Symbol   string
 			Sector   string
 			Price    float64
+			Status   models.StockStatus
 		}{
 			ID:     id,
 			Symbol: symbol,
 			Sector: sector,
 			Price:  price,
+			Status: models.StockStatus(statusStr),
 		}
 	}
 	
@@ -218,5 +232,72 @@ func (r *StockRepo) ResetAllStockPrices() error {
 	}
 	
 	log.Println("ResetAllStockPrices: Successfully reset all stock prices")
+	return nil
+}
+
+// UpdateStockStatus updates the status of a stock
+func (r *StockRepo) UpdateStockStatus(stockID int, status models.StockStatus) error {
+	query := `
+		UPDATE stocks 
+		SET status = ?, last_updated = ? 
+		WHERE id = ?
+	`
+	
+	_, err := RetryExec(r.db, query, string(status), time.Now(), stockID)
+	if err != nil {
+		log.Printf("Error updating stock status for ID %d: %v", stockID, err)
+		return err
+	}
+	
+	log.Printf("Updated stock %d status to %s", stockID, status)
+	return nil
+}
+
+// GetDistressedStocks returns all stocks with distressed status
+func (r *StockRepo) GetDistressedStocks() ([]*models.Stock, error) {
+	query := `
+		SELECT id, symbol, name, sector, current_price, status, last_updated
+		FROM stocks 
+		WHERE status = 'distressed'
+		ORDER BY symbol
+	`
+	
+	rows, err := RetryQuery(r.db, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var stocks []*models.Stock
+	for rows.Next() {
+		stock := &models.Stock{}
+		var statusStr string
+		err := rows.Scan(&stock.ID, &stock.Symbol, &stock.Name, &stock.Sector, 
+			&stock.CurrentPrice, &statusStr, &stock.LastUpdated)
+		if err != nil {
+			return nil, err
+		}
+		stock.Status = models.StockStatus(statusStr)
+		stocks = append(stocks, stock)
+	}
+	
+	return stocks, nil
+}
+
+// DelistStock permanently removes a stock from trading (sets status to delisted)
+func (r *StockRepo) DelistStock(stockID int) error {
+	query := `
+		UPDATE stocks 
+		SET status = 'delisted', last_updated = ? 
+		WHERE id = ?
+	`
+	
+	_, err := RetryExec(r.db, query, time.Now(), stockID)
+	if err != nil {
+		log.Printf("Error delisting stock ID %d: %v", stockID, err)
+		return err
+	}
+	
+	log.Printf("Delisted stock ID %d", stockID)
 	return nil
 }
