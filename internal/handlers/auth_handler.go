@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -156,16 +157,28 @@ func (h *AuthHandler) SupabaseAuth(w http.ResponseWriter, r *http.Request) {
 // DebugSupabaseConfig returns debug info about Supabase configuration
 func (h *AuthHandler) DebugSupabaseConfig(w http.ResponseWriter, r *http.Request) {
 	projectRef := os.Getenv("SUPABASE_PROJECT_REF")
+	jwksURL := ""
+	if projectRef != "" {
+		jwksURL = fmt.Sprintf("https://%s.supabase.co/.well-known/jwks", projectRef)
+	}
+	
 	debug := map[string]interface{}{
 		"supabase_enabled":    auth.IsSupabaseEnabled(),
 		"has_project_ref":     projectRef != "",
+		"project_ref":         projectRef,
 		"project_ref_length":  len(projectRef),
+		"jwks_url":           jwksURL,
 	}
 	
-	if projectRef != "" && len(projectRef) > 8 {
-		debug["project_ref_first_chars"] = projectRef[:8]
-	} else if projectRef != "" {
-		debug["project_ref_first_chars"] = projectRef
+	// Test JWKS URL if available
+	if jwksURL != "" {
+		resp, err := http.Get(jwksURL)
+		if err != nil {
+			debug["jwks_test_error"] = err.Error()
+		} else {
+			debug["jwks_test_status"] = resp.StatusCode
+			resp.Body.Close()
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
