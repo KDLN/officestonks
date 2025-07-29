@@ -135,7 +135,10 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 				}
 				return userID, nil
 			}
-			log.Printf("Both custom JWT and Supabase validation failed")
+			// Don't log Supabase errors if it's just not configured properly
+			if !strings.Contains(err.Error(), "404") && !strings.Contains(err.Error(), "JWKS endpoint") {
+				log.Printf("Both custom JWT and Supabase validation failed: %v", err)
+			}
 		}
 		return 0, err
 	}

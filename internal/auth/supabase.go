@@ -235,7 +235,10 @@ func ValidateSupabaseToken(tokenString string) (*SupabaseClaims, error) {
 	})
 
 	if err != nil {
-		log.Printf("Supabase JWT validation error: %v", err)
+		// Only log if it's not a common configuration issue
+		if !strings.Contains(err.Error(), "404") && !strings.Contains(err.Error(), "JWKS endpoint") && !strings.Contains(err.Error(), "kid not found") {
+			log.Printf("Supabase JWT validation error: %v", err)
+		}
 		return nil, err
 	}
 
