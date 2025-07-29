@@ -1,8 +1,11 @@
 package services
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"log"
+	"strings"
 
 	"officestonks/internal/auth"
 	"officestonks/internal/models"
@@ -86,24 +89,54 @@ func (s *AuthService) Login(username, password string) (*models.AuthResponse, er
 
 // ValidateToken validates a JWT token and returns the user ID
 func (s *AuthService) ValidateToken(tokenString string) (int, error) {
-	// Try Supabase JWT first if enabled
-	if auth.IsSupabaseEnabled() {
-		supabaseClaims, err := auth.ValidateSupabaseToken(tokenString)
-		if err == nil {
-			// Get or create user based on Supabase claims
-			userID, err := s.GetOrCreateSupabaseUser(supabaseClaims)
-			if err != nil {
-				log.Printf("Error getting/creating Supabase user: %v", err)
-				return 0, err
+	// Quick check if this looks like a Supabase token (has 3 dots indicating JWK format)
+	// Office Stonks tokens are HMAC-signed and won't have a 'kid' header
+	isLikelySupabaseToken := strings.Count(tokenString, ".") == 2 && 
+		strings.Contains(tokenString, "ey") // JWT tokens start with 'ey'
+
+	if isLikelySupabaseToken && auth.IsSupabaseEnabled() {
+		// Try to parse the header to check for 'kid'
+		parts := strings.Split(tokenString, ".")
+		if len(parts) == 3 {
+			// Decode header to check for 'kid'
+			headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+			if err == nil {
+				var header map[string]interface{}
+				if json.Unmarshal(headerBytes, &header) == nil {
+					if _, hasKid := header["kid"]; hasKid {
+						// This looks like a Supabase token, try it first
+						supabaseClaims, err := auth.ValidateSupabaseToken(tokenString)
+						if err == nil {
+							userID, err := s.GetOrCreateSupabaseUser(supabaseClaims)
+							if err != nil {
+								log.Printf("Error getting/creating Supabase user: %v", err)
+								return 0, err
+							}
+							return userID, nil
+						}
+						log.Printf("Supabase token validation failed: %v", err)
+					}
+				}
 			}
-			return userID, nil
 		}
-		log.Printf("Supabase token validation failed, trying custom JWT: %v", err)
 	}
 
-	// Fallback to custom JWT validation
+	// Try custom JWT validation (Office Stonks tokens)
 	claims, err := auth.ValidateToken(tokenString)
 	if err != nil {
+		// If custom JWT fails and Supabase is enabled, try Supabase as fallback
+		if auth.IsSupabaseEnabled() {
+			supabaseClaims, err := auth.ValidateSupabaseToken(tokenString)
+			if err == nil {
+				userID, err := s.GetOrCreateSupabaseUser(supabaseClaims)
+				if err != nil {
+					log.Printf("Error getting/creating Supabase user: %v", err)
+					return 0, err
+				}
+				return userID, nil
+			}
+			log.Printf("Both custom JWT and Supabase validation failed")
+		}
 		return 0, err
 	}
 
