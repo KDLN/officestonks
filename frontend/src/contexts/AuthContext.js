@@ -8,6 +8,7 @@ import {
   onAuthStateChange,
   signInWithProvider 
 } from '../services/supabaseAuth'
+import { syncAuthWithBackend } from '../services/authBridge'
 
 const AuthContext = createContext({
   user: null,
@@ -56,6 +57,17 @@ export const AuthProvider = ({ children }) => {
       
       setSession(session)
       setUser(session?.user ?? null)
+      
+      // Sync with Office Stonks backend when user signs in
+      if (event === 'SIGNED_IN' && session) {
+        try {
+          await syncAuthWithBackend()
+          console.log('Successfully synced with Office Stonks backend')
+        } catch (error) {
+          console.error('Failed to sync with backend:', error)
+        }
+      }
+      
       setLoading(false)
     })
 

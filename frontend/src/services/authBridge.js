@@ -30,7 +30,9 @@ export const syncAuthWithBackend = async () => {
     
     // Store the Office Stonks token for game API calls
     localStorage.setItem('token', data.token)
-    localStorage.setItem('userId', data.user_id)
+    localStorage.setItem('userId', data.userID)
+    localStorage.setItem('username', data.username)
+    localStorage.setItem('isAdmin', data.isAdmin)
     
     return data
   } catch (error) {
