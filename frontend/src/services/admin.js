@@ -164,17 +164,33 @@ export const createNews = async (title, content, expiresAt) => {
     const date = new Date(expiresAt);
     const rfc3339ExpiresAt = date.toISOString();
 
+    const requestBody = { title, content, expires_at: rfc3339ExpiresAt };
+    console.log('Creating news with data:', requestBody);
+
     const response = await authenticatedFetch(`${ADMIN_URL}/news`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ title, content, expires_at: rfc3339ExpiresAt }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to create news");
+      // Try to get the error message from response body (could be JSON or plain text)
+      let errorMessage = "Failed to create news";
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch {
+        // If JSON parsing fails, try to read as text
+        try {
+          errorMessage = await response.text() || errorMessage;
+        } catch {
+          // If all else fails, use status-based message
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();
