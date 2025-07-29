@@ -41,16 +41,21 @@ export const syncAuthWithBackend = async () => {
   }
 }
 
-// Get auth token (prefers Supabase, falls back to Office Stonks)
+// Get auth token (prefers Office Stonks token after sync, falls back to Supabase)
 export const getAuthToken = async () => {
-  // First try to get Supabase session
+  // First check if we have an Office Stonks token from auth sync
+  const officeToken = getOfficeToken()
+  if (officeToken) {
+    return officeToken
+  }
+  
+  // Fall back to Supabase session token
   const session = await getCurrentSession()
   if (session?.access_token) {
     return session.access_token
   }
   
-  // Fall back to Office Stonks token
-  return getOfficeToken()
+  return null
 }
 
 // Enhanced fetch that includes proper authentication
