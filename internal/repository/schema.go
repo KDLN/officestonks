@@ -13,11 +13,15 @@ CREATE TABLE IF NOT EXISTS users (
   id INT PRIMARY KEY AUTO_INCREMENT,
   username VARCHAR(50) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  supabase_id VARCHAR(255) NULL UNIQUE,
   cash_balance DECIMAL(15,2) DEFAULT 10000.00,
   is_admin BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Add supabase_id column if it doesn't exist (for existing databases)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS supabase_id VARCHAR(255) NULL UNIQUE;
 
 -- Stocks Table
 CREATE TABLE IF NOT EXISTS stocks (

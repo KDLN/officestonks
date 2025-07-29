@@ -9,6 +9,7 @@ type User struct {
 	ID           int       `json:"id"`
 	Username     string    `json:"username"`
 	PasswordHash string    `json:"-"` // Never expose this in JSON
+	SupabaseID   *string   `json:"supabase_id,omitempty"` // Nullable for legacy users
 	CashBalance  float64   `json:"cash_balance"`
 	IsAdmin      bool      `json:"is_admin"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -18,8 +19,10 @@ type User struct {
 // UserRepository interface defines methods for user data access
 type UserRepository interface {
 	CreateUser(username, password string) (*User, error)
+	CreateUserWithSupabase(username, password, supabaseID string) (*User, error)
 	GetUserByID(id int) (*User, error)
 	GetUserByUsername(username string) (*User, error)
+	GetUserBySupabaseID(supabaseID string) (*User, error)
 	UpdateUserBalance(userID int, newBalance float64) error
 	GetTopUsers(limit int) ([]*User, error)
 	IsUserAdmin(userID int) (bool, error)

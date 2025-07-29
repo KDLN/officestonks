@@ -118,34 +118,42 @@ func (s *AuthService) ValidateToken(tokenString string) (int, error) {
 
 // GetOrCreateSupabaseUser gets or creates a user based on Supabase claims
 func (s *AuthService) GetOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int, error) {
-	// First try to find user by email or Supabase ID
-	// For now, we'll use email as the primary identifier
-	email := claims.Email
-	if email == "" {
-		return 0, errors.New("no email in Supabase token")
+	// First try to find user by Supabase ID
+	if claims.Sub != "" {
+		user, err := s.userRepo.GetUserBySupabaseID(claims.Sub)
+		if err == nil {
+			// User exists, return their ID
+			return user.ID, nil
+		}
 	}
 
-	// Try to find user by username (we'll use email as username for Supabase users)
-	user, err := s.userRepo.GetUserByUsername(email)
-	if err == nil {
-		// User exists, return their ID
-		return user.ID, nil
+	// Extract Discord username from user metadata, fallback to email
+	username := claims.Email
+	if claims.UserMetadata != nil {
+		if discordUsername, ok := claims.UserMetadata["preferred_username"].(string); ok && discordUsername != "" {
+			username = discordUsername
+		} else if fullName, ok := claims.UserMetadata["full_name"].(string); ok && fullName != "" {
+			username = fullName
+		}
 	}
 
-	// User doesn't exist, create them
+	if username == "" {
+		return 0, errors.New("no username or email in Supabase token")
+	}
+
 	// Generate a random password hash since Supabase handles auth
 	hashedPassword, err := auth.HashPassword("supabase_managed_" + claims.Sub)
 	if err != nil {
 		return 0, err
 	}
 
-	// Create user with email as username
-	user, err = s.userRepo.CreateUser(email, hashedPassword)
+	// Create user with Discord username and Supabase ID
+	user, err := s.userRepo.CreateUserWithSupabase(username, hashedPassword, claims.Sub)
 	if err != nil {
 		return 0, err
 	}
 
-	log.Printf("Created new user from Supabase: ID=%d, Email=%s", user.ID, email)
+	log.Printf("Created new user from Supabase: ID=%d, Username=%s, SupabaseID=%s", user.ID, username, claims.Sub)
 	return user.ID, nil
 }
 

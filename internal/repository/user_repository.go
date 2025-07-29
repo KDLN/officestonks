@@ -59,7 +59,7 @@ func (r *UserRepo) GetUserByID(id int) (*models.User, error) {
 	var user models.User
 
 	query := `
-		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
+		SELECT id, username, password_hash, supabase_id, cash_balance, is_admin, created_at, updated_at
 		FROM users
 		WHERE id = ?
 	`
@@ -68,6 +68,7 @@ func (r *UserRepo) GetUserByID(id int) (*models.User, error) {
 		&user.ID,
 		&user.Username,
 		&user.PasswordHash,
+		&user.SupabaseID,
 		&user.CashBalance,
 		&user.IsAdmin,
 		&user.CreatedAt,
@@ -89,7 +90,7 @@ func (r *UserRepo) GetUserByUsername(username string) (*models.User, error) {
 	var user models.User
 
 	query := `
-		SELECT id, username, password_hash, cash_balance, is_admin, created_at, updated_at
+		SELECT id, username, password_hash, supabase_id, cash_balance, is_admin, created_at, updated_at
 		FROM users
 		WHERE username = ?
 	`
@@ -98,6 +99,73 @@ func (r *UserRepo) GetUserByUsername(username string) (*models.User, error) {
 		&user.ID,
 		&user.Username,
 		&user.PasswordHash,
+		&user.SupabaseID,
+		&user.CashBalance,
+		&user.IsAdmin,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// CreateUserWithSupabase creates a new user with Supabase ID
+func (r *UserRepo) CreateUserWithSupabase(username, passwordHash, supabaseID string) (*models.User, error) {
+	// Initial cash balance
+	initialBalance := 10000.00
+	
+	// SQL statement to insert a new user with Supabase ID
+	query := `
+		INSERT INTO users (username, password_hash, supabase_id, cash_balance)
+		VALUES (?, ?, ?, ?)
+	`
+	
+	// Execute the query
+	result, err := r.db.Exec(query, username, passwordHash, supabaseID, initialBalance)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get the ID of the new user
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	
+	// Return the new user
+	return &models.User{
+		ID:           int(id),
+		Username:     username,
+		PasswordHash: passwordHash,
+		SupabaseID:   &supabaseID,
+		CashBalance:  initialBalance,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}, nil
+}
+
+// GetUserBySupabaseID retrieves a user by their Supabase ID
+func (r *UserRepo) GetUserBySupabaseID(supabaseID string) (*models.User, error) {
+	var user models.User
+
+	query := `
+		SELECT id, username, password_hash, supabase_id, cash_balance, is_admin, created_at, updated_at
+		FROM users
+		WHERE supabase_id = ?
+	`
+
+	err := r.db.QueryRow(query, supabaseID).Scan(
+		&user.ID,
+		&user.Username,
+		&user.PasswordHash,
+		&user.SupabaseID,
 		&user.CashBalance,
 		&user.IsAdmin,
 		&user.CreatedAt,
