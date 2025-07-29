@@ -90,6 +90,7 @@ This application is deployed on Railway. See [Deployment Guide](docs/DEPLOYMENT.
 ### User System
 - Registration and authentication
 - JWT-based secure login
+- Discord social login via Supabase
 - Cash balance management
 - Admin privileges for system management
 
