@@ -214,7 +214,7 @@ func main() {
 	
 	// Protected auth routes
 	protectedAuthRouter := authRouter.PathPrefix("").Subrouter()
-	protectedAuthRouter.Use(authMiddleware.ValidateToken)
+	protectedAuthRouter.Use(authMiddleware.Authenticate)
 	protectedAuthRouter.HandleFunc("/set-username", authHandler.SetUsername).Methods("POST", "OPTIONS")
 
 	// Public market routes
