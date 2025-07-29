@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"officestonks/internal/auth"
 	"officestonks/internal/models"
@@ -304,4 +305,17 @@ func (h *AuthHandler) SetUsername(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Username updated successfully",
 	})
+}
+
+// GetVersion returns the current build version/timestamp
+func (h *AuthHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
+	version := map[string]interface{}{
+		"timestamp": time.Now().Unix(),
+		"date":      time.Now().Format("2006-01-02 15:04:05 UTC"),
+		"js_file":   "main.33c9e5bc.js",
+		"build":     "latest",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(version)
 }

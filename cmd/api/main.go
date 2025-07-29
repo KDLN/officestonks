@@ -211,6 +211,7 @@ func main() {
 	authRouter.HandleFunc("/supabase", authHandler.SupabaseAuth).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/debug/supabase", authHandler.DebugSupabaseConfig).Methods("GET", "OPTIONS")
 	authRouter.HandleFunc("/check-username", authHandler.CheckUsernameAvailability).Methods("POST", "OPTIONS")
+	authRouter.HandleFunc("/version", authHandler.GetVersion).Methods("GET", "OPTIONS")
 	
 	// Protected auth routes
 	protectedAuthRouter := authRouter.PathPrefix("").Subrouter()

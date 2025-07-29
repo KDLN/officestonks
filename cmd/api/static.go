@@ -20,8 +20,16 @@ func setupStaticFileServer(router *mux.Router) {
 		staticDir = "./build/"
 	}
 
-	// Handle static assets (CSS, JS, images)
-	staticFileServer := http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir+"static/")))
+	// Handle static assets (CSS, JS, images) with cache-busting headers
+	staticFileServer := http.StripPrefix("/static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Add cache-busting headers for JS and CSS files
+		if strings.HasSuffix(r.URL.Path, ".js") || strings.HasSuffix(r.URL.Path, ".css") {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
+		}
+		http.FileServer(http.Dir(staticDir+"static/")).ServeHTTP(w, r)
+	}))
 	router.PathPrefix("/static/").Handler(staticFileServer)
 
 	// Handle manifest.json, favicon.ico, etc.
@@ -46,6 +54,10 @@ func setupStaticFileServer(router *mux.Router) {
 		// For all other routes, serve the React app's index.html
 		indexPath := filepath.Join(staticDir, "index.html")
 		if _, err := os.Stat(indexPath); err == nil {
+			// Add cache-busting headers for HTML
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("Expires", "0")
 			http.ServeFile(w, r, indexPath)
 		} else {
 			// Fallback message if no build exists
