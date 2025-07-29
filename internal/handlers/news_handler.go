@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -23,12 +24,27 @@ func (h *NewsHandler) CreateNews(w http.ResponseWriter, r *http.Request) {
 		Expires string `json:"expires_at"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid request: %v", err), http.StatusBadRequest)
 		return
 	}
+	
+	// Validate required fields
+	if req.Title == "" {
+		http.Error(w, "Title is required", http.StatusBadRequest)
+		return
+	}
+	if req.Content == "" {
+		http.Error(w, "Content is required", http.StatusBadRequest)
+		return
+	}
+	if req.Expires == "" {
+		http.Error(w, "Expiration date is required", http.StatusBadRequest)
+		return
+	}
+	
 	exp, err := time.Parse(time.RFC3339, req.Expires)
 	if err != nil {
-		http.Error(w, "Invalid expiration", http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Invalid expiration format (expected RFC3339): %v", err), http.StatusBadRequest)
 		return
 	}
 	if err := h.service.CreateNews(req.Title, req.Content, exp); err != nil {

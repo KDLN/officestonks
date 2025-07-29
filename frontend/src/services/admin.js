@@ -158,12 +158,18 @@ export const clearAllChats = async () => {
 // Create a news item (admin only)
 export const createNews = async (title, content, expiresAt) => {
   try {
+    // Convert datetime-local format to RFC3339
+    // datetime-local gives us format like "2025-07-29T20:00"
+    // We need RFC3339 format like "2025-07-29T20:00:00Z"
+    const date = new Date(expiresAt);
+    const rfc3339ExpiresAt = date.toISOString();
+
     const response = await authenticatedFetch(`${ADMIN_URL}/news`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ title, content, expires_at: expiresAt }),
+      body: JSON.stringify({ title, content, expires_at: rfc3339ExpiresAt }),
     });
 
     if (!response.ok) {
