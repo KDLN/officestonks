@@ -184,3 +184,124 @@ func (h *AuthHandler) DebugSupabaseConfig(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(debug)
 }
+
+// CheckUsernameAvailability checks if a username is available
+func (h *AuthHandler) CheckUsernameAvailability(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate username format
+	if len(req.Username) < 3 || len(req.Username) > 20 {
+		response := map[string]interface{}{
+			"available": false,
+			"error":     "Username must be between 3 and 20 characters",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Check if username contains only allowed characters (alphanumeric and underscore)
+	for _, char := range req.Username {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
+			 (char >= '0' && char <= '9') || char == '_') {
+			response := map[string]interface{}{
+				"available": false,
+				"error":     "Username can only contain letters, numbers, and underscores",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
+
+	// Check if username is already taken
+	_, err := h.authService.GetUserByUsername(req.Username)
+	if err == nil {
+		// User found, username is taken
+		response := map[string]interface{}{
+			"available": false,
+			"error":     "Username is already taken",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Username is available
+	response := map[string]interface{}{
+		"available": true,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// SetUsername allows users to set their username (for Discord OAuth users)
+func (h *AuthHandler) SetUsername(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get user from context (set by auth middleware)
+	userID, ok := r.Context().Value("userID").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		Username string `json:"username"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate username (same validation as availability check)
+	if len(req.Username) < 3 || len(req.Username) > 20 {
+		http.Error(w, "Username must be between 3 and 20 characters", http.StatusBadRequest)
+		return
+	}
+
+	for _, char := range req.Username {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
+			 (char >= '0' && char <= '9') || char == '_') {
+			http.Error(w, "Username can only contain letters, numbers, and underscores", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Check if username is available
+	_, err := h.authService.GetUserByUsername(req.Username)
+	if err == nil {
+		http.Error(w, "Username is already taken", http.StatusBadRequest)
+		return
+	}
+
+	// Update the user's username
+	err = h.authService.UpdateUsername(userID, req.Username)
+	if err != nil {
+		log.Printf("Error updating username for user %d: %v", userID, err)
+		http.Error(w, "Error updating username", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Username updated successfully",
+	})
+}

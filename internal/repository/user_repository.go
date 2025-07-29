@@ -315,6 +315,19 @@ func (r *UserRepo) UpdateUser(userID int, cashBalance float64, isAdmin bool) err
 	return err
 }
 
+// UpdateUsername updates a user's username
+func (r *UserRepo) UpdateUsername(userID int, newUsername string) error {
+	query := `
+		UPDATE users
+		SET username = ?,
+			updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := r.db.Exec(query, newUsername, time.Now(), userID)
+	return err
+}
+
 // DeleteUser deletes a user from the system
 func (r *UserRepo) DeleteUser(userID int) error {
 	// Start a transaction

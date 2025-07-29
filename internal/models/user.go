@@ -28,6 +28,7 @@ type UserRepository interface {
 	IsUserAdmin(userID int) (bool, error)
 	GetAllUsers() ([]*User, error)
 	UpdateUser(userID int, cashBalance float64, isAdmin bool) error
+	UpdateUsername(userID int, newUsername string) error
 	DeleteUser(userID int) error
 }
 

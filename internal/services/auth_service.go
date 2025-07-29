@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 
@@ -164,17 +165,19 @@ func (s *AuthService) GetOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int,
 	}
 
 	// Extract Discord username from user metadata, fallback to email
-	username := claims.Email
+	preferredUsername := claims.Email
 	if claims.User != nil {
 		if discordUsername, ok := claims.User["preferred_username"].(string); ok && discordUsername != "" {
-			username = discordUsername
+			preferredUsername = discordUsername
 		} else if fullName, ok := claims.User["full_name"].(string); ok && fullName != "" {
-			username = fullName
+			preferredUsername = fullName
 		}
 	}
 
+	// Generate a unique username (handle conflicts)
+	username := s.generateUniqueUsername(preferredUsername)
 	if username == "" {
-		return 0, errors.New("no username or email in Supabase token")
+		return 0, errors.New("could not generate unique username")
 	}
 
 	// Generate a random password hash since Supabase handles auth
@@ -183,17 +186,99 @@ func (s *AuthService) GetOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int,
 		return 0, err
 	}
 
-	// Create user with Discord username and Supabase ID
+	// Create user with unique username and Supabase ID
 	user, err := s.userRepo.CreateUserWithSupabase(username, hashedPassword, claims.Sub)
 	if err != nil {
 		return 0, err
 	}
 
-	log.Printf("Created new user from Supabase: ID=%d, Username=%s, SupabaseID=%s", user.ID, username, claims.Sub)
+	log.Printf("Created new user from Supabase: ID=%d, Username=%s (preferred: %s), SupabaseID=%s", 
+		user.ID, username, preferredUsername, claims.Sub)
 	return user.ID, nil
 }
 
 // GetUserByID retrieves a user by their ID
 func (s *AuthService) GetUserByID(userID int) (*models.User, error) {
 	return s.userRepo.GetUserByID(userID)
+}
+
+// GetUserByUsername retrieves a user by their username
+func (s *AuthService) GetUserByUsername(username string) (*models.User, error) {
+	return s.userRepo.GetUserByUsername(username)
+}
+
+// UpdateUsername updates a user's username
+func (s *AuthService) UpdateUsername(userID int, newUsername string) error {
+	return s.userRepo.UpdateUsername(userID, newUsername)
+}
+
+// generateUniqueUsername creates a unique username by appending numbers if needed
+func (s *AuthService) generateUniqueUsername(preferredUsername string) string {
+	// Clean the preferred username (remove invalid characters, limit length)
+	cleanUsername := s.cleanUsername(preferredUsername)
+	if cleanUsername == "" {
+		cleanUsername = "user"
+	}
+
+	// Try the clean username first
+	_, err := s.userRepo.GetUserByUsername(cleanUsername)
+	if err != nil {
+		// Username is available
+		return cleanUsername
+	}
+
+	// Username is taken, try with numbers
+	for i := 1; i <= 999; i++ {
+		candidateUsername := fmt.Sprintf("%s%d", cleanUsername, i)
+		if len(candidateUsername) > 20 {
+			// If it gets too long, truncate the base username
+			maxBaseLength := 20 - len(fmt.Sprintf("%d", i))
+			if maxBaseLength < 3 {
+				maxBaseLength = 3
+			}
+			cleanUsername = cleanUsername[:maxBaseLength]
+			candidateUsername = fmt.Sprintf("%s%d", cleanUsername, i)
+		}
+		
+		_, err := s.userRepo.GetUserByUsername(candidateUsername)
+		if err != nil {
+			// Username is available
+			return candidateUsername
+		}
+	}
+
+	// If we can't find a username after 999 attempts, return empty
+	return ""
+}
+
+// cleanUsername removes invalid characters and ensures proper length
+func (s *AuthService) cleanUsername(username string) string {
+	if username == "" {
+		return ""
+	}
+
+	// Convert to lowercase and remove invalid characters
+	cleaned := ""
+	for _, char := range strings.ToLower(username) {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') || char == '_' {
+			cleaned += string(char)
+		}
+	}
+
+	// Ensure it starts with a letter or underscore
+	if len(cleaned) > 0 && cleaned[0] >= '0' && cleaned[0] <= '9' {
+		cleaned = "_" + cleaned
+	}
+
+	// Limit length
+	if len(cleaned) > 17 { // Leave room for numbers
+		cleaned = cleaned[:17]
+	}
+
+	// Ensure minimum length
+	if len(cleaned) < 3 {
+		return ""
+	}
+
+	return cleaned
 }

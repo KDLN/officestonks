@@ -210,6 +210,12 @@ func main() {
 	authRouter.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/supabase", authHandler.SupabaseAuth).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/debug/supabase", authHandler.DebugSupabaseConfig).Methods("GET", "OPTIONS")
+	authRouter.HandleFunc("/check-username", authHandler.CheckUsernameAvailability).Methods("POST", "OPTIONS")
+	
+	// Protected auth routes
+	protectedAuthRouter := authRouter.PathPrefix("").Subrouter()
+	protectedAuthRouter.Use(authMiddleware.ValidateToken)
+	protectedAuthRouter.HandleFunc("/set-username", authHandler.SetUsername).Methods("POST", "OPTIONS")
 
 	// Public market routes
 	apiRouter.HandleFunc("/stocks", marketHandler.GetAllStocks).Methods("GET", "OPTIONS")
