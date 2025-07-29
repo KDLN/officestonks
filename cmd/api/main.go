@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/dgrijalva/jwt-go"    // Used indirectly
+	_ "github.com/go-sql-driver/mysql" // Used as database driver
 	"github.com/gorilla/mux"
-	_ "github.com/dgrijalva/jwt-go"     // Used indirectly
-	_ "github.com/go-sql-driver/mysql"  // Used as database driver
 
 	"officestonks/internal/handlers"
 	"officestonks/internal/middleware"
@@ -78,6 +78,7 @@ func main() {
 	portfolioRepo := repository.NewPortfolioRepo(db)
 	transactionRepo := repository.NewTransactionRepo(db)
 	chatRepo := repository.NewChatRepo(db)
+	newsRepo := repository.NewNewsRepo(db)
 	log.Println("✅ Repositories created successfully")
 
 	// Create services
@@ -104,6 +105,7 @@ func main() {
 
 	// Create chat service with the websocket hub
 	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
+	newsService := services.NewNewsService(newsRepo)
 
 	// Create websocket handler
 	wsHandler := websocket.NewWebSocketHandler(wsHub, authService)
@@ -114,6 +116,7 @@ func main() {
 	userHandler := handlers.NewUserHandler(userService)
 	chatHandler := handlers.NewChatHandler(chatService)
 	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)
+	newsHandler := handlers.NewNewsHandler(newsService)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -170,11 +173,10 @@ func main() {
 			next.ServeHTTP(w, r)
 		})
 	}
-	
+
 	// IMPORTANT: Apply middleware at the top level
 	r.Use(corsMw)
 	r.Use(rateLimiter.RateLimit)
-
 
 	// Simple health check for Railway (no dependencies)
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -183,7 +185,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	}).Methods("GET", "OPTIONS")
-	
+
 	// Register a duplicate health check endpoint at the root level that accepts GET
 	// This should help for Railway healthchecks
 	r.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +200,6 @@ func main() {
 		// CORS headers are set by the middleware, just return 200 OK
 		w.WriteHeader(http.StatusOK)
 	})
-
 
 	// Set up API routes
 	apiRouter := r.PathPrefix("/api").Subrouter()
@@ -225,6 +226,9 @@ func main() {
 	protectedRouter.HandleFunc("/trading", marketHandler.TradeStock).Methods("POST", "OPTIONS")
 	protectedRouter.HandleFunc("/transactions", marketHandler.GetTransactionHistory).Methods("GET", "OPTIONS")
 
+	// News for authenticated users
+	protectedRouter.HandleFunc("/news", newsHandler.GetActiveNews).Methods("GET", "OPTIONS")
+
 	// Protected user routes
 	protectedRouter.HandleFunc("/users/me", userHandler.GetUserProfile).Methods("GET", "OPTIONS")
 
@@ -244,7 +248,7 @@ func main() {
 			})(w, r)
 		})
 	}
-	
+
 	// Apply the converted middleware
 	adminRouter := protectedRouter.PathPrefix("/admin").Subrouter()
 	adminRouter.Use(muxAdminMiddleware)
@@ -259,6 +263,9 @@ func main() {
 
 	// Admin chat management
 	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("GET", "POST", "OPTIONS")
+
+	// Admin news posting
+	adminRouter.HandleFunc("/news", newsHandler.CreateNews).Methods("POST", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -309,7 +316,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "WebSocket endpoint is available",
-			"time": time.Now().Format(time.RFC3339),
+			"time":   time.Now().Format(time.RFC3339),
 			"server": "OfficeStonks Backend",
 		})
 	})
@@ -337,10 +344,10 @@ func main() {
 
 		// Basic health check
 		response := map[string]interface{}{
-			"status": "healthy",
+			"status":  "healthy",
 			"service": "OfficeStonks API",
 			"version": "1.0",
-			"time": time.Now().Format(time.RFC3339),
+			"time":    time.Now().Format(time.RFC3339),
 		}
 
 		// Add database status
@@ -360,7 +367,6 @@ func main() {
 		json.NewEncoder(w).Encode(response)
 	}).Methods("GET", "OPTIONS")
 
-
 	// Rate limiter statistics endpoint (admin only)
 	apiRouter.HandleFunc("/stats/rate-limit", func(w http.ResponseWriter, r *http.Request) {
 		// Check for admin token (simple implementation)
@@ -378,13 +384,13 @@ func main() {
 
 	// Serve static files from frontend build directory (fallback to filesystem)
 	staticDir := "./frontend/build/"
-	
+
 	// Check if frontend build exists
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
 		log.Printf("WARNING: Frontend build directory not found at %s", staticDir)
 		log.Printf("Current working directory: %s", getMustString("pwd"))
 		log.Printf("Directory contents: %s", getMustString("ls -la"))
-		
+
 		// Serve a simple message instead of 404
 		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Skip API routes
@@ -392,7 +398,7 @@ func main() {
 				http.NotFound(w, r)
 				return
 			}
-			
+
 			w.Header().Set("Content-Type", "text/html")
 			w.Write([]byte(`
 				<html>
@@ -406,10 +412,10 @@ func main() {
 		})
 	} else {
 		log.Printf("Frontend build directory found at %s", staticDir)
-		
+
 		// Serve static files
 		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir+"static/"))))
-		
+
 		// Serve favicon and other root assets
 		r.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, staticDir+"favicon.ico")
@@ -420,7 +426,7 @@ func main() {
 		r.HandleFunc("/robots.txt", func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, staticDir+"robots.txt")
 		})
-		
+
 		// Serve index.html for all non-API routes (SPA routing)
 		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Skip API routes
@@ -428,7 +434,7 @@ func main() {
 				http.NotFound(w, r)
 				return
 			}
-			
+
 			// Serve index.html for all other routes (React Router will handle routing)
 			http.ServeFile(w, r, staticDir+"index.html")
 		})
@@ -441,8 +447,6 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
-
-
 	// Get port from environment variable or use default
 	port := getPort()
 	log.Printf("=== Office Stonks Server Starting ===")
@@ -453,7 +457,7 @@ func main() {
 
 	// Force IPv4 binding only - this helps with Railway's routing
 	server := &http.Server{
-		Addr:         fmt.Sprintf("0.0.0.0:%d", port),  // Bind to IPv4 only
+		Addr:         fmt.Sprintf("0.0.0.0:%d", port), // Bind to IPv4 only
 		Handler:      r,
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,

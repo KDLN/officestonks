@@ -1,41 +1,45 @@
 // Admin service for frontend
-import { authenticatedFetch } from './authBridge';
+import { authenticatedFetch } from "./authBridge";
 
 // Check the current hostname to determine if we're running locally
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isLocalhost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
 
 // Get configuration from environment variables with fallbacks
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://web-production-1e26.up.railway.app';
+const BACKEND_URL =
+  process.env.REACT_APP_BACKEND_URL ||
+  "https://web-production-1e26.up.railway.app";
 
 // Connect directly to backend (no CORS proxy needed)
 const BASE_URL = isLocalhost
-  ? '/api'  // Use relative URL when running locally
-  : `${BACKEND_URL}/api`;  // Direct connection to backend in production
+  ? "/api" // Use relative URL when running locally
+  : `${BACKEND_URL}/api`; // Direct connection to backend in production
 
-const API_URL = BASE_URL.endsWith('/api') ? BASE_URL : `${BASE_URL}/api`;
+const API_URL = BASE_URL.endsWith("/api") ? BASE_URL : `${BASE_URL}/api`;
 const ADMIN_URL = `${API_URL}/admin`;
 
-console.log('Admin service using API URL:', API_URL);
+console.log("Admin service using API URL:", API_URL);
 
 // Check if current user has admin privileges
 export const checkAdminStatus = async () => {
   try {
     const response = await authenticatedFetch(`${API_URL}/admin/status`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to check admin status');
+      throw new Error(errorData.error || "Failed to check admin status");
     }
 
     const data = await response.json();
     return data.isAdmin || false;
   } catch (error) {
-    console.error('Error checking admin status:', error);
+    console.error("Error checking admin status:", error);
     throw error;
   }
 };
@@ -44,20 +48,20 @@ export const checkAdminStatus = async () => {
 export const getAllUsers = async () => {
   try {
     const response = await authenticatedFetch(`${ADMIN_URL}/users`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to fetch users');
+      throw new Error(errorData.error || "Failed to fetch users");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error("Error fetching users:", error);
     throw error;
   }
 };
@@ -66,21 +70,21 @@ export const getAllUsers = async () => {
 export const updateUser = async (userId, updates) => {
   try {
     const response = await authenticatedFetch(`${ADMIN_URL}/users/${userId}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(updates),
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to update user');
+      throw new Error(errorData.error || "Failed to update user");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error("Error updating user:", error);
     throw error;
   }
 };
@@ -89,20 +93,20 @@ export const updateUser = async (userId, updates) => {
 export const deleteUser = async (userId) => {
   try {
     const response = await authenticatedFetch(`${ADMIN_URL}/users/${userId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to delete user');
+      throw new Error(errorData.error || "Failed to delete user");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error deleting user:', error);
+    console.error("Error deleting user:", error);
     throw error;
   }
 };
@@ -111,20 +115,20 @@ export const deleteUser = async (userId) => {
 export const resetStockPrices = async () => {
   try {
     const response = await authenticatedFetch(`${ADMIN_URL}/stocks/reset`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to reset stock prices');
+      throw new Error(errorData.error || "Failed to reset stock prices");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error resetting stock prices:', error);
+    console.error("Error resetting stock prices:", error);
     throw error;
   }
 };
@@ -133,20 +137,43 @@ export const resetStockPrices = async () => {
 export const clearAllChats = async () => {
   try {
     const response = await authenticatedFetch(`${ADMIN_URL}/chat/clear`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || 'Failed to clear chats');
+      throw new Error(errorData.error || "Failed to clear chats");
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Error clearing chats:', error);
+    console.error("Error clearing chats:", error);
+    throw error;
+  }
+};
+
+// Create a news item (admin only)
+export const createNews = async (title, content, expiresAt) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/news`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ title, content, expires_at: expiresAt }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to create news");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating news:", error);
     throw error;
   }
 };
