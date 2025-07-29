@@ -61,6 +61,15 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- News Table
+CREATE TABLE IF NOT EXISTS news (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 `
 
 // Initial seed data SQL
@@ -86,7 +95,7 @@ INSERT IGNORE INTO users (username, password_hash, cash_balance, is_admin) VALUE
 // InitSchema initializes the database schema
 func InitSchema() error {
 	log.Println("Initializing database schema...")
-	
+
 	// Execute schema SQL with retry
 	_, err := RetryExec(DB, schemaSQL)
 	if err != nil {
@@ -103,7 +112,7 @@ func InitSchema() error {
 		log.Printf("Error checking stocks count: %v", err)
 		return err
 	}
-	
+
 	// Only seed data if no stocks exist
 	if count == 0 {
 		log.Println("Seeding initial stock data...")
@@ -116,6 +125,6 @@ func InitSchema() error {
 	} else {
 		log.Printf("Stocks table already has %d records, skipping seed data.", count)
 	}
-	
+
 	return nil
 }
