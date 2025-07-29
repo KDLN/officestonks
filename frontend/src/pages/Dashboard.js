@@ -5,6 +5,8 @@ import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
 import './Dashboard.css';
 
 // Default empty states to prevent null references
@@ -22,30 +24,32 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch portfolio, transactions, and stocks data in parallel
-        const [portfolioData, transactionsData, stocksData] = await Promise.all([
-          getUserPortfolio(),
-          getTransactionHistory(5), // Get 5 most recent transactions
-          getAllStocks()
-        ]);
-        
-        setPortfolio(portfolioData);
-        setTransactions(transactionsData);
-        
-        // Get top 5 stocks by price
-        const sortedStocks = [...stocksData].sort((a, b) => b.current_price - a.current_price);
-        setTopStocks(sortedStocks.slice(0, 5));
-        
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load dashboard data. Please try again later.');
-        setLoading(false);
-      }
-    };
+  const fetchData = async () => {
+    try {
+      // Fetch portfolio, transactions, and stocks data in parallel
+      const [portfolioData, transactionsData, stocksData] = await Promise.all([
+        getUserPortfolio(),
+        getTransactionHistory(5), // Get 5 most recent transactions
+        getAllStocks()
+      ]);
+      
+      setPortfolio(portfolioData);
+      setTransactions(transactionsData);
+      
+      // Get top 5 stocks by price
+      const sortedStocks = [...stocksData].sort((a, b) => b.current_price - a.current_price);
+      setTopStocks(sortedStocks.slice(0, 5));
+      
+      setLoading(false);
+    } catch (err) {
+      console.error('Dashboard error:', err);
+      const errorMessage = err.response?.data?.error || 'Unable to load dashboard. Please check your connection and try again.';
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchData();
 
     // Initialize WebSocket connection
@@ -140,11 +144,30 @@ const Dashboard = () => {
   }, []);
 
   if (loading) {
-    return <div className="loading">Loading dashboard...</div>;
+    return (
+      <div className="dashboard-page">
+        <Navigation />
+        <LoadingSpinner message="Loading dashboard..." />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return (
+      <div className="dashboard-page">
+        <Navigation />
+        <div className="dashboard-container">
+          <ErrorMessage 
+            message={error} 
+            onRetry={() => {
+              setError(null);
+              setLoading(true);
+              fetchData();
+            }}
+          />
+        </div>
+      </div>
+    );
   }
 
   return (

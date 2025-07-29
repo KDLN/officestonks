@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
 import Navigation from '../components/Navigation';
+import LoadingSpinner from '../components/LoadingSpinner';
 import './Dashboard.css';  // Import Dashboard styles for consistent UI
 import './Portfolio.css';
 
@@ -80,7 +81,7 @@ function Portfolio() {
     return (
       <div className="portfolio-page">
         <Navigation />
-        <div className="loading">Loading portfolio data...</div>
+        <LoadingSpinner message="Loading portfolio data..." />
       </div>
     );
   }

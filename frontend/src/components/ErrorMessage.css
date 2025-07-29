@@ -1,0 +1,78 @@
+.error-message-container {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  margin: 20px 0;
+  border-radius: 8px;
+  background-color: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+}
+
+.error-message-container.warning {
+  background-color: #ffeaa7;
+  border-color: #fdcb6e;
+  color: #f39c12;
+}
+
+.error-message-container.info {
+  background-color: #e3f2fd;
+  border-color: #90caf9;
+  color: #1976d2;
+}
+
+.error-icon {
+  font-size: 24px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.error-content {
+  flex: 1;
+}
+
+.error-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.retry-button {
+  margin-top: 10px;
+  padding: 6px 16px;
+  background-color: #fff;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.retry-button:hover {
+  background-color: currentColor;
+  color: white;
+}
+
+/* Dark mode support */
+.dark-mode .error-message-container {
+  background-color: #3e2723;
+  border-color: #5d4037;
+  color: #ff8a80;
+}
+
+.dark-mode .error-message-container.warning {
+  background-color: #3e2f23;
+  border-color: #5d4f37;
+  color: #ffb74d;
+}
+
+.dark-mode .error-message-container.info {
+  background-color: #1a237e;
+  border-color: #283593;
+  color: #64b5f6;
+}
+
+.dark-mode .retry-button {
+  background-color: #1a1a1a;
+}

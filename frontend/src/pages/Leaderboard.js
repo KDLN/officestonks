@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 import { getLeaderboard } from '../services/user';
 import { getUserId } from '../services/auth';
+import LoadingSpinner from '../components/LoadingSpinner';
 import './Leaderboard.css';
 
 const Leaderboard = () => {
@@ -50,7 +51,7 @@ const Leaderboard = () => {
         </div>
         
         {loading ? (
-          <div className="loading">Loading leaderboard data...</div>
+          <LoadingSpinner message="Loading leaderboard..." />
         ) : error ? (
           <div className="error">{error}</div>
         ) : leaderboard.length === 0 ? (
@@ -72,16 +73,16 @@ const Leaderboard = () => {
                   key={entry.user_id}
                   className={entry.user_id === currentUserId ? 'current-user' : ''}
                 >
-                  <td className={`rank rank-${entry.rank <= 3 ? entry.rank : ''}`}>
+                  <td data-label="Rank" className={`rank rank-${entry.rank <= 3 ? entry.rank : ''}`}>
                     {entry.rank}
                   </td>
-                  <td className="username">
+                  <td data-label="Investor" className="username">
                     {entry.username}
                     {entry.user_id === currentUserId ? ' (You)' : ''}
                   </td>
-                  <td className="value">{formatCurrency(entry.cash_balance)}</td>
-                  <td className="value">{formatCurrency(entry.stock_value)}</td>
-                  <td className="value">{formatCurrency(entry.total_value)}</td>
+                  <td data-label="Cash Balance" className="value">{formatCurrency(entry.cash_balance)}</td>
+                  <td data-label="Stock Value" className="value">{formatCurrency(entry.stock_value)}</td>
+                  <td data-label="Total Value" className="value">{formatCurrency(entry.total_value)}</td>
                 </tr>
               ))}
             </tbody>

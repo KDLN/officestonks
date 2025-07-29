@@ -1,0 +1,202 @@
+.game-config-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.game-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.game-config-header h2 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.config-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.config-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.config-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.config-btn.balanced {
+  background-color: #3498db;
+  color: white;
+}
+
+.config-btn.balanced:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.config-btn.reset {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.config-btn.reset:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.config-btn.save {
+  background-color: #27ae60;
+  color: white;
+}
+
+.config-btn.save:hover:not(:disabled) {
+  background-color: #219a52;
+}
+
+.config-tabs {
+  display: flex;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 12px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #333;
+  background-color: #f8f9fa;
+}
+
+.tab.active {
+  color: #007bff;
+  border-bottom-color: #007bff;
+  background-color: #f8f9fa;
+}
+
+.config-content {
+  min-height: 300px;
+}
+
+.config-group h3 {
+  margin: 0 0 20px 0;
+  color: #34495e;
+  font-size: 18px;
+}
+
+.config-field {
+  margin-bottom: 20px;
+}
+
+.config-field label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #555;
+}
+
+.config-field input {
+  width: 100%;
+  max-width: 300px;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.config-field input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.field-description {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.config-changes-notice {
+  margin-top: 20px;
+  padding: 10px 15px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  color: #856404;
+  font-size: 14px;
+}
+
+.game-config-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+  font-size: 16px;
+  color: #666;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .game-config-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+
+  .config-actions {
+    justify-content: center;
+  }
+
+  .config-tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    flex: 1;
+    min-width: 100px;
+    text-align: center;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .config-field input {
+    max-width: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .game-config-section {
+    padding: 15px;
+  }
+
+  .config-actions {
+    flex-direction: column;
+  }
+
+  .tab {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}

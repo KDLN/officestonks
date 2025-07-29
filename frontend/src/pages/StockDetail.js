@@ -4,6 +4,7 @@ import { getStockById, executeTrade, getUserPortfolio } from '../services/stock'
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import TradeConfirmationModal from '../components/TradeConfirmationModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 import './StockDetail.css';
 
 const StockDetail = () => {
@@ -133,14 +134,21 @@ const StockDetail = () => {
       setExecuting(false);
       setShowConfirmModal(false);
     } catch (err) {
-      setError(err.message || 'Failed to execute trade. Please try again.');
+      console.error('Trade execution error:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'Unable to execute trade. Please check your connection and try again.';
+      setError(errorMessage);
       setExecuting(false);
       setShowConfirmModal(false);
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading stock data...</div>;
+    return (
+      <div className="stock-detail-page">
+        <Navigation />
+        <LoadingSpinner message="Loading stock data..." />
+      </div>
+    );
   }
 
   if (!stock) {

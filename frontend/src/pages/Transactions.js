@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 import { getTransactionHistory } from '../services/stock';
+import LoadingSpinner from '../components/LoadingSpinner';
 import './Transactions.css';
 
 const Transactions = () => {
@@ -116,7 +117,7 @@ const Transactions = () => {
         </div>
         
         {loading ? (
-          <div className="loading">Loading transaction history...</div>
+          <LoadingSpinner message="Loading transaction history..." />
         ) : error ? (
           <div className="error">{error}</div>
         ) : filteredTransactions.length === 0 ? (
@@ -137,16 +138,16 @@ const Transactions = () => {
               <tbody>
                 {filteredTransactions.map(transaction => (
                   <tr key={transaction.id}>
-                    <td>{formatDate(transaction.created_at)}</td>
-                    <td className="stock-symbol">{transaction.stock.symbol}</td>
-                    <td>
+                    <td data-label="Date">{formatDate(transaction.created_at)}</td>
+                    <td data-label="Stock" className="stock-symbol">{transaction.stock.symbol}</td>
+                    <td data-label="Type">
                       <span className={`transaction-type ${transaction.transaction_type}`}>
                         {transaction.transaction_type}
                       </span>
                     </td>
-                    <td>{transaction.quantity}</td>
-                    <td className="value">{formatCurrency(transaction.price)}</td>
-                    <td className="value">{formatCurrency(transaction.quantity * transaction.price)}</td>
+                    <td data-label="Quantity">{transaction.quantity}</td>
+                    <td data-label="Price" className="value">{formatCurrency(transaction.price)}</td>
+                    <td data-label="Total" className="value">{formatCurrency(transaction.quantity * transaction.price)}</td>
                   </tr>
                 ))}
               </tbody>

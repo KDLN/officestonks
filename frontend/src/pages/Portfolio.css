@@ -184,3 +184,110 @@
   border-radius: 4px;
   margin: 20px;
 }
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .portfolio-container {
+    padding: 10px;
+  }
+
+  .portfolio-header {
+    padding: 20px;
+  }
+
+  .portfolio-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .portfolio-summary {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .summary-card {
+    padding: 15px;
+  }
+
+  .summary-card .value {
+    font-size: 20px;
+  }
+
+  .portfolio-tabs {
+    gap: 10px;
+  }
+
+  .tab-button {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  /* Convert table to card layout on mobile */
+  .dashboard-table {
+    display: block;
+  }
+
+  .dashboard-table thead {
+    display: none;
+  }
+
+  .dashboard-table tbody {
+    display: block;
+  }
+
+  .dashboard-table tr {
+    display: block;
+    margin-bottom: 15px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+  }
+
+  .dashboard-table td {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .dashboard-table td:last-child {
+    border-bottom: none;
+  }
+
+  .dashboard-table td::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: #666;
+    flex-shrink: 0;
+    margin-right: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .portfolio-header {
+    padding: 15px;
+  }
+
+  .portfolio-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-tabs {
+    flex-direction: column;
+    border-bottom: none;
+  }
+
+  .tab-button {
+    width: 100%;
+    text-align: center;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .tab-button.active {
+    background-color: #f8f9fa;
+  }
+
+  .portfolio-content {
+    padding: 10px;
+  }
+}

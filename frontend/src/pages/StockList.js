@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
 import Navigation from '../components/Navigation';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorMessage from '../components/ErrorMessage';
 import './StockList.css';
 
 const StockList = () => {
@@ -13,19 +15,21 @@ const StockList = () => {
   const [sortBy, setSortBy] = useState('symbol');
   const [sortDirection, setSortDirection] = useState('asc');
 
+  const fetchStocks = async () => {
+    try {
+      const stocksData = await getAllStocks();
+      setStocks(stocksData);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading stocks:', err);
+      const errorMessage = err.response?.data?.error || 'Unable to load stocks. Please check your connection and try again.';
+      setError(errorMessage);
+      setLoading(false);
+    }
+  };
+
   // Fetch stocks on component mount
   useEffect(() => {
-    const fetchStocks = async () => {
-      try {
-        const stocksData = await getAllStocks();
-        setStocks(stocksData);
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load stocks. Please try again later.');
-        setLoading(false);
-      }
-    };
-
     fetchStocks();
 
     // Initialize WebSocket connection
@@ -102,11 +106,30 @@ const StockList = () => {
     });
 
   if (loading) {
-    return <div className="loading">Loading stocks...</div>;
+    return (
+      <div className="stock-list-page">
+        <Navigation />
+        <LoadingSpinner message="Loading stocks..." />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return (
+      <div className="stock-list-page">
+        <Navigation />
+        <div className="stock-list-container">
+          <ErrorMessage 
+            message={error} 
+            onRetry={() => {
+              setError(null);
+              setLoading(true);
+              fetchStocks();
+            }}
+          />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -151,11 +174,11 @@ const StockList = () => {
                 key={stock.id} 
                 className={stock.priceChange ? `price-${stock.priceChange}` : ''}
               >
-                <td>{stock.symbol}</td>
-                <td>{stock.name}</td>
-                <td>{stock.sector}</td>
-                <td className="price-cell">${stock.current_price.toFixed(2)}</td>
-                <td>
+                <td data-label="Symbol">{stock.symbol}</td>
+                <td data-label="Name">{stock.name}</td>
+                <td data-label="Sector">{stock.sector}</td>
+                <td data-label="Price" className="price-cell">${stock.current_price.toFixed(2)}</td>
+                <td data-label="Action">
                   <Link to={`/stock/${stock.id}`} className="trade-button">
                     Trade
                   </Link>

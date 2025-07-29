@@ -155,3 +155,62 @@
 .empty-chat p {
   margin: 10px 0;
 }
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .chat-container {
+    width: 100%;
+    height: 100vh;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    max-width: 100%;
+  }
+
+  .chat-container.minimized {
+    transform: translateY(calc(100% - 50px));
+  }
+
+  .chat-header {
+    padding: 15px;
+  }
+
+  .chat-header h3 {
+    font-size: 18px;
+  }
+
+  .chat-messages {
+    padding: 15px;
+  }
+
+  .message {
+    max-width: 85%;
+  }
+
+  .chat-form {
+    padding: 15px;
+  }
+
+  .chat-input {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+  }
+
+  .chat-container.minimized {
+    transform: translateX(100%);
+  }
+
+  .chat-header {
+    padding: 12px;
+  }
+}

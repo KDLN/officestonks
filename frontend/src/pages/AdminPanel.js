@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navigation from "../components/Navigation";
+import GameConfigSection from "../components/GameConfigSection";
 import {
   checkAdminStatus,
   getAllUsers,
@@ -9,6 +10,10 @@ import {
   updateUser,
   deleteUser,
   createNews,
+  getGameConfig,
+  updateGameConfig,
+  resetGameConfig,
+  loadBalancedConfig,
 } from "../services/admin";
 import "./AdminPanel.css";
 
@@ -22,6 +27,8 @@ const AdminPanel = () => {
   const [newsTitle, setNewsTitle] = useState("");
   const [newsContent, setNewsContent] = useState("");
   const [newsExpiry, setNewsExpiry] = useState("");
+  const [gameConfig, setGameConfig] = useState(null);
+  const [configLoading, setConfigLoading] = useState(false);
 
   // Check if user is admin and load users data
   useEffect(() => {
@@ -38,6 +45,7 @@ const AdminPanel = () => {
 
         setIsAdmin(true);
         await fetchUsers();
+        await fetchGameConfig();
       } catch (err) {
         console.error("Admin access check error:", err);
         setError("Failed to check admin access. Please try again later.");
@@ -64,6 +72,69 @@ const AdminPanel = () => {
       setError(`Failed to load users: ${err.message}`);
       setUsers([]); // Set empty array to avoid undefined errors
       setLoading(false);
+    }
+  };
+
+  const fetchGameConfig = async () => {
+    try {
+      setConfigLoading(true);
+      const config = await getGameConfig();
+      setGameConfig(config);
+    } catch (err) {
+      console.error("Error fetching game config:", err);
+      setError(`Failed to load game configuration: ${err.message}`);
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const handleUpdateGameConfig = async (updatedConfig) => {
+    try {
+      setError(null);
+      setStatusMessage("Updating game configuration...");
+      const result = await updateGameConfig(updatedConfig);
+      setGameConfig(result);
+      setStatusMessage("Game configuration updated successfully!");
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error("Error updating game config:", err);
+      setError(`Failed to update game configuration: ${err.message}`);
+    }
+  };
+
+  const handleResetGameConfig = async () => {
+    if (!window.confirm("Are you sure you want to reset game configuration to defaults?")) {
+      return;
+    }
+    
+    try {
+      setError(null);
+      setStatusMessage("Resetting game configuration to defaults...");
+      const result = await resetGameConfig();
+      setGameConfig(result);
+      setStatusMessage("Game configuration reset to defaults!");
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error("Error resetting game config:", err);
+      setError(`Failed to reset game configuration: ${err.message}`);
+    }
+  };
+
+  const handleLoadBalancedConfig = async () => {
+    if (!window.confirm("Are you sure you want to load the balanced game configuration?")) {
+      return;
+    }
+    
+    try {
+      setError(null);
+      setStatusMessage("Loading balanced game configuration...");
+      const result = await loadBalancedConfig();
+      setGameConfig(result);
+      setStatusMessage("Balanced game configuration loaded!");
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error("Error loading balanced config:", err);
+      setError(`Failed to load balanced configuration: ${err.message}`);
     }
   };
 
@@ -243,6 +314,14 @@ const AdminPanel = () => {
         {error && <div className="error-message">{error}</div>}
 
         {statusMessage && <div className="status-message">{statusMessage}</div>}
+
+        <GameConfigSection
+          gameConfig={gameConfig}
+          onUpdate={handleUpdateGameConfig}
+          onReset={handleResetGameConfig}
+          onLoadBalanced={handleLoadBalancedConfig}
+          loading={configLoading}
+        />
 
         <div className="admin-actions">
           <h2>System Actions</h2>

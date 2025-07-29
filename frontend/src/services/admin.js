@@ -199,3 +199,89 @@ export const createNews = async (title, content, expiresAt) => {
     throw error;
   }
 };
+
+// Game Configuration Management
+export const getGameConfig = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/game-config`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to fetch game configuration");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching game config:", error);
+    throw error;
+  }
+};
+
+export const updateGameConfig = async (config) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/game-config`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(config),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to update game configuration");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating game config:", error);
+    throw error;
+  }
+};
+
+export const resetGameConfig = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/game-config/reset`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to reset game configuration");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error resetting game config:", error);
+    throw error;
+  }
+};
+
+export const loadBalancedConfig = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/game-config/balanced`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to load balanced configuration");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error loading balanced config:", error);
+    throw error;
+  }
+};
