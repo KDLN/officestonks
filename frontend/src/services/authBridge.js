@@ -3,8 +3,6 @@ import { getToken as getOfficeToken } from './auth'
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com'
 
-console.log('AuthBridge API_URL:', API_URL, 'env var:', process.env.REACT_APP_BACKEND_URL)
-
 // Sync Supabase session with Office Stonks backend
 export const syncAuthWithBackend = async () => {
   const session = await getCurrentSession()
