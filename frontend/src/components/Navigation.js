@@ -34,6 +34,9 @@ const Navigation = () => {
       <nav className="navigation">
         <div className="nav-logo">
           <Link to="/dashboard">Office Stonks</Link>
+          {process.env.NODE_ENV === 'development' || window.location.hostname.includes('beta') ? (
+            <span className="env-badge">BETA</span>
+          ) : null}
         </div>
         <ul className="nav-links">
           <li>
