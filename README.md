@@ -80,6 +80,12 @@ docker-compose up
 
 This application is deployed on Railway. See [Deployment Guide](docs/DEPLOYMENT.md) for detailed deployment instructions.
 
+### Environment variables
+
+Set a `JWT_SECRET` environment variable in Railway and **keep this value the same for all deployments**. If the secret changes, previously issued JWTs will be rejected and users will be forced to log in again.
+
+The frontend automatically clears stale credentials when it receives a `401` or `403` response and tries to resynchronize using the current Supabase session. Only if that refresh fails will the user be redirected to the login page.
+
 ## Features
 
 ### Stock Trading
