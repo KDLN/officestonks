@@ -106,7 +106,7 @@ func main() {
 	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
 
 	// Create websocket handler
-	wsHandler := websocket.NewWebSocketHandler(wsHub)
+	wsHandler := websocket.NewWebSocketHandler(wsHub, authService)
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService)

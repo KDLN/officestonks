@@ -6,12 +6,13 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
-	"officestonks/internal/auth"
+	"officestonks/internal/services"
 )
 
 // WebSocketHandler handles websocket connections
 type WebSocketHandler struct {
-	hub *Hub
+	hub         *Hub
+	authService *services.AuthService
 }
 
 // Upgrader upgrades HTTP connections to WebSocket connections
@@ -30,9 +31,10 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewWebSocketHandler creates a new websocket handler
-func NewWebSocketHandler(hub *Hub) *WebSocketHandler {
+func NewWebSocketHandler(hub *Hub, authService *services.AuthService) *WebSocketHandler {
 	return &WebSocketHandler{
-		hub: hub,
+		hub:         hub,
+		authService: authService,
 	}
 }
 
@@ -65,9 +67,10 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate token
-	claims, err := auth.ValidateToken(token)
+	// Validate token using AuthService which handles both Supabase and custom tokens
+	userID, err := h.authService.ValidateToken(token)
 	if err != nil {
+		log.Printf("JWT validation error: %v", err)
 		http.Error(w, "Invalid authentication token", http.StatusUnauthorized)
 		return
 	}
@@ -82,10 +85,10 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	log.Printf("WebSocket connection successfully established for user ID: %d", claims.UserID)
+	log.Printf("WebSocket connection successfully established for user ID: %d", userID)
 
 	// Create a new client
-	client := NewClient(h.hub, conn, claims.UserID)
+	client := NewClient(h.hub, conn, userID)
 
 	// Register the client
 	h.hub.register <- client
