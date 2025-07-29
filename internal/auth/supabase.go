@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
@@ -19,7 +21,8 @@ import (
 var (
 	supabaseJWKSURL string
 	supabaseProjectRef string
-	publicKeys map[string]*rsa.PublicKey
+	rsaPublicKeys map[string]*rsa.PublicKey
+	ecdsaPublicKeys map[string]*ecdsa.PublicKey
 	lastKeyFetch time.Time
 )
 
@@ -32,7 +35,8 @@ func init() {
 		log.Println("SUPABASE_PROJECT_REF not set - Supabase JWT validation disabled")
 	}
 	
-	publicKeys = make(map[string]*rsa.PublicKey)
+	rsaPublicKeys = make(map[string]*rsa.PublicKey)
+	ecdsaPublicKeys = make(map[string]*ecdsa.PublicKey)
 }
 
 // SupabaseClaims represents Supabase JWT claims
@@ -51,6 +55,9 @@ type JWK struct {
 	Kid string `json:"kid"`
 	Kty string `json:"kty"`
 	Use string `json:"use"`
+	Crv string `json:"crv"`
+	X   string `json:"x"`
+	Y   string `json:"y"`
 	N   string `json:"n"`
 	E   string `json:"e"`
 }
@@ -67,7 +74,7 @@ func fetchSupabasePublicKeys() error {
 	}
 
 	// Cache keys for 1 hour
-	if time.Since(lastKeyFetch) < time.Hour && len(publicKeys) > 0 {
+	if time.Since(lastKeyFetch) < time.Hour && (len(rsaPublicKeys) > 0 || len(ecdsaPublicKeys) > 0) {
 		return nil
 	}
 
@@ -86,31 +93,43 @@ func fetchSupabasePublicKeys() error {
 		return fmt.Errorf("failed to decode JWKS: %v", err)
 	}
 
-	newKeys := make(map[string]*rsa.PublicKey)
+	newRSAKeys := make(map[string]*rsa.PublicKey)
+	newECDSAKeys := make(map[string]*ecdsa.PublicKey)
+	
 	for _, key := range jwks.Keys {
-		if key.Kty == "RSA" && key.Use == "sig" {
-			pubKey, err := jwkToPublicKey(key)
-			if err != nil {
-				log.Printf("Error converting JWK to public key: %v", err)
-				continue
+		if key.Use == "sig" {
+			if key.Kty == "RSA" {
+				pubKey, err := jwkToRSAPublicKey(key)
+				if err != nil {
+					log.Printf("Error converting RSA JWK to public key: %v", err)
+					continue
+				}
+				newRSAKeys[key.Kid] = pubKey
+			} else if key.Kty == "EC" {
+				pubKey, err := jwkToECDSAPublicKey(key)
+				if err != nil {
+					log.Printf("Error converting ECDSA JWK to public key: %v", err)
+					continue
+				}
+				newECDSAKeys[key.Kid] = pubKey
 			}
-			newKeys[key.Kid] = pubKey
 		}
 	}
 
-	if len(newKeys) == 0 {
-		return errors.New("no valid RSA signing keys found in JWKS")
+	if len(newRSAKeys) == 0 && len(newECDSAKeys) == 0 {
+		return errors.New("no valid signing keys found in JWKS")
 	}
 
-	publicKeys = newKeys
+	rsaPublicKeys = newRSAKeys
+	ecdsaPublicKeys = newECDSAKeys
 	lastKeyFetch = time.Now()
-	log.Printf("Fetched %d Supabase public keys", len(publicKeys))
+	log.Printf("Fetched %d RSA and %d ECDSA Supabase public keys", len(rsaPublicKeys), len(ecdsaPublicKeys))
 	
 	return nil
 }
 
-// jwkToPublicKey converts a JWK to an RSA public key
-func jwkToPublicKey(jwk JWK) (*rsa.PublicKey, error) {
+// jwkToRSAPublicKey converts a JWK to an RSA public key
+func jwkToRSAPublicKey(jwk JWK) (*rsa.PublicKey, error) {
 	nBytes, err := base64.RawURLEncoding.DecodeString(jwk.N)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode N: %v", err)
@@ -138,6 +157,40 @@ func jwkToPublicKey(jwk JWK) (*rsa.PublicKey, error) {
 	}, nil
 }
 
+// jwkToECDSAPublicKey converts a JWK to an ECDSA public key
+func jwkToECDSAPublicKey(jwk JWK) (*ecdsa.PublicKey, error) {
+	xBytes, err := base64.RawURLEncoding.DecodeString(jwk.X)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode X: %v", err)
+	}
+
+	yBytes, err := base64.RawURLEncoding.DecodeString(jwk.Y)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode Y: %v", err)
+	}
+
+	var curve elliptic.Curve
+	switch jwk.Crv {
+	case "P-256":
+		curve = elliptic.P256()
+	case "P-384":
+		curve = elliptic.P384()
+	case "P-521":
+		curve = elliptic.P521()
+	default:
+		return nil, fmt.Errorf("unsupported curve: %s", jwk.Crv)
+	}
+
+	x := new(big.Int).SetBytes(xBytes)
+	y := new(big.Int).SetBytes(yBytes)
+
+	return &ecdsa.PublicKey{
+		Curve: curve,
+		X:     x,
+		Y:     y,
+	}, nil
+}
+
 // ValidateSupabaseToken validates a Supabase JWT token
 func ValidateSupabaseToken(tokenString string) (*SupabaseClaims, error) {
 	if tokenString == "" {
@@ -149,11 +202,6 @@ func ValidateSupabaseToken(tokenString string) (*SupabaseClaims, error) {
 
 	// Parse token to get the key ID
 	token, err := jwt.ParseWithClaims(tokenString, &SupabaseClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Ensure we're using RSA
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-
 		// Get the key ID from token header
 		kid, ok := token.Header["kid"].(string)
 		if !ok {
@@ -165,13 +213,25 @@ func ValidateSupabaseToken(tokenString string) (*SupabaseClaims, error) {
 			return nil, fmt.Errorf("failed to fetch public keys: %v", err)
 		}
 
-		// Get the public key for this kid
-		publicKey, exists := publicKeys[kid]
-		if !exists {
-			return nil, fmt.Errorf("public key not found for kid: %s", kid)
+		// Check signing method and return appropriate key
+		switch token.Method {
+		case jwt.SigningMethodRS256:
+			// RSA signing method
+			publicKey, exists := rsaPublicKeys[kid]
+			if !exists {
+				return nil, fmt.Errorf("RSA public key not found for kid: %s", kid)
+			}
+			return publicKey, nil
+		case jwt.SigningMethodES256:
+			// ECDSA signing method
+			publicKey, exists := ecdsaPublicKeys[kid]
+			if !exists {
+				return nil, fmt.Errorf("ECDSA public key not found for kid: %s", kid)
+			}
+			return publicKey, nil
+		default:
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-
-		return publicKey, nil
 	})
 
 	if err != nil {
