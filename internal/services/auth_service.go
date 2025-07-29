@@ -129,10 +129,10 @@ func (s *AuthService) GetOrCreateSupabaseUser(claims *auth.SupabaseClaims) (int,
 
 	// Extract Discord username from user metadata, fallback to email
 	username := claims.Email
-	if claims.UserMetadata != nil {
-		if discordUsername, ok := claims.UserMetadata["preferred_username"].(string); ok && discordUsername != "" {
+	if claims.User != nil {
+		if discordUsername, ok := claims.User["preferred_username"].(string); ok && discordUsername != "" {
 			username = discordUsername
-		} else if fullName, ok := claims.UserMetadata["full_name"].(string); ok && fullName != "" {
+		} else if fullName, ok := claims.User["full_name"].(string); ok && fullName != "" {
 			username = fullName
 		}
 	}
