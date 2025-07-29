@@ -6,13 +6,13 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
-	"officestonks/internal/services"
+	"officestonks/internal/auth"
 )
 
 // WebSocketHandler handles websocket connections
 type WebSocketHandler struct {
-	hub         *Hub
-	authService *services.AuthService
+	hub           *Hub
+	tokenValidator auth.TokenValidator
 }
 
 // Upgrader upgrades HTTP connections to WebSocket connections
@@ -31,10 +31,10 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewWebSocketHandler creates a new websocket handler
-func NewWebSocketHandler(hub *Hub, authService *services.AuthService) *WebSocketHandler {
+func NewWebSocketHandler(hub *Hub, tokenValidator auth.TokenValidator) *WebSocketHandler {
 	return &WebSocketHandler{
-		hub:         hub,
-		authService: authService,
+		hub:           hub,
+		tokenValidator: tokenValidator,
 	}
 }
 
@@ -67,8 +67,8 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate token using AuthService which handles both Supabase and custom tokens
-	userID, err := h.authService.ValidateToken(token)
+	// Validate token using TokenValidator which handles both Supabase and custom tokens
+	userID, err := h.tokenValidator.ValidateToken(token)
 	if err != nil {
 		log.Printf("JWT validation error: %v", err)
 		http.Error(w, "Invalid authentication token", http.StatusUnauthorized)

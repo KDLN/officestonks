@@ -36,6 +36,11 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
+// TokenValidator interface for validating tokens and returning user IDs
+type TokenValidator interface {
+	ValidateToken(tokenString string) (int, error)
+}
+
 // GenerateToken creates a new JWT token for a user
 func GenerateToken(userID int) (string, error) {
 	if userID <= 0 {
