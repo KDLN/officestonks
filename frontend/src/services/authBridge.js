@@ -61,7 +61,7 @@ export const getAuthToken = async () => {
 // Enhanced fetch that includes proper authentication
 export const authenticatedFetch = async (url, options = {}) => {
   const token = await getAuthToken()
-  
+
   if (!token) {
     throw new Error('No authentication token available')
   }
@@ -71,9 +71,41 @@ export const authenticatedFetch = async (url, options = {}) => {
     'Authorization': `Bearer ${token}`
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
     credentials: 'include'
   })
+
+  if (response.status === 401 || response.status === 403) {
+    // Token might be invalid or expired - clear stored credentials
+    localStorage.removeItem('token')
+    localStorage.removeItem('userId')
+    localStorage.removeItem('username')
+    localStorage.removeItem('isAdmin')
+
+    try {
+      // Attempt to resync auth from Supabase session
+      await syncAuthWithBackend()
+      const retryToken = await getAuthToken()
+      if (retryToken) {
+        const retryHeaders = {
+          ...options.headers,
+          'Authorization': `Bearer ${retryToken}`
+        }
+        return fetch(url, {
+          ...options,
+          headers: retryHeaders,
+          credentials: 'include'
+        })
+      }
+    } catch (err) {
+      console.error('Auth resync failed:', err)
+    }
+
+    // Redirect to login if we still have no valid token
+    window.location.href = '/login'
+  }
+
+  return response
 }

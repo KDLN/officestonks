@@ -80,6 +80,12 @@ docker-compose up
 
 This application is deployed on Railway. See [Deployment Guide](docs/DEPLOYMENT.md) for detailed deployment instructions.
 
+### Environment variables
+
+Set a `JWT_SECRET` environment variable in Railway and **keep this value the same for all deployments**. If the secret changes, previously issued JWTs will be rejected and users will be forced to log in again.
+
+The frontend detects `401` or `403` responses and will attempt to resynchronize authentication automatically. If it cannot obtain a new token, the user is redirected to the login page.
+
 ## Features
 
 ### Stock Trading
