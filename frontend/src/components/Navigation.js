@@ -2,15 +2,12 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { logout } from "../services/auth";
 import { checkAdminStatus } from "../services/admin";
-import { fetchActiveNews } from "../services/news";
-import NewsModal from "./NewsModal";
 import ThemeToggle from "./ThemeToggle";
 import "./Navigation.css";
 
 const Navigation = () => {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [newsItem, setNewsItem] = useState(null);
 
   useEffect(() => {
     // Check if the user is an admin
@@ -24,19 +21,7 @@ const Navigation = () => {
       }
     };
 
-    const loadNews = async () => {
-      try {
-        const news = await fetchActiveNews();
-        if (Array.isArray(news) && news.length > 0) {
-          setNewsItem(news[0]);
-        }
-      } catch (err) {
-        console.error("Error fetching news:", err);
-      }
-    };
-
     checkAdmin();
-    loadNews();
   }, []);
 
   const handleLogout = () => {
@@ -80,7 +65,6 @@ const Navigation = () => {
           </li>
         </ul>
       </nav>
-      <NewsModal news={newsItem} onClose={() => setNewsItem(null)} />
     </>
   );
 };
