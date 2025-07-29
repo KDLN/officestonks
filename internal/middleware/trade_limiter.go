@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/gorilla/mux"
 )
 
 // TradeLimiter tracks and limits trading frequency per user

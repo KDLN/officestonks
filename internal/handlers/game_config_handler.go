@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/example/officestonks/internal/config"
+	"officestonks/internal/config"
 )
 
 // GameConfigHandler handles game configuration management
