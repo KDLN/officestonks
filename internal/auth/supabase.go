@@ -29,7 +29,7 @@ var (
 func init() {
 	supabaseProjectRef = os.Getenv("SUPABASE_PROJECT_REF")
 	if supabaseProjectRef != "" {
-		supabaseJWKSURL = fmt.Sprintf("https://%s.supabase.co/.well-known/jwks", supabaseProjectRef)
+		supabaseJWKSURL = fmt.Sprintf("https://%s.supabase.co/auth/v1/.well-known/jwks.json", supabaseProjectRef)
 		log.Printf("Supabase JWT validation enabled for project: %s", supabaseProjectRef)
 		log.Printf("Supabase JWKS URL: %s", supabaseJWKSURL)
 	} else {

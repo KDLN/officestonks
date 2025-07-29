@@ -159,7 +159,7 @@ func (h *AuthHandler) DebugSupabaseConfig(w http.ResponseWriter, r *http.Request
 	projectRef := os.Getenv("SUPABASE_PROJECT_REF")
 	jwksURL := ""
 	if projectRef != "" {
-		jwksURL = fmt.Sprintf("https://%s.supabase.co/.well-known/jwks", projectRef)
+		jwksURL = fmt.Sprintf("https://%s.supabase.co/auth/v1/.well-known/jwks.json", projectRef)
 	}
 	
 	debug := map[string]interface{}{
