@@ -150,14 +150,14 @@ export const signInWithDiscordBeta = async () => {
     localStorage.setItem('oauth_beta_redirect', 'true');
     console.log('Setting beta redirect flag, current URL:', window.location.href);
     
+    // Since Supabase always redirects to the Site URL domain (officestonks.com),
+    // we'll use /auth/redirect path which will handle the beta redirect
+    // We use the production URL here because that's where Supabase will redirect
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
-        redirectTo: 'https://beta.officestonks.com/dashboard',
-        scopes: 'identify email',
-        queryParams: {
-          redirect_to: 'https://beta.officestonks.com/dashboard'
-        }
+        redirectTo: 'https://officestonks.com/auth/redirect',
+        scopes: 'identify email'
       }
     })
     
