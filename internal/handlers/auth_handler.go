@@ -14,6 +14,21 @@ import (
 	"officestonks/internal/services"
 )
 
+// getClientIP attempts to determine the real client IP address accounting for
+// reverse proxies and load balancers.
+func getClientIP(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		if len(parts) > 0 {
+			return strings.TrimSpace(parts[0])
+		}
+	}
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+	return strings.Split(r.RemoteAddr, ":")[0]
+}
+
 // AuthHandler handles authentication requests
 type AuthHandler struct {
 	authService  *services.AuthService
@@ -57,7 +72,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.auditService != nil {
-		ip := strings.Split(r.RemoteAddr, ":")[0]
+		ip := getClientIP(r)
 		_ = h.auditService.LogEvent(resp.UserID, "login", ip)
 	}
 
@@ -87,6 +102,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error logging in user: %v", err)
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
+	}
+
+	if h.auditService != nil {
+		ip := getClientIP(r)
+		_ = h.auditService.LogEvent(resp.UserID, "login", ip)
 	}
 
 	// Return response

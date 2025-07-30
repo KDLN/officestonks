@@ -22,6 +22,9 @@ func (h *AuditHandler) GetRecentEvents(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	limit := 20
 	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		if l > 1000 {
+			l = 1000
+		}
 		limit = l
 	}
 	events, err := h.service.GetRecentEvents(limit)

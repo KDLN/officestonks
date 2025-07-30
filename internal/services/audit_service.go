@@ -1,6 +1,10 @@
 package services
 
-import "officestonks/internal/models"
+import (
+	"fmt"
+
+	"officestonks/internal/models"
+)
 
 // AuditService provides audit logging operations
 type AuditService struct {
@@ -15,7 +19,7 @@ func NewAuditService(repo models.AuditLogRepository) *AuditService {
 // LogEvent records an audit event
 func (s *AuditService) LogEvent(userID int, action, ip string) error {
 	if s.repo == nil {
-		return nil
+		return fmt.Errorf("audit repository not configured")
 	}
 	return s.repo.LogEvent(userID, action, ip)
 }
@@ -23,7 +27,7 @@ func (s *AuditService) LogEvent(userID int, action, ip string) error {
 // GetRecentEvents returns recent audit events
 func (s *AuditService) GetRecentEvents(limit int) ([]*models.AuditEvent, error) {
 	if s.repo == nil {
-		return nil, nil
+		return nil, fmt.Errorf("audit repository not configured")
 	}
 	if limit <= 0 {
 		limit = 20
