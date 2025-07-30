@@ -148,13 +148,21 @@ export const signInWithDiscordBeta = async () => {
   try {
     // Set a flag to indicate we want to redirect to beta after OAuth
     localStorage.setItem('oauth_beta_redirect', 'true');
+    console.log('Setting beta redirect flag, current URL:', window.location.href);
     
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
-        redirectTo: 'https://beta.officestonks.com/dashboard'
+        redirectTo: 'https://beta.officestonks.com/dashboard',
+        scopes: 'identify email',
+        queryParams: {
+          redirect_to: 'https://beta.officestonks.com/dashboard'
+        }
       }
     })
+    
+    console.log('OAuth initiated with data:', data);
+    
     if (error) throw error
     return data
   } catch (error) {

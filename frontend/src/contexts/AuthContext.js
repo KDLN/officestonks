@@ -44,6 +44,24 @@ export const AuthProvider = ({ children }) => {
         
         setSession(currentSession)
         setUser(currentUser)
+        
+        // Check if we need to redirect to beta site after OAuth
+        if (currentSession && currentUser) {
+          const betaRedirect = localStorage.getItem('oauth_beta_redirect')
+          console.log('Initial session load, checking beta redirect:', {
+            betaRedirect,
+            hostname: window.location.hostname,
+            href: window.location.href
+          });
+          
+          if (betaRedirect === 'true' && window.location.hostname === 'officestonks.com') {
+            console.log('Redirecting to beta site from initial load...');
+            localStorage.removeItem('oauth_beta_redirect')
+            // Force redirect to beta site
+            window.location.href = 'https://beta.officestonks.com/dashboard'
+            return
+          }
+        }
       } catch (error) {
         console.error('Error getting initial session:', error)
       } finally {
@@ -68,7 +86,14 @@ export const AuthProvider = ({ children }) => {
           
           // Check if we need to redirect to beta site after OAuth
           const betaRedirect = localStorage.getItem('oauth_beta_redirect')
+          console.log('Auth state SIGNED_IN, checking beta redirect:', {
+            betaRedirect,
+            hostname: window.location.hostname,
+            href: window.location.href
+          });
+          
           if (betaRedirect === 'true' && window.location.hostname === 'officestonks.com') {
+            console.log('Redirecting to beta site...');
             localStorage.removeItem('oauth_beta_redirect')
             // Force redirect to beta site
             window.location.href = 'https://beta.officestonks.com/dashboard'
