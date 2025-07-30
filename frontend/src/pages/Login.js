@@ -9,7 +9,7 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signInWithProvider } = useAuth();
+  const { signInWithDiscordBeta } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,7 +32,7 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      await signInWithProvider('discord');
+      await signInWithDiscordBeta();
     } catch (error) {
       console.error('Discord login error:', error);
       setError(error.message || 'Login failed. Please try again.');
