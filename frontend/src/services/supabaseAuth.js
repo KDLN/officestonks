@@ -146,6 +146,9 @@ export const signInWithProvider = async (provider) => {
 // Discord sign in for beta with fixed redirect URL
 export const signInWithDiscordBeta = async () => {
   try {
+    // Set a flag to indicate we want to redirect to beta after OAuth
+    localStorage.setItem('oauth_beta_redirect', 'true');
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {

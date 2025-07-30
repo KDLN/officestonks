@@ -65,6 +65,15 @@ export const AuthProvider = ({ children }) => {
         try {
           await syncAuthWithBackend()
           console.log('Successfully synced with Office Stonks backend')
+          
+          // Check if we need to redirect to beta site after OAuth
+          const betaRedirect = localStorage.getItem('oauth_beta_redirect')
+          if (betaRedirect === 'true' && window.location.hostname === 'officestonks.com') {
+            localStorage.removeItem('oauth_beta_redirect')
+            // Force redirect to beta site
+            window.location.href = 'https://beta.officestonks.com/dashboard'
+            return
+          }
         } catch (error) {
           console.error('Failed to sync with backend:', error)
         }
