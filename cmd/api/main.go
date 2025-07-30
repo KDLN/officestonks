@@ -79,6 +79,10 @@ func main() {
 	transactionRepo := repository.NewTransactionRepo(db)
 	chatRepo := repository.NewChatRepo(db)
 	newsRepo := repository.NewNewsRepo(db)
+	sectorRepo := repository.NewSectorRepo(db)
+	delistedStockRepo := repository.NewDelistedStockRepo(db)
+	portfolioLossRepo := repository.NewPortfolioLossRepo(db)
+	changelogRepo := repository.NewChangelogRepo(db)
 	log.Println("✅ Repositories created successfully")
 
 	// Create services
@@ -106,6 +110,7 @@ func main() {
 	// Create chat service with the websocket hub
 	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
 	newsService := services.NewNewsService(newsRepo)
+	changelogService := services.NewChangelogService(changelogRepo)
 
 	// Create websocket handler
 	wsHandler := websocket.NewWebSocketHandler(wsHub, authService)
@@ -117,6 +122,7 @@ func main() {
 	chatHandler := handlers.NewChatHandler(chatService)
 	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)
 	newsHandler := handlers.NewNewsHandler(newsService)
+	changelogHandler := handlers.NewChangelogHandler(changelogService)
 	gameConfigHandler := handlers.NewGameConfigHandler()
 
 	// Create middleware
@@ -225,6 +231,10 @@ func main() {
 
 	// Public user routes
 	apiRouter.HandleFunc("/users/leaderboard", userHandler.GetLeaderboard).Methods("GET", "OPTIONS")
+	
+	// Public changelog routes
+	apiRouter.HandleFunc("/changelog", changelogHandler.GetPublicChangelog).Methods("GET", "OPTIONS")
+	apiRouter.HandleFunc("/changelog/{version}", changelogHandler.GetChangelogByVersion).Methods("GET", "OPTIONS")
 
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
@@ -281,6 +291,12 @@ func main() {
 	adminRouter.HandleFunc("/game-config", gameConfigHandler.UpdateGameConfig).Methods("PUT", "OPTIONS")
 	adminRouter.HandleFunc("/game-config/reset", gameConfigHandler.ResetGameConfig).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/game-config/balanced", gameConfigHandler.LoadBalancedConfig).Methods("POST", "OPTIONS")
+
+	// Admin changelog management
+	adminRouter.HandleFunc("/changelog", changelogHandler.GetAllChangelog).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/changelog", changelogHandler.CreateChangelog).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/changelog/{id:[0-9]+}/visibility", changelogHandler.UpdateChangelogVisibility).Methods("PUT", "OPTIONS")
+	adminRouter.HandleFunc("/changelog/{id:[0-9]+}", changelogHandler.DeleteChangelog).Methods("DELETE", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

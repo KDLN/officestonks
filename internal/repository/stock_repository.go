@@ -23,7 +23,8 @@ func NewStockRepo(db *sql.DB) *StockRepo {
 // GetAllStocks retrieves all stocks from the database
 func (r *StockRepo) GetAllStocks() ([]*models.Stock, error) {
 	query := `
-		SELECT id, symbol, name, sector, current_price, status, last_updated
+		SELECT id, symbol, name, sector, sector_id, current_price, status, 
+		       crisis_start, recovery_chance, bankruptcy_chance, last_updated
 		FROM stocks
 		WHERE status != 'delisted'
 		ORDER BY symbol ASC
@@ -44,8 +45,12 @@ func (r *StockRepo) GetAllStocks() ([]*models.Stock, error) {
 			&stock.Symbol,
 			&stock.Name,
 			&stock.Sector,
+			&stock.SectorID,
 			&stock.CurrentPrice,
 			&statusStr,
+			&stock.CrisisStart,
+			&stock.RecoveryChance,
+			&stock.BankruptcyChance,
 			&stock.LastUpdated,
 		)
 		if err != nil {
@@ -137,11 +142,12 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	ID       int
 	Symbol   string
 	Sector   string
+	SectorID int
 	Price    float64
 	Status   models.StockStatus
 }, error) {
 	query := `
-		SELECT id, symbol, name, sector, current_price, status
+		SELECT id, symbol, name, sector, COALESCE(sector_id, 0), current_price, status
 		FROM stocks
 		WHERE status != 'delisted'
 	`
@@ -156,6 +162,7 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 		ID       int
 		Symbol   string
 		Sector   string
+		SectorID int
 		Price    float64
 		Status   models.StockStatus
 	})
@@ -163,10 +170,11 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	for rows.Next() {
 		var id int
 		var symbol, name, sector string
+		var sectorID int
 		var price float64
 		var statusStr string
 		
-		err := rows.Scan(&id, &symbol, &name, &sector, &price, &statusStr)
+		err := rows.Scan(&id, &symbol, &name, &sector, &sectorID, &price, &statusStr)
 		if err != nil {
 			return nil, err
 		}
@@ -175,14 +183,16 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 			ID       int
 			Symbol   string
 			Sector   string
+			SectorID int
 			Price    float64
 			Status   models.StockStatus
 		}{
-			ID:     id,
-			Symbol: symbol,
-			Sector: sector,
-			Price:  price,
-			Status: models.StockStatus(statusStr),
+			ID:       id,
+			Symbol:   symbol,
+			Sector:   sector,
+			SectorID: sectorID,
+			Price:    price,
+			Status:   models.StockStatus(statusStr),
 		}
 	}
 	
