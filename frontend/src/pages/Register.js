@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { registerWithWorkaround } from '../services/supabaseWorkaround';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -56,6 +57,15 @@ const Register = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="auth-container">
+        <h2>Create an Account</h2>
+        <LoadingSpinner message="Creating your account..." />
+      </div>
+    );
+  }
+
   return (
     <div className="auth-container">
       <h2>Create an Account</h2>
@@ -69,6 +79,7 @@ const Register = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -79,6 +90,7 @@ const Register = () => {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -89,6 +101,7 @@ const Register = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -99,13 +112,14 @@ const Register = () => {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <button type="submit" className="btn" disabled={loading}>
-          {loading ? 'Creating Account...' : 'Register'}
+          Register
         </button>
         <button type="button" className="btn" onClick={handleDiscordRegister} disabled={loading} style={{ marginTop: '10px' }}>
-          {loading ? 'Redirecting...' : 'Register with Discord'}
+          Register with Discord
         </button>
       </form>
       <p>

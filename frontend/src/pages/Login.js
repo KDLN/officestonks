@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { loginWithWorkaround } from '../services/supabaseWorkaround';
 import { isAuthenticated } from '../services/auth';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -68,6 +69,15 @@ const Login = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="auth-container">
+        <h2>Login to Office Stonks</h2>
+        <LoadingSpinner message="Logging you in..." />
+      </div>
+    );
+  }
+
   return (
     <div className="auth-container">
       <h2>Login to Office Stonks</h2>
@@ -81,6 +91,7 @@ const Login = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -91,13 +102,14 @@ const Login = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <button type="submit" className="btn" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
+          Login
         </button>
         <button type="button" className="btn" onClick={handleDiscordLogin} disabled={loading} style={{ marginTop: '10px' }}>
-          {loading ? 'Redirecting...' : 'Login with Discord'}
+          Login with Discord
         </button>
       </form>
       <p>
