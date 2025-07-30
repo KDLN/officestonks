@@ -14,6 +14,7 @@ export const ChangelogProvider = ({ children }) => {
   const [manualTrigger, setManualTrigger] = useState(false);
 
   const openChangelog = () => {
+    console.log('Opening changelog manually');
     setManualTrigger(true);
   };
 

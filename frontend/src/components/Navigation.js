@@ -61,7 +61,10 @@ const Navigation = () => {
             </li>
           )}
           <li>
-            <button onClick={openChangelog} className="changelog-button">
+            <button onClick={() => {
+              console.log('Changelog button clicked');
+              openChangelog();
+            }} className="changelog-button">
               📋 Changelog
             </button>
           </li>

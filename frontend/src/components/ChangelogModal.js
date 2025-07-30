@@ -17,8 +17,33 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
 
   // Handle manual trigger
   useEffect(() => {
+    const fetchChangelogManual = async () => {
+      try {
+        setLoading(true);
+        
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/changelog?limit=10', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) throw new Error('Failed to fetch changelog');
+        
+        const entries = await response.json();
+        setChangelog(entries || []);
+        
+      } catch (error) {
+        console.error('Error fetching changelog:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (manualTrigger && isAuthenticated) {
-      fetchChangelog();
+      console.log('Manual changelog trigger activated');
+      fetchChangelogManual();
       setIsOpen(true);
     }
   }, [manualTrigger, isAuthenticated]);
