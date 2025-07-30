@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
+      console.log('🔔 Supabase auth event:', event, session?.user?.email)
       
       setSession(session)
       setUser(session?.user ?? null)
@@ -62,9 +62,16 @@ export const AuthProvider = ({ children }) => {
       if (event === 'SIGNED_IN' && session) {
         try {
           await syncAuthWithBackend()
-          console.log('Successfully synced with Office Stonks backend')
+          console.log('✅ Successfully synced with Office Stonks backend')
+          
+          // Navigate to dashboard if we're currently on login/register page
+          const currentPath = window.location.pathname
+          if (currentPath === '/login' || currentPath === '/register') {
+            console.log('🎯 Navigating from auth page to dashboard after Supabase login')
+            window.location.href = '/dashboard'
+          }
         } catch (error) {
-          console.error('Failed to sync with backend:', error)
+          console.error('❌ Failed to sync with backend:', error)
         }
       }
       

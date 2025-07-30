@@ -84,6 +84,12 @@ func (s *MarketSimulator) AddStock(id int, symbol, sector string, sectorID int, 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	
+	// Validate base price before adding
+	if math.IsInf(basePrice, 0) || math.IsNaN(basePrice) || basePrice <= 0 {
+		log.Printf("⚠️ Invalid base price for stock %s: %f, setting to $10.00", symbol, basePrice)
+		basePrice = 10.00
+	}
+	
 	// Initialize with a random trend (slightly biased upward for a bull market)
 	initialTrend := (rand.Float64() * 0.1) - 0.03  // Range: -0.03 to 0.07, slightly positive bias
 
