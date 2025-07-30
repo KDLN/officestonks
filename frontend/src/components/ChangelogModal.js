@@ -31,8 +31,9 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
         
         if (!response.ok) throw new Error('Failed to fetch changelog');
         
-        const entries = await response.json();
-        setChangelog(entries || []);
+        const data = await response.json();
+        const entries = data.entries || [];
+        setChangelog(entries);
         
       } catch (error) {
         console.error('Error fetching changelog:', error);
@@ -117,8 +118,9 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
       
       if (!response.ok) throw new Error('Failed to fetch changelog');
       
-      const entries = await response.json();
-      setChangelog(entries || []);
+      const data = await response.json();
+      const entries = data.entries || [];
+      setChangelog(entries);
       
     } catch (error) {
       console.error('Error fetching changelog:', error);
@@ -128,7 +130,7 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
   };
 
   const handleClose = () => {
-    if (changelog.length > 0) {
+    if (Array.isArray(changelog) && changelog.length > 0) {
       // Mark the latest version as seen (only if not manually triggered)
       if (!manualTrigger) {
         localStorage.setItem('lastSeenChangelogVersion', changelog[0].version);
@@ -192,7 +194,7 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
             <div style={{ textAlign: 'center', padding: '2rem' }}>
               <div>Loading changelog...</div>
             </div>
-          ) : changelog.length === 0 ? (
+          ) : !Array.isArray(changelog) || changelog.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem' }}>
               <div>No changelog entries available.</div>
               <div style={{ fontSize: '0.9rem', marginTop: '1rem', opacity: 0.7 }}>
@@ -224,7 +226,7 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
                 <p className="changelog-description">{entry.description}</p>
               )}
               
-              {entry.changes && entry.changes.length > 0 && (
+              {entry.changes && Array.isArray(entry.changes) && entry.changes.length > 0 && (
                 <ul className="changelog-changes">
                   {entry.changes.map((change, changeIndex) => (
                     <li key={changeIndex} className="changelog-change-item">
