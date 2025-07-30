@@ -84,6 +84,7 @@ func main() {
 	newsRepo := repository.NewNewsRepo(db)
 	sectorRepo := repository.NewSectorRepo(db)
 	changelogRepo := repository.NewChangelogRepo(db)
+	auditRepo := repository.NewAuditRepo(db)
 	// TODO: Will be used for crisis/bankruptcy mechanics
 	// delistedStockRepo := repository.NewDelistedStockRepo(db)
 	// portfolioLossRepo := repository.NewPortfolioLossRepo(db)
@@ -115,18 +116,20 @@ func main() {
 	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
 	newsService := services.NewNewsService(newsRepo)
 	changelogService := services.NewChangelogService(changelogRepo)
+	auditService := services.NewAuditService(auditRepo)
 
 	// Create websocket handler
 	wsHandler := websocket.NewWebSocketHandler(wsHub, authService)
 
 	// Create handlers
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authService, auditService)
 	marketHandler := handlers.NewMarketHandler(marketService)
 	userHandler := handlers.NewUserHandler(userService)
 	chatHandler := handlers.NewChatHandler(chatService)
 	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)
 	newsHandler := handlers.NewNewsHandler(newsService)
 	changelogHandler := handlers.NewChangelogHandler(changelogService)
+	auditHandler := handlers.NewAuditHandler(auditService)
 	gameConfigHandler := handlers.NewGameConfigHandler()
 
 	// Create middleware
@@ -223,7 +226,7 @@ func main() {
 	authRouter.HandleFunc("/debug/supabase", authHandler.DebugSupabaseConfig).Methods("GET", "OPTIONS")
 	authRouter.HandleFunc("/check-username", authHandler.CheckUsernameAvailability).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/version", authHandler.GetVersion).Methods("GET", "OPTIONS")
-	
+
 	// Protected auth routes
 	protectedAuthRouter := authRouter.PathPrefix("").Subrouter()
 	protectedAuthRouter.Use(authMiddleware.Authenticate)
@@ -235,7 +238,7 @@ func main() {
 
 	// Public user routes
 	apiRouter.HandleFunc("/users/leaderboard", userHandler.GetLeaderboard).Methods("GET", "OPTIONS")
-	
+
 	// Public changelog routes
 	apiRouter.HandleFunc("/changelog", changelogHandler.GetPublicChangelog).Methods("GET", "OPTIONS")
 	apiRouter.HandleFunc("/changelog/{version}", changelogHandler.GetChangelogByVersion).Methods("GET", "OPTIONS")
@@ -301,6 +304,9 @@ func main() {
 	adminRouter.HandleFunc("/changelog", changelogHandler.CreateChangelog).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/changelog/{id:[0-9]+}/visibility", changelogHandler.UpdateChangelogVisibility).Methods("PUT", "OPTIONS")
 	adminRouter.HandleFunc("/changelog/{id:[0-9]+}", changelogHandler.DeleteChangelog).Methods("DELETE", "OPTIONS")
+
+	// Audit log
+	adminRouter.HandleFunc("/audit", auditHandler.GetRecentEvents).Methods("GET", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -420,11 +426,11 @@ func main() {
 	// Emergency stock price reset endpoint (no auth required - for fixing infinity errors)
 	apiRouter.HandleFunc("/emergency/reset-stocks", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Emergency stock price reset called")
-		
+
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// Reset stock prices
 		stocks, err := stockRepo.GetAllStocks()
 		if err != nil {
@@ -434,28 +440,28 @@ func main() {
 		}
 
 		log.Printf("Emergency reset: Found %d stocks to reset", len(stocks))
-		
+
 		for _, stock := range stocks {
 			// Generate a new random price between $1 and $1000
 			newPrice := 1.0 + (rand.Float64() * 999.0)
-			
+
 			err = stockRepo.UpdateStockPrice(stock.ID, newPrice)
 			if err != nil {
 				log.Printf("Emergency reset: Failed to update %s: %v", stock.Symbol, err)
 				continue
 			}
-			
+
 			log.Printf("Emergency reset: Updated %s to $%.2f", stock.Symbol, newPrice)
 		}
-		
+
 		// Validate market simulator
 		log.Println("Emergency reset: Validating market simulator...")
 		marketService.ValidateSimulator()
-		
+
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"message": "Emergency stock reset completed",
+			"success":      true,
+			"message":      "Emergency stock reset completed",
 			"stocks_reset": len(stocks),
 		})
 	}).Methods("GET", "POST", "OPTIONS")

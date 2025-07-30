@@ -76,6 +76,13 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Fallback loading timeout in case auth checks hang
+  useEffect(() => {
+    if (!loading) return
+    const timer = setTimeout(() => setLoading(false), 5000)
+    return () => clearTimeout(timer)
+  }, [loading])
+
   const handleSignUp = async (email, password, userData = {}) => {
     try {
       const result = await signUp(email, password, userData)
@@ -117,6 +124,7 @@ export const AuthProvider = ({ children }) => {
     user,
     session,
     loading,
+    isAuthenticated: !!user,
     signUp: handleSignUp,
     signIn: handleSignIn,
     signOut: handleSignOut,

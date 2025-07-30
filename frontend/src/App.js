@@ -11,6 +11,7 @@ import StockDetail from './pages/StockDetail';
 import Leaderboard from './pages/Leaderboard';
 import Transactions from './pages/Transactions';
 import AdminPanel from './pages/AdminPanel';
+import AuditLog from './pages/AuditLog';
 import Portfolio from './pages/Portfolio';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
@@ -41,6 +42,7 @@ const AppContent = () => {
             <Route path="/leaderboard" element={<ProtectedRoute element={<Leaderboard />} />} />
             <Route path="/transactions" element={<ProtectedRoute element={<Transactions />} />} />
             <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} />} />
+            <Route path="/audit" element={<ProtectedRoute element={<AuditLog />} />} />
 
             {/* Default redirect */}
             <Route path="*" element={<Navigate to="/login" />} />
