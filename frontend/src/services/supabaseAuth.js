@@ -143,6 +143,23 @@ export const signInWithProvider = async (provider) => {
   }
 }
 
+// Discord sign in for beta with fixed redirect URL
+export const signInWithDiscordBeta = async () => {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: 'https://beta.officestonks.com/dashboard'
+      }
+    })
+    if (error) throw error
+    return data
+  } catch (error) {
+    console.error('Discord beta sign in error:', error)
+    throw error
+  }
+}
+
 // Auth state change listener
 export const onAuthStateChange = (callback) => {
   return supabase.auth.onAuthStateChange(callback)

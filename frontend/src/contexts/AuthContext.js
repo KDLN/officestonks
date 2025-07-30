@@ -2,11 +2,12 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { 
   signUp, 
   signIn, 
-  signOut, 
-  getCurrentUser, 
-  getCurrentSession, 
+  signOut,
+  getCurrentUser,
+  getCurrentSession,
   onAuthStateChange,
-  signInWithProvider 
+  signInWithProvider,
+  signInWithDiscordBeta
 } from '../services/supabaseAuth'
 import { syncAuthWithBackend } from '../services/authBridge'
 
@@ -17,7 +18,8 @@ const AuthContext = createContext({
   signUp: () => {},
   signIn: () => {},
   signOut: () => {},
-  signInWithProvider: () => {}
+  signInWithProvider: () => {},
+  signInWithDiscordBeta: () => {}
 })
 
 export const useAuth = () => {
@@ -113,6 +115,15 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const handleSignInWithDiscordBeta = async () => {
+    try {
+      const result = await signInWithDiscordBeta()
+      return result
+    } catch (error) {
+      throw error
+    }
+  }
+
   const value = {
     user,
     session,
@@ -120,7 +131,8 @@ export const AuthProvider = ({ children }) => {
     signUp: handleSignUp,
     signIn: handleSignIn,
     signOut: handleSignOut,
-    signInWithProvider: handleSignInWithProvider
+    signInWithProvider: handleSignInWithProvider,
+    signInWithDiscordBeta: handleSignInWithDiscordBeta
   }
 
   return (
