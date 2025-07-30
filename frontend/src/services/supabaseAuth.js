@@ -1,10 +1,20 @@
 import { supabase } from './supabase'
 import { getEnvironmentConfig, logEnvironmentInfo } from '../config/environment'
 
+// Helper function to check if Supabase is available
+const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Please use email authentication instead.')
+  }
+  return supabase
+}
+
 // Sign up new user
 export const signUp = async (email, password, userData = {}) => {
+  const sb = requireSupabase()
+  
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
