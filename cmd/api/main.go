@@ -30,9 +30,11 @@ import (
 
 func main() {
 	// Print startup information
-	log.Println("Starting Office Stonks API server v1.1.2 (Enhanced Debug + Sanitization)...")
+	log.Println("🚀 Starting Office Stonks API server v1.1.3 (FORCE DEPLOY - Infinity Fix + Changelog Modal)...")
 	log.Printf("Working directory: %s\n", getMustString("pwd"))
 	log.Printf("Available files: %s\n", getMustString("ls -la"))
+	log.Println("🔧 This deployment includes: Infinity sanitization, WebSocket fixes, Changelog modal")
+	log.Println("📅 Deployment timestamp:", time.Now().Format("2006-01-02 15:04:05 MST"))
 
 	// Remove reference to environment variables for production security
 	log.Println("Environment loaded")
