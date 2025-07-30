@@ -14,6 +14,7 @@ import AdminPanel from './pages/AdminPanel';
 import Portfolio from './pages/Portfolio';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
+import ChangelogModal from './components/ChangelogModal';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -44,6 +45,9 @@ function App() {
             {/* Default redirect */}
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
+          
+          {/* Global changelog modal - shows for authenticated users */}
+          <ChangelogModal />
           </div>
           </Router>
         </AuthSync>
