@@ -199,16 +199,28 @@ func sanitizeMessage(v interface{}) interface{} {
 
 // Send sends a message to the client
 func (c *Client) Send(message interface{}) {
-	// Sanitize the message to remove infinity and NaN values
+	// ALWAYS sanitize first - never try to marshal unsanitized messages
 	sanitizedMessage := sanitizeMessage(message)
 	
-	// Convert message to JSON
+	// Convert sanitized message to JSON
 	jsonMessage, err := json.Marshal(sanitizedMessage)
 	if err != nil {
 		log.Printf("🚨 JSON MARSHAL ERROR after sanitization for user %d: %v", c.userID, err)
 		log.Printf("🚨 Original message type: %T", message)
-		log.Printf("🚨 Original message: %+v", message)
 		log.Printf("🚨 Sanitized message: %+v", sanitizedMessage)
+		
+		// Last resort: send a safe error message
+		errorMessage := map[string]interface{}{
+			"type": "error",
+			"message": "Failed to send update",
+		}
+		if safeJson, safeErr := json.Marshal(errorMessage); safeErr == nil {
+			select {
+			case c.send <- safeJson:
+			default:
+				log.Printf("Client send buffer full during error recovery for user %d", c.userID)
+			}
+		}
 		return
 	}
 	

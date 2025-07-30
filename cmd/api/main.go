@@ -30,7 +30,7 @@ import (
 
 func main() {
 	// Print startup information
-	log.Println("Starting Office Stonks API server v1.1.1 (Infinity Fix)...")
+	log.Println("Starting Office Stonks API server v1.1.2 (Enhanced Debug + Sanitization)...")
 	log.Printf("Working directory: %s\n", getMustString("pwd"))
 	log.Printf("Available files: %s\n", getMustString("ls -la"))
 
