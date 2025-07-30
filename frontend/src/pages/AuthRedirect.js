@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const AuthRedirect = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading } = useAuth();
 
   useEffect(() => {
@@ -11,37 +12,40 @@ const AuthRedirect = () => {
       // Wait for auth to load
       if (loading) return;
 
+      console.log('AuthRedirect: Current state', {
+        user: user?.email,
+        loading,
+        pathname: location.pathname,
+        search: location.search,
+        hostname: window.location.hostname
+      });
+
       // Check if we have a user (successful auth)
       if (user) {
-        // Check if we should redirect to beta
-        const betaRedirect = localStorage.getItem('oauth_beta_redirect');
-        console.log('AuthRedirect: Checking beta redirect', {
-          betaRedirect,
-          currentHost: window.location.hostname,
-          user: user.email
-        });
+        // Check URL params for beta redirect
+        const urlParams = new URLSearchParams(location.search);
+        const shouldRedirectToBeta = urlParams.get('beta') === 'true';
+        
+        console.log('AuthRedirect: Beta param', shouldRedirectToBeta);
 
-        if (betaRedirect === 'true') {
-          localStorage.removeItem('oauth_beta_redirect');
-          
-          // If we're on production, redirect to beta
-          if (window.location.hostname === 'officestonks.com') {
-            console.log('AuthRedirect: Redirecting to beta.officestonks.com');
-            window.location.href = 'https://beta.officestonks.com/dashboard';
-            return;
-          }
+        if (shouldRedirectToBeta && window.location.hostname === 'officestonks.com') {
+          console.log('AuthRedirect: Redirecting to beta.officestonks.com');
+          // Force redirect to beta site
+          window.location.replace('https://beta.officestonks.com/dashboard');
+          return;
         }
 
         // Otherwise, navigate to dashboard normally
         navigate('/dashboard');
       } else {
         // No user, redirect to login
+        console.log('AuthRedirect: No user, redirecting to login');
         navigate('/login');
       }
     };
 
     handleRedirect();
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, location]);
 
   return (
     <div style={{ 
