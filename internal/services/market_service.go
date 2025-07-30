@@ -3,6 +3,8 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
+	"math"
 	"time"
 
 	"officestonks/internal/models"
@@ -80,10 +82,23 @@ func (s *MarketService) updateStockPrices() {
 	updateChan := s.simulator.GetUpdateChannel()
 	
 	for update := range updateChan {
+		// Validate price before updating database
+		if math.IsInf(update.Price, 0) || math.IsNaN(update.Price) || update.Price <= 0 {
+			log.Printf("Skipping database update for stock %s: invalid price %f", update.Symbol, update.Price)
+			continue
+		}
+		
+		// Ensure price is within reasonable bounds
+		price := update.Price
+		if price < 0.01 {
+			price = 0.01
+		} else if price > 1000000 {
+			price = 1000000
+		}
+		
 		// Update the stock price in the database
-		if err := s.stockRepo.UpdateStockPrice(update.StockID, update.Price); err != nil {
-			// Log the error but continue processing updates
-			// In a real application, you'd want better error handling
+		if err := s.stockRepo.UpdateStockPrice(update.StockID, price); err != nil {
+			log.Printf("Error updating stock price for %s: %v", update.Symbol, err)
 			continue
 		}
 	}
