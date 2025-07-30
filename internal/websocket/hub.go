@@ -1,6 +1,8 @@
 package websocket
 
 import (
+	"log"
+	"math"
 	"sync"
 
 	"officestonks/pkg/market"
@@ -60,6 +62,19 @@ func (h *Hub) Run() {
 
 // broadcastStockUpdate sends a stock update to all connected clients
 func (h *Hub) broadcastStockUpdate(update market.StockUpdate) {
+	// Validate price for infinity or NaN
+	if math.IsInf(update.Price, 0) || math.IsNaN(update.Price) {
+		log.Printf("Skipping stock update for %s: invalid price %f", update.Symbol, update.Price)
+		return
+	}
+	
+	// Ensure price is within reasonable bounds
+	if update.Price < 0.01 {
+		update.Price = 0.01
+	} else if update.Price > 1000000 { // Cap at $1M per share
+		update.Price = 1000000
+	}
+	
 	// Create a message for the update
 	message := struct {
 		Type    string  `json:"type"`

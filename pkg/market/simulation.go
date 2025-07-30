@@ -222,9 +222,17 @@ func (s *MarketSimulator) updatePrices() {
 		// Calculate final price change
 		newPrice := info.BasePrice * (1 + totalChange)
 
-		// Ensure price doesn't go below 0.01
+		// Validate the calculated price
+		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+			// Reset to a safe price if calculation went wrong
+			newPrice = 0.01
+		}
+
+		// Ensure price doesn't go below 0.01 or above reasonable maximum
 		if newPrice < 0.01 {
 			newPrice = 0.01
+		} else if newPrice > 1000000 { // Cap at $1M per share
+			newPrice = 1000000
 		}
 
 		// Add some randomness to make prices jumpy sometimes (market surprises)
@@ -238,10 +246,20 @@ func (s *MarketSimulator) updatePrices() {
 				jumpMultiplier = 1.0 - (rand.Float64() * 0.05) // 0-5% jump down
 			}
 			newPrice *= jumpMultiplier
+			
+			// Validate after jump
+			if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+				newPrice = 0.01
+			}
 		}
 
 		// Round to 2 decimal places
 		newPrice = math.Round(newPrice*100) / 100
+		
+		// Final validation after rounding
+		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+			newPrice = 0.01
+		}
 
 		// Update the base price for future calculations
 		info.BasePrice = newPrice
@@ -326,8 +344,16 @@ func (s *MarketSimulator) ProcessTransaction(stockID int, quantity int, isBuy bo
 
 	// Calculate new price
 	newPrice := stock.BasePrice * (1 + impactFactor)
+	
+	// Validate the calculated price
+	if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+		newPrice = 0.01
+	}
+	
 	if newPrice < 0.01 {
 		newPrice = 0.01
+	} else if newPrice > 1000000 { // Cap at $1M per share
+		newPrice = 1000000
 	}
 
 	// Round to 2 decimal places
