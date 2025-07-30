@@ -73,7 +73,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	if h.auditService != nil {
 		ip := getClientIP(r)
-		_ = h.auditService.LogEvent(resp.UserID, "login", ip)
+		_ = h.auditService.LogEvent(resp.UserID, "register", ip)
 	}
 
 	// Return response
