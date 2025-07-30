@@ -25,13 +25,38 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
 
   const fetchData = async () => {
+    console.log('🎯 Dashboard fetchData started');
     try {
+      console.log('🔄 Fetching dashboard data from APIs...');
+      
       // Fetch portfolio, transactions, and stocks data in parallel
+      const startTime = Date.now();
       const [portfolioData, transactionsData, stocksData] = await Promise.all([
-        getUserPortfolio(),
-        getTransactionHistory(5), // Get 5 most recent transactions
-        getAllStocks()
+        getUserPortfolio().then(data => {
+          console.log('✅ Portfolio data received:', data);
+          return data;
+        }).catch(err => {
+          console.error('❌ Portfolio fetch failed:', err);
+          throw err;
+        }),
+        getTransactionHistory(5).then(data => {
+          console.log('✅ Transactions data received:', data?.length || 0, 'transactions');
+          return data;
+        }).catch(err => {
+          console.error('❌ Transactions fetch failed:', err);
+          throw err;
+        }),
+        getAllStocks().then(data => {
+          console.log('✅ Stocks data received:', data?.length || 0, 'stocks');
+          return data;
+        }).catch(err => {
+          console.error('❌ Stocks fetch failed:', err);
+          throw err;
+        })
       ]);
+      
+      const fetchTime = Date.now() - startTime;
+      console.log(`⏱️ Data fetch completed in ${fetchTime}ms`);
       
       setPortfolio(portfolioData);
       setTransactions(transactionsData);
@@ -39,10 +64,19 @@ const Dashboard = () => {
       // Get top 5 stocks by price
       const sortedStocks = [...stocksData].sort((a, b) => b.current_price - a.current_price);
       setTopStocks(sortedStocks.slice(0, 5));
+      console.log('📊 Top stocks calculated:', sortedStocks.slice(0, 5).map(s => s.symbol));
       
+      console.log('✅ Dashboard data loading completed successfully');
       setLoading(false);
     } catch (err) {
-      console.error('Dashboard error:', err);
+      console.error('❌ Dashboard error:', err);
+      console.error('🔍 Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data
+      });
+      
       const errorMessage = err.response?.data?.error || 'Unable to load dashboard. Please check your connection and try again.';
       setError(errorMessage);
       setLoading(false);
@@ -50,12 +84,17 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    console.log('🚀 Dashboard component mounted');
     fetchData();
 
     // Initialize WebSocket connection with delay to ensure auth is ready
+    console.log('⏳ Setting up WebSocket initialization timer...');
     const wsTimeout = setTimeout(() => {
-      initWebSocket().catch(err => {
-        console.error('Failed to initialize WebSocket:', err);
+      console.log('🔌 Initializing WebSocket connection...');
+      initWebSocket().then(() => {
+        console.log('✅ WebSocket initialized successfully');
+      }).catch(err => {
+        console.error('❌ Failed to initialize WebSocket:', err);
         // Don't block the UI, just log the error
       });
     }, 500);
@@ -150,6 +189,7 @@ const Dashboard = () => {
   }, []);
 
   if (loading) {
+    console.log('⏳ Dashboard showing loading state');
     return (
       <div className="dashboard-page">
         <Navigation />
@@ -159,6 +199,7 @@ const Dashboard = () => {
   }
 
   if (error) {
+    console.log('❌ Dashboard showing error state:', error);
     return (
       <div className="dashboard-page">
         <Navigation />
@@ -166,6 +207,7 @@ const Dashboard = () => {
           <ErrorMessage 
             message={error} 
             onRetry={() => {
+              console.log('🔄 Dashboard retry requested');
               setError(null);
               setLoading(true);
               fetchData();
@@ -175,6 +217,13 @@ const Dashboard = () => {
       </div>
     );
   }
+
+  console.log('🎉 Dashboard rendering main content with data:', {
+    portfolioValue: portfolio?.total_value || 0,
+    portfolioItems: portfolio?.portfolio_items?.length || 0,
+    topStocks: topStocks?.length || 0,
+    transactions: transactions?.length || 0
+  });
 
   return (
     <div className="dashboard-page">
