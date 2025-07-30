@@ -2,14 +2,24 @@ package handlers
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"log"
 	"net/http"
+	"os"
+	"sort"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 
 	"officestonks/internal/models"
 	"officestonks/internal/services"
 )
+
+// ChangelogFile represents the structure of the changelog.json file
+type ChangelogFile struct {
+	Entries []*models.ChangelogEntry `json:"entries"`
+}
 
 // ChangelogHandler handles changelog-related HTTP requests
 type ChangelogHandler struct {
@@ -33,6 +43,57 @@ type CreateChangelogRequest struct {
 	IsMajor     bool                `json:"is_major"`
 }
 
+// readChangelogFile reads the changelog from the JSON file
+func (h *ChangelogHandler) readChangelogFile() ([]*models.ChangelogEntry, error) {
+	// Try to find changelog.json in current directory or project root
+	filePaths := []string{
+		"changelog.json",
+		"./changelog.json",
+		"../changelog.json",
+		"../../changelog.json",
+	}
+	
+	var data []byte
+	var err error
+	
+	for _, path := range filePaths {
+		if _, statErr := os.Stat(path); statErr == nil {
+			data, err = ioutil.ReadFile(path)
+			if err == nil {
+				log.Printf("📖 Reading changelog from: %s", path)
+				break
+			}
+		}
+	}
+	
+	if err != nil || len(data) == 0 {
+		log.Printf("⚠️ Could not read changelog file, returning empty entries")
+		return []*models.ChangelogEntry{}, nil
+	}
+	
+	var changelogFile ChangelogFile
+	if err := json.Unmarshal(data, &changelogFile); err != nil {
+		log.Printf("❌ Error parsing changelog JSON: %v", err)
+		return []*models.ChangelogEntry{}, nil
+	}
+	
+	// Parse created_at timestamps if they're strings
+	for _, entry := range changelogFile.Entries {
+		if entry.CreatedAt.IsZero() {
+			// If timestamp parsing failed, use current time
+			entry.CreatedAt = time.Now()
+		}
+	}
+	
+	// Sort entries by ID descending (newest first)
+	sort.Slice(changelogFile.Entries, func(i, j int) bool {
+		return changelogFile.Entries[i].ID > changelogFile.Entries[j].ID
+	})
+	
+	log.Printf("✅ Loaded %d changelog entries from file", len(changelogFile.Entries))
+	return changelogFile.Entries, nil
+}
+
 // GetPublicChangelog returns visible changelog entries for public display
 func (h *ChangelogHandler) GetPublicChangelog(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
@@ -54,19 +115,36 @@ func (h *ChangelogHandler) GetPublicChangelog(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	var entries []*models.ChangelogEntry
-	var err error
-
-	if majorOnly {
-		entries, err = h.changelogService.GetMajorEntries(limit)
-	} else {
-		entries, err = h.changelogService.GetVisibleEntries(limit, offset)
-	}
-
+	// Read from file instead of database
+	allEntries, err := h.readChangelogFile()
 	if err != nil {
 		http.Error(w, "Failed to fetch changelog entries", http.StatusInternalServerError)
 		return
 	}
+
+	// Filter visible entries
+	var visibleEntries []*models.ChangelogEntry
+	for _, entry := range allEntries {
+		if entry.IsVisible {
+			// If majorOnly is requested, filter by major releases
+			if !majorOnly || entry.IsMajor {
+				visibleEntries = append(visibleEntries, entry)
+			}
+		}
+	}
+
+	// Apply pagination
+	start := offset
+	if start > len(visibleEntries) {
+		start = len(visibleEntries)
+	}
+	
+	end := start + limit
+	if end > len(visibleEntries) {
+		end = len(visibleEntries)
+	}
+	
+	entries := visibleEntries[start:end]
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -85,14 +163,29 @@ func (h *ChangelogHandler) GetChangelogByVersion(w http.ResponseWriter, r *http.
 		return
 	}
 
-	entry, err := h.changelogService.GetEntryByVersion(version)
+	// Read from file instead of database
+	allEntries, err := h.readChangelogFile()
 	if err != nil {
+		http.Error(w, "Failed to fetch changelog entries", http.StatusInternalServerError)
+		return
+	}
+
+	// Find entry by version
+	var foundEntry *models.ChangelogEntry
+	for _, entry := range allEntries {
+		if entry.Version == version && entry.IsVisible {
+			foundEntry = entry
+			break
+		}
+	}
+
+	if foundEntry == nil {
 		http.Error(w, "Changelog entry not found", http.StatusNotFound)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(entry)
+	json.NewEncoder(w).Encode(foundEntry)
 }
 
 // CreateChangelog creates a new changelog entry (admin only)
