@@ -12,7 +12,6 @@ import Leaderboard from './pages/Leaderboard';
 import Transactions from './pages/Transactions';
 import AdminPanel from './pages/AdminPanel';
 import Portfolio from './pages/Portfolio';
-import AuthRedirect from './pages/AuthRedirect';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -32,7 +31,6 @@ function App() {
             <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/auth/redirect" element={<AuthRedirect />} />
             
             {/* Protected routes */}
             <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />

@@ -11,7 +11,7 @@ const Register = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signInWithDiscordBeta } = useAuth();
+  const { signInWithProvider } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +48,7 @@ const Register = () => {
     setError('');
     setLoading(true);
     try {
-      await signInWithDiscordBeta();
+      await signInWithProvider('discord');
     } catch (error) {
       console.error('Discord registration error:', error);
       setError(error.message || 'Registration failed. Please try again.');

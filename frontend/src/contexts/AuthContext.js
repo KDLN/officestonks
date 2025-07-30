@@ -6,8 +6,7 @@ import {
   getCurrentUser,
   getCurrentSession,
   onAuthStateChange,
-  signInWithProvider,
-  signInWithDiscordBeta
+  signInWithProvider
 } from '../services/supabaseAuth'
 import { syncAuthWithBackend } from '../services/authBridge'
 
@@ -18,8 +17,7 @@ const AuthContext = createContext({
   signUp: () => {},
   signIn: () => {},
   signOut: () => {},
-  signInWithProvider: () => {},
-  signInWithDiscordBeta: () => {}
+  signInWithProvider: () => {}
 })
 
 export const useAuth = () => {
@@ -44,8 +42,6 @@ export const AuthProvider = ({ children }) => {
         
         setSession(currentSession)
         setUser(currentUser)
-        
-        // Beta redirect is now handled by AuthRedirect component
       } catch (error) {
         console.error('Error getting initial session:', error)
       } finally {
@@ -67,8 +63,6 @@ export const AuthProvider = ({ children }) => {
         try {
           await syncAuthWithBackend()
           console.log('Successfully synced with Office Stonks backend')
-          
-          // Beta redirect is now handled by AuthRedirect component
         } catch (error) {
           console.error('Failed to sync with backend:', error)
         }
@@ -119,15 +113,6 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const handleSignInWithDiscordBeta = async () => {
-    try {
-      const result = await signInWithDiscordBeta()
-      return result
-    } catch (error) {
-      throw error
-    }
-  }
-
   const value = {
     user,
     session,
@@ -135,8 +120,7 @@ export const AuthProvider = ({ children }) => {
     signUp: handleSignUp,
     signIn: handleSignIn,
     signOut: handleSignOut,
-    signInWithProvider: handleSignInWithProvider,
-    signInWithDiscordBeta: handleSignInWithDiscordBeta
+    signInWithProvider: handleSignInWithProvider
   }
 
   return (
