@@ -10,7 +10,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  z-index: 1000;
+  z-index: 100;
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
@@ -203,7 +203,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 9999;
+    z-index: 999;
   }
 
   .chat-container.minimized {

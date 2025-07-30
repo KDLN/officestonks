@@ -96,6 +96,17 @@ button {
   font-family: inherit;
 }
 
+/* 
+  Z-INDEX HIERARCHY - DO NOT CHANGE WITHOUT UPDATING ALL COMPONENTS
+  ================================================================
+  1      - Default page content, dashboard components
+  100    - Chat component (fixed position)  
+  999    - Chat component on mobile (full screen)
+  1000   - Navigation bar (sticky header)
+  1500   - Trade confirmation modal
+  2000   - Changelog modal (highest priority)
+*/
+
 /* Responsive typography */
 h1, h2, h3, h4, h5, h6 {
   margin: 0 0 var(--spacing-md) 0;
