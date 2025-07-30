@@ -270,6 +270,13 @@ func (s *MarketService) GetSimulatorUpdates() <-chan market.StockUpdate {
 	return s.simulator.GetUpdateChannel()
 }
 
+// ValidateSimulator checks and fixes any corrupted data in the market simulator
+func (s *MarketService) ValidateSimulator() {
+	log.Println("Validating and fixing market simulator data...")
+	s.simulator.ValidateAllStocks()
+	log.Println("Market simulator validation completed")
+}
+
 // PauseSimulator pauses the market simulation
 func (s *MarketService) PauseSimulator() {
 	s.simulator.Pause()

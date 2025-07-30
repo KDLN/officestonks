@@ -1,6 +1,7 @@
 package market
 
 import (
+	"log"
 	"math"
 	"math/rand"
 	"sync"
@@ -336,8 +337,53 @@ func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
 	defer s.mu.Unlock()
 	
 	if stock, exists := s.stocksInfo[stockID]; exists {
+		// Validate and set new price
+		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+			newPrice = 0.01
+		}
 		stock.BasePrice = newPrice
+		
+		// Reset trend to prevent carrying over corrupted values
+		stock.Trend = 0
+		stock.TrendCounter = rand.Intn(10) + 5
+		
 		s.stocksInfo[stockID] = stock
+	}
+}
+
+// ValidateAllStocks checks and fixes all stocks in the simulator
+func (s *MarketSimulator) ValidateAllStocks() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	for id, stock := range s.stocksInfo {
+		fixed := false
+		
+		// Fix invalid base prices
+		if math.IsInf(stock.BasePrice, 0) || math.IsNaN(stock.BasePrice) || stock.BasePrice <= 0 {
+			stock.BasePrice = 0.01
+			fixed = true
+		}
+		
+		// Fix invalid trends
+		if math.IsInf(stock.Trend, 0) || math.IsNaN(stock.Trend) {
+			stock.Trend = 0
+			fixed = true
+		}
+		
+		// Cap extreme trends
+		if stock.Trend > 0.1 {
+			stock.Trend = 0.1
+			fixed = true
+		} else if stock.Trend < -0.1 {
+			stock.Trend = -0.1
+			fixed = true
+		}
+		
+		if fixed {
+			s.stocksInfo[id] = stock
+			log.Printf("Fixed corrupted stock data for %s: price=%.2f, trend=%.4f", stock.Symbol, stock.BasePrice, stock.Trend)
+		}
 	}
 }
 

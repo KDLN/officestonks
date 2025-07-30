@@ -496,8 +496,12 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Return success
+	// Validate and fix any corrupted data in the market simulator
+	log.Println("Validating market simulator after price reset...")
+	h.marketService.ValidateSimulator()
+
 	response := map[string]interface{}{
-		"message": "Stock prices reset successfully",
+		"message": "Stock prices reset and market simulator reinitialized successfully",
 		"success": true,
 		"timestamp": time.Now().String(),
 		"stocks_count": len(stocks),
