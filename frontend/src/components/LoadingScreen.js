@@ -73,9 +73,6 @@ const LoadingScreen = ({ message = 'Loading Office Stonks...', timeout = 10000, 
           <div className="loading-icon">📈</div>
           <h1>Office Stonks</h1>
         </div>
-        <div className="loading-spinner">
-          <div className="spinner"></div>
-        </div>
         <p className="loading-message">{message}</p>
         <div className="loading-progress">
           <div 
