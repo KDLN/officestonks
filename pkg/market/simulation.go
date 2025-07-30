@@ -179,6 +179,11 @@ func (s *MarketSimulator) updatePrices() {
 
 	// Update all stocks
 	for id, info := range s.stocksInfo {
+		// Validate base price before any calculations
+		if math.IsInf(info.BasePrice, 0) || math.IsNaN(info.BasePrice) || info.BasePrice <= 0 {
+			info.BasePrice = 0.01 // Reset to safe value
+			s.stocksInfo[id] = info
+		}
 		// Check if we need to change the trend
 		if info.TrendCounter <= 0 {
 			// Time to reverse or modify the trend
@@ -208,16 +213,43 @@ func (s *MarketSimulator) updatePrices() {
 		randomChange := (rand.Float64() - 0.5) * s.volatility
 		individualChange := randomChange + info.Trend
 		
+		// Validate individual change
+		if math.IsInf(individualChange, 0) || math.IsNaN(individualChange) {
+			individualChange = randomChange // fallback to just random change
+		}
+		
 		// Sector factors (30% weight)
 		var sectorChange float64
-		if sector, exists := s.sectorsInfo[info.SectorID]; exists {
-			sectorVolatility := s.volatility * sector.VolatilityModifier * 0.3
-			sectorRandomChange := (rand.Float64() - 0.5) * sectorVolatility
-			sectorChange = sectorRandomChange + sector.Trend
+		if info.SectorID > 0 {
+			if sector, exists := s.sectorsInfo[info.SectorID]; exists {
+				sectorVolatility := s.volatility * sector.VolatilityModifier * 0.3
+				if sectorVolatility > 0 && !math.IsInf(sectorVolatility, 0) && !math.IsNaN(sectorVolatility) {
+					sectorRandomChange := (rand.Float64() - 0.5) * sectorVolatility
+					if !math.IsInf(sector.Trend, 0) && !math.IsNaN(sector.Trend) {
+						sectorChange = sectorRandomChange + sector.Trend
+					} else {
+						sectorChange = sectorRandomChange
+					}
+				}
+			}
+		}
+		
+		// Validate sector change
+		if math.IsInf(sectorChange, 0) || math.IsNaN(sectorChange) {
+			sectorChange = 0
 		}
 		
 		// Combined change: 70% individual, 30% sector
 		totalChange := (individualChange * 0.7) + (sectorChange * 0.3)
+		
+		// Validate total change - cap extreme values
+		if math.IsInf(totalChange, 0) || math.IsNaN(totalChange) {
+			totalChange = 0 // Reset to no change
+		} else if totalChange > 0.5 { // Cap at 50% change per update
+			totalChange = 0.5
+		} else if totalChange < -0.5 {
+			totalChange = -0.5
+		}
 		
 		// Calculate final price change
 		newPrice := info.BasePrice * (1 + totalChange)
