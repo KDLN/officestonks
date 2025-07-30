@@ -179,7 +179,7 @@ func (r *ChangelogRepo) scanChangelogEntries(rows *sql.Rows) ([]*models.Changelo
 }
 
 // scanSingleChangelogEntry scans a single changelog entry from a row
-func (r *ChangelogRepo) scanSingleChangelogEntry(row *sql.Row) (*models.ChangelogEntry, error) {
+func (r *ChangelogRepo) scanSingleChangelogEntry(row *RowScanner) (*models.ChangelogEntry, error) {
 	var entry models.ChangelogEntry
 	var changesJSON []byte
 	var changeTypeStr string

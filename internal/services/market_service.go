@@ -15,6 +15,7 @@ type MarketService struct {
 	userRepo       models.UserRepository
 	portfolioRepo  models.PortfolioRepository
 	transactionRepo models.TransactionRepository
+	sectorRepo     models.SectorRepository
 	simulator      *market.MarketSimulator
 }
 
@@ -24,6 +25,7 @@ func NewMarketService(
 	userRepo models.UserRepository,
 	portfolioRepo models.PortfolioRepository,
 	transactionRepo models.TransactionRepository,
+	sectorRepo models.SectorRepository,
 ) *MarketService {
 	// Create a market simulator with faster updates and higher volatility for more dynamic price movements
 	// 2-second updates and 5% volatility
@@ -35,21 +37,33 @@ func NewMarketService(
 		userRepo:       userRepo,
 		portfolioRepo:  portfolioRepo,
 		transactionRepo: transactionRepo,
+		sectorRepo:     sectorRepo,
 		simulator:      simulator,
 	}
 }
 
 // InitializeSimulator loads stocks and starts the simulation
 func (s *MarketService) InitializeSimulator() error {
+	// Load all sectors from the database
+	sectors, err := s.sectorRepo.GetAllSectors()
+	if err != nil {
+		return fmt.Errorf("failed to load sectors: %w", err)
+	}
+	
+	// Add sectors to the simulator
+	for _, sector := range sectors {
+		s.simulator.AddSector(sector.ID, sector.Name, sector.VolatilityModifier)
+	}
+	
 	// Load all stocks from the database
 	stocks, err := s.stockRepo.LoadStocksForSimulation()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load stocks: %w", err)
 	}
 	
 	// Add stocks to the simulator
 	for id, stock := range stocks {
-		s.simulator.AddStock(id, stock.Symbol, stock.Sector, stock.Price)
+		s.simulator.AddStock(id, stock.Symbol, stock.Sector, stock.SectorID, stock.Price)
 	}
 	
 	// Start the simulator
