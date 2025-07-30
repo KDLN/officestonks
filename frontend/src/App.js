@@ -28,6 +28,21 @@ import { ChangelogProvider, useChangelog } from './contexts/ChangelogContext';
 const AppContent = () => {
   const { manualTrigger, closeChangelog } = useChangelog();
 
+  // Check for render issues
+  React.useEffect(() => {
+    const checkRenderHealth = () => {
+      const root = document.getElementById('root');
+      if (root && root.children.length === 0) {
+        console.error('❌ App failed to render properly');
+        window.location.reload();
+      }
+    };
+    
+    // Check after a short delay
+    const timer = setTimeout(checkRenderHealth, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <Router>
           <div className="App">
