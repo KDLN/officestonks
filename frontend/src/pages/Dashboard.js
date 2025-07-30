@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
-import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
+import { initWebSocket, addWebSocketListener } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';
@@ -52,8 +52,13 @@ const Dashboard = () => {
   useEffect(() => {
     fetchData();
 
-    // Initialize WebSocket connection
-    initWebSocket();
+    // Initialize WebSocket connection with delay to ensure auth is ready
+    const wsTimeout = setTimeout(() => {
+      initWebSocket().catch(err => {
+        console.error('Failed to initialize WebSocket:', err);
+        // Don't block the UI, just log the error
+      });
+    }, 500);
 
     // Listen for stock updates to refresh data
     addWebSocketListener('*', (message) => {
@@ -138,8 +143,9 @@ const Dashboard = () => {
 
     // Clean up on unmount
     return () => {
-      // Cleanup is handled by the websocket service
-      closeWebSocket();
+      clearTimeout(wsTimeout);
+      // Don't close WebSocket on component unmount as it's shared
+      // closeWebSocket();
     };
   }, []);
 

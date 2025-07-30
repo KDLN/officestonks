@@ -16,6 +16,7 @@ import Portfolio from './pages/Portfolio';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
 import ChangelogModal from './components/ChangelogModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ChangelogProvider, useChangelog } from './contexts/ChangelogContext';
@@ -57,15 +58,17 @@ const AppContent = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <ChangelogProvider>
-          <AuthSync>
-            <AppContent />
-          </AuthSync>
-        </ChangelogProvider>
-      </ThemeProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <ChangelogProvider>
+            <AuthSync>
+              <AppContent />
+            </AuthSync>
+          </ChangelogProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
