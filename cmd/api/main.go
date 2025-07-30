@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -413,6 +414,49 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rateLimiter.GetStats())
 	}).Methods("GET", "OPTIONS")
+
+	// Emergency stock price reset endpoint (no auth required - for fixing infinity errors)
+	apiRouter.HandleFunc("/emergency/reset-stocks", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Emergency stock price reset called")
+		
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Reset stock prices
+		stocks, err := stockRepo.GetAllStocks()
+		if err != nil {
+			log.Printf("Emergency reset failed to get stocks: %v", err)
+			http.Error(w, "Failed to get stocks", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Emergency reset: Found %d stocks to reset", len(stocks))
+		
+		for _, stock := range stocks {
+			// Generate a new random price between $1 and $1000
+			newPrice := 1.0 + (rand.Float64() * 999.0)
+			
+			err = stockRepo.UpdateStockPrice(stock.ID, newPrice)
+			if err != nil {
+				log.Printf("Emergency reset: Failed to update %s: %v", stock.Symbol, err)
+				continue
+			}
+			
+			log.Printf("Emergency reset: Updated %s to $%.2f", stock.Symbol, newPrice)
+		}
+		
+		// Validate market simulator
+		log.Println("Emergency reset: Validating market simulator...")
+		marketService.ValidateSimulator()
+		
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": "Emergency stock reset completed",
+			"stocks_reset": len(stocks),
+		})
+	}).Methods("GET", "POST", "OPTIONS")
 
 	// Serve static files from frontend build directory (fallback to filesystem)
 	staticDir := "./frontend/build/"
