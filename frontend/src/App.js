@@ -17,17 +17,17 @@ import AuthSync from './components/AuthSync';
 import ChangelogModal from './components/ChangelogModal';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ChangelogProvider, useChangelog } from './contexts/ChangelogContext';
 
 // Leaderboard component is now implemented
 
 // Transactions component is now implemented
 
-function App() {
+const AppContent = () => {
+  const { manualTrigger, closeChangelog } = useChangelog();
+
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <AuthSync>
-          <Router>
+    <Router>
           <div className="App">
             <Routes>
             <Route path="/login" element={<Login />} />
@@ -47,10 +47,21 @@ function App() {
           </Routes>
           
           {/* Global changelog modal - shows for authenticated users */}
-          <ChangelogModal />
+          <ChangelogModal manualTrigger={manualTrigger} onManualClose={closeChangelog} />
           </div>
           </Router>
-        </AuthSync>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <ThemeProvider>
+        <ChangelogProvider>
+          <AuthSync>
+            <AppContent />
+          </AuthSync>
+        </ChangelogProvider>
       </ThemeProvider>
     </AuthProvider>
   );

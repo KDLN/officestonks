@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import './ChangelogModal.css';
 
-const ChangelogModal = () => {
+const ChangelogModal = ({ manualTrigger, onManualClose }) => {
   const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [changelog, setChangelog] = useState([]);
@@ -14,6 +14,14 @@ const ChangelogModal = () => {
       checkForNewChanges();
     }
   }, [isAuthenticated, user]);
+
+  // Handle manual trigger
+  useEffect(() => {
+    if (manualTrigger && isAuthenticated) {
+      fetchChangelog();
+      setIsOpen(true);
+    }
+  }, [manualTrigger, isAuthenticated]);
 
   const checkForNewChanges = async () => {
     try {
@@ -53,12 +61,43 @@ const ChangelogModal = () => {
     }
   };
 
+  const fetchChangelog = async () => {
+    try {
+      setLoading(true);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/changelog?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) throw new Error('Failed to fetch changelog');
+      
+      const entries = await response.json();
+      setChangelog(entries || []);
+      
+    } catch (error) {
+      console.error('Error fetching changelog:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClose = () => {
     if (changelog.length > 0) {
-      // Mark the latest version as seen
-      localStorage.setItem('lastSeenChangelogVersion', changelog[0].version);
+      // Mark the latest version as seen (only if not manually triggered)
+      if (!manualTrigger) {
+        localStorage.setItem('lastSeenChangelogVersion', changelog[0].version);
+      }
     }
     setIsOpen(false);
+    
+    // Call the manual close callback if provided
+    if (onManualClose) {
+      onManualClose();
+    }
   };
 
   const formatDate = (dateString) => {
