@@ -181,11 +181,18 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 		}
 
 		// Sanitize any invalid prices that may cause JSON issues later
-		if math.IsInf(price, 0) || math.IsNaN(price) || price <= 0 {
+		if math.IsInf(price, 0) || math.IsNaN(price) {
 			log.Printf("Fixing invalid price %f for stock %s (%d)", price, symbol, id)
 			price = 1.0
-			// attempt to persist the corrected price
-			_ = r.UpdateStockPrice(id, price)
+			if err := r.UpdateStockPrice(id, price); err != nil {
+				log.Printf("Failed to persist corrected price for stock %s (%d): %v", symbol, id, err)
+			}
+		} else if price <= 0.01 {
+			log.Printf("Fixing non-positive price %f for stock %s (%d)", price, symbol, id)
+			price = 0.01
+			if err := r.UpdateStockPrice(id, price); err != nil {
+				log.Printf("Failed to persist corrected price for stock %s (%d): %v", symbol, id, err)
+			}
 		}
 
 		stocks[id] = struct {
