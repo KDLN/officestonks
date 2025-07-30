@@ -64,7 +64,7 @@ func (h *Hub) Run() {
 func (h *Hub) broadcastStockUpdate(update market.StockUpdate) {
 	// Validate price for infinity or NaN
 	if math.IsInf(update.Price, 0) || math.IsNaN(update.Price) {
-		log.Printf("Skipping stock update for %s: invalid price %f", update.Symbol, update.Price)
+		log.Printf("🚨 FOUND INFINITY SOURCE: Stock %s (%d) has invalid price %f", update.Symbol, update.StockID, update.Price)
 		return
 	}
 	

@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -145,7 +146,7 @@ func sanitizeMessage(v interface{}) interface{} {
 	case reflect.Float32, reflect.Float64:
 		f := val.Float()
 		if math.IsInf(f, 0) || math.IsNaN(f) {
-			log.Printf("Warning: Sanitizing invalid float value: %f", f)
+			log.Printf("🚨 SANITIZING INVALID FLOAT: %f -> 0.01", f)
 			return 0.01 // Replace with a safe default
 		}
 		return f
@@ -174,7 +175,12 @@ func sanitizeMessage(v interface{}) interface{} {
 					// Use JSON tag name if available, otherwise use field name
 					name := field.Name
 					if tag := field.Tag.Get("json"); tag != "" && tag != "-" {
-						name = tag
+						// Handle comma-separated options like "price,omitempty"
+						if commaIndex := strings.Index(tag, ","); commaIndex != -1 {
+							name = tag[:commaIndex]
+						} else {
+							name = tag
+						}
 					}
 					result[name] = sanitizeMessage(fieldValue.Interface())
 				}
@@ -199,7 +205,10 @@ func (c *Client) Send(message interface{}) {
 	// Convert message to JSON
 	jsonMessage, err := json.Marshal(sanitizedMessage)
 	if err != nil {
-		log.Printf("Error marshaling message after sanitization: %v", err)
+		log.Printf("🚨 JSON MARSHAL ERROR after sanitization for user %d: %v", c.userID, err)
+		log.Printf("🚨 Original message type: %T", message)
+		log.Printf("🚨 Original message: %+v", message)
+		log.Printf("🚨 Sanitized message: %+v", sanitizedMessage)
 		return
 	}
 	
