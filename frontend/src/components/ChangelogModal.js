@@ -36,6 +36,23 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
         
       } catch (error) {
         console.error('Error fetching changelog:', error);
+        // Fallback content for testing
+        setChangelog([{
+          id: 1,
+          version: 'v1.1.0',
+          title: 'Market Sectors Foundation',
+          description: 'Introduced market sectors with correlated stock movements for more realistic trading.',
+          changes: [
+            'Added 6 market sectors: Technology, Automotive, Financial Services, Retail, Entertainment, Healthcare',
+            'Stock prices now influenced by both individual trends (70%) and sector trends (30%)',
+            'Sector-wide correlations create realistic market behavior',
+            'Enhanced market simulator with sector tracking',
+            'Database schema updated to support sector relationships'
+          ],
+          change_type: 'feature',
+          is_major: true,
+          created_at: new Date().toISOString()
+        }]);
       } finally {
         setLoading(false);
       }
@@ -43,8 +60,8 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
 
     if (manualTrigger && isAuthenticated) {
       console.log('Manual changelog trigger activated');
-      fetchChangelogManual();
-      setIsOpen(true);
+      setIsOpen(true); // Open modal immediately
+      fetchChangelogManual(); // Fetch data after opening
     }
   }, [manualTrigger, isAuthenticated]);
 
@@ -154,7 +171,7 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
   };
 
   // Don't render anything if user is not authenticated or modal is closed
-  if (!isAuthenticated || !isOpen || changelog.length === 0) return null;
+  if (!isAuthenticated || !isOpen) return null;
 
   return (
     <div className="changelog-modal-overlay">
@@ -171,7 +188,19 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
         </div>
         
         <div className="changelog-modal-content">
-          {changelog.map((entry, index) => (
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <div>Loading changelog...</div>
+            </div>
+          ) : changelog.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>
+              <div>No changelog entries available.</div>
+              <div style={{ fontSize: '0.9rem', marginTop: '1rem', opacity: 0.7 }}>
+                This might be due to API connectivity issues.
+              </div>
+            </div>
+          ) : (
+            changelog.map((entry, index) => (
             <div key={entry.id} className="changelog-entry">
               <div className="changelog-entry-header">
                 <div className="changelog-version-badge">
@@ -207,7 +236,8 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
               
               {index < changelog.length - 1 && <hr className="changelog-separator" />}
             </div>
-          ))}
+            ))
+          )}
         </div>
         
         <div className="changelog-modal-footer">
