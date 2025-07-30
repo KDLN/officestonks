@@ -2,11 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Login from './Login';
-import * as authService from '../services/auth';
+import * as workaround from '../services/supabaseWorkaround';
 
 // Mock the auth service
-jest.mock('../services/auth', () => ({
-  login: jest.fn(),
+jest.mock('../services/supabaseWorkaround', () => ({
+  loginWithWorkaround: jest.fn(),
 }));
 
 // Mock the useNavigate hook
@@ -30,16 +30,16 @@ describe('Login Component', () => {
 
     // Check that the form elements are rendered
     expect(screen.getByText('Login to Office Stonks')).toBeInTheDocument();
-    expect(screen.getByLabelText('Username')).toBeInTheDocument();
+    expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
     expect(screen.getByText('Don\'t have an account?')).toBeInTheDocument();
     expect(screen.getByText('Register')).toBeInTheDocument();
   });
 
-  test('submits form with username and password', async () => {
+  test('submits form with email and password', async () => {
     // Mock successful login
-    authService.login.mockResolvedValueOnce({ token: 'test-token', user_id: 1 });
+    workaround.loginWithWorkaround.mockResolvedValueOnce({ user: {}, session: {} });
 
     render(
       <BrowserRouter>
@@ -48,24 +48,24 @@ describe('Login Component', () => {
     );
 
     // Fill in form fields
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'testuser' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
 
     // Submit the form
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     // Check that login was called with correct arguments
-    expect(authService.login).toHaveBeenCalledWith('testuser', 'password123');
+    expect(workaround.loginWithWorkaround).toHaveBeenCalledWith('test@example.com', 'password123');
 
     // Wait for login to complete
     await waitFor(() => {
-      expect(authService.login).toHaveBeenCalled();
+      expect(workaround.loginWithWorkaround).toHaveBeenCalled();
     });
   });
 
   test('displays error message when login fails', async () => {
     // Mock failed login
-    authService.login.mockRejectedValueOnce(new Error('Invalid credentials'));
+    workaround.loginWithWorkaround.mockRejectedValueOnce(new Error('Invalid credentials'));
 
     render(
       <BrowserRouter>
@@ -74,7 +74,7 @@ describe('Login Component', () => {
     );
 
     // Fill in form fields
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'testuser' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrongpassword' } });
 
     // Submit the form
@@ -88,8 +88,8 @@ describe('Login Component', () => {
 
   test('disables form submission while loading', async () => {
     // Mock login that takes time to resolve
-    authService.login.mockImplementationOnce(() => new Promise(resolve => {
-      setTimeout(() => resolve({ token: 'test-token', user_id: 1 }), 100);
+    workaround.loginWithWorkaround.mockImplementationOnce(() => new Promise(resolve => {
+      setTimeout(() => resolve({ user: {}, session: {} }), 100);
     }));
 
     render(
@@ -99,7 +99,7 @@ describe('Login Component', () => {
     );
 
     // Fill in form fields
-    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'testuser' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
 
     // Submit the form
@@ -111,7 +111,7 @@ describe('Login Component', () => {
 
     // Wait for login to complete
     await waitFor(() => {
-      expect(authService.login).toHaveBeenCalled();
+      expect(workaround.loginWithWorkaround).toHaveBeenCalled();
     });
   });
 });

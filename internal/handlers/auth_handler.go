@@ -14,15 +14,32 @@ import (
 	"officestonks/internal/services"
 )
 
+// getClientIP attempts to determine the real client IP address accounting for
+// reverse proxies and load balancers.
+func getClientIP(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		parts := strings.Split(forwarded, ",")
+		if len(parts) > 0 {
+			return strings.TrimSpace(parts[0])
+		}
+	}
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+	return strings.Split(r.RemoteAddr, ":")[0]
+}
+
 // AuthHandler handles authentication requests
 type AuthHandler struct {
-	authService *services.AuthService
+	authService  *services.AuthService
+	auditService *services.AuditService
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(authService *services.AuthService) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService, auditService *services.AuditService) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:  authService,
+		auditService: auditService,
 	}
 }
 
@@ -54,6 +71,11 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.auditService != nil {
+		ip := getClientIP(r)
+		_ = h.auditService.LogEvent(resp.UserID, "register", ip)
+	}
+
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
@@ -80,6 +102,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error logging in user: %v", err)
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
+	}
+
+	if h.auditService != nil {
+		ip := getClientIP(r)
+		_ = h.auditService.LogEvent(resp.UserID, "login", ip)
 	}
 
 	// Return response
@@ -162,15 +189,15 @@ func (h *AuthHandler) DebugSupabaseConfig(w http.ResponseWriter, r *http.Request
 	if projectRef != "" {
 		jwksURL = fmt.Sprintf("https://%s.supabase.co/auth/v1/.well-known/jwks.json", projectRef)
 	}
-	
+
 	debug := map[string]interface{}{
-		"supabase_enabled":    auth.IsSupabaseEnabled(),
-		"has_project_ref":     projectRef != "",
-		"project_ref":         projectRef,
-		"project_ref_length":  len(projectRef),
+		"supabase_enabled":   auth.IsSupabaseEnabled(),
+		"has_project_ref":    projectRef != "",
+		"project_ref":        projectRef,
+		"project_ref_length": len(projectRef),
 		"jwks_url":           jwksURL,
 	}
-	
+
 	// Test JWKS URL if available
 	if jwksURL != "" {
 		resp, err := http.Get(jwksURL)
@@ -215,8 +242,8 @@ func (h *AuthHandler) CheckUsernameAvailability(w http.ResponseWriter, r *http.R
 
 	// Check if username contains only allowed characters (alphanumeric and underscore)
 	for _, char := range req.Username {
-		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
-			 (char >= '0' && char <= '9') || char == '_') {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '_') {
 			response := map[string]interface{}{
 				"available": false,
 				"error":     "Username can only contain letters, numbers, and underscores",
@@ -278,8 +305,8 @@ func (h *AuthHandler) SetUsername(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, char := range req.Username {
-		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
-			 (char >= '0' && char <= '9') || char == '_') {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '_') {
 			http.Error(w, "Username can only contain letters, numbers, and underscores", http.StatusBadRequest)
 			return
 		}

@@ -123,6 +123,16 @@ CREATE TABLE IF NOT EXISTS changelog (
   created_by INT NULL,
   FOREIGN KEY (created_by) REFERENCES users(id)
 );
+
+-- Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
 `
 
 // Initial seed data SQL
