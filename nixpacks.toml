@@ -1,0 +1,17 @@
+# nixpacks.toml
+# Configuration for Railway/Nixpacks to build both frontend and backend
+
+[phases.setup]
+nixPkgs = ["nodejs", "npm", "go"]
+
+[phases.install]
+cmds = ["cd frontend && npm ci"]
+
+[phases.build]
+cmds = [
+    "cd frontend && npm run build",
+    "go build -o out ./cmd/api/main.go"
+]
+
+[start]
+cmd = "./out"
