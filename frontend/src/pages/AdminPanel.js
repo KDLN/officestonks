@@ -9,7 +9,6 @@ import {
   clearAllChats,
   updateUser,
   deleteUser,
-  createNews,
   getGameConfig,
   updateGameConfig,
   resetGameConfig,
@@ -28,14 +27,12 @@ const AdminPanel = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
-  const [newsTitle, setNewsTitle] = useState("");
-  const [newsContent, setNewsContent] = useState("");
-  const [newsExpiry, setNewsExpiry] = useState("");
   const [gameConfig, setGameConfig] = useState(null);
   const [configLoading, setConfigLoading] = useState(false);
   const [crisisStockId, setCrisisStockId] = useState("");
   const [simulatorStatus, setSimulatorStatus] = useState(null);
   const [crisisLoading, setCrisisLoading] = useState(false);
+  const [announcementText, setAnnouncementText] = useState("");
 
   // Check if user is admin and load users data
   useEffect(() => {
@@ -191,22 +188,18 @@ const AdminPanel = () => {
     }
   };
 
-  const handleCreateNews = async () => {
-    try {
-      setError(null);
-      setStatusMessage("Posting news...");
-      await createNews(newsTitle, newsContent, newsExpiry);
-      setStatusMessage("News posted successfully");
-      setNewsTitle("");
-      setNewsContent("");
-      setNewsExpiry("");
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err) {
-      console.error("Error creating news:", err);
-      setStatusMessage(null);
-      setError("Failed to create news: " + err.message);
-      setTimeout(() => setError(null), 5000);
-    }
+  const handleSendAnnouncement = () => {
+    if (!announcementText.trim()) return;
+    
+    // Create a custom event to trigger the toast
+    const event = new CustomEvent('adminAnnouncement', {
+      detail: { message: announcementText.trim() }
+    });
+    window.dispatchEvent(event);
+    
+    setAnnouncementText("");
+    setStatusMessage("Announcement sent!");
+    setTimeout(() => setStatusMessage(null), 3000);
   };
 
   const handleToggleAdmin = async (user) => {
@@ -385,27 +378,21 @@ const AdminPanel = () => {
           <h1>Admin Panel</h1>
         </div>
 
-        <div className="news-section">
-          <h2>Post News</h2>
-          <div className="news-form">
-            <input
-              type="text"
-              placeholder="Title"
-              value={newsTitle}
-              onChange={(e) => setNewsTitle(e.target.value)}
-            />
+        <div className="announcement-section">
+          <h2>Admin Announcement</h2>
+          <div className="announcement-form">
             <textarea
-              placeholder="Content"
-              value={newsContent}
-              onChange={(e) => setNewsContent(e.target.value)}
+              placeholder="Type announcement message..."
+              value={announcementText}
+              onChange={(e) => setAnnouncementText(e.target.value)}
+              rows={3}
             />
-            <input
-              type="datetime-local"
-              value={newsExpiry}
-              onChange={(e) => setNewsExpiry(e.target.value)}
-            />
-            <button onClick={handleCreateNews} className="action-button">
-              Post News
+            <button 
+              onClick={handleSendAnnouncement} 
+              className="action-button"
+              disabled={!announcementText.trim()}
+            >
+              Send Toast Announcement
             </button>
           </div>
         </div>

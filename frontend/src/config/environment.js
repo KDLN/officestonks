@@ -18,8 +18,8 @@ export const getEnvironmentConfig = () => {
     // API URLs based on environment
     apiUrl: process.env.REACT_APP_API_URL || (
       isLocalhost ? 'http://localhost:8080' : 
-      isBeta ? 'https://beta-api.officestonks.com' : // Will be configured later
-      'https://api.officestonks.com' // Production API
+      isBeta ? 'https://beta.officestonks.com' : // Beta uses same domain
+      'https://officestonks.com' // Production uses same domain
     )
   };
 };

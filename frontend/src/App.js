@@ -17,6 +17,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
 import ChangelogModal from './components/ChangelogModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import AdminToastManager from './components/AdminToastManager';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ChangelogProvider, useChangelog } from './contexts/ChangelogContext';
@@ -66,6 +67,9 @@ const AppContent = () => {
           
           {/* Global changelog modal - shows for authenticated users */}
           <ChangelogModal manualTrigger={manualTrigger} onManualClose={closeChangelog} />
+          
+          {/* Global admin toast manager */}
+          <AdminToastManager />
           </div>
           </Router>
   );

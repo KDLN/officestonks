@@ -1,0 +1,124 @@
+.admin-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(231, 76, 60, 0.3);
+  max-width: 400px;
+  animation: slideInRight 0.3s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-toast.closing {
+  animation: slideOutRight 0.3s ease-in;
+}
+
+.admin-toast-content {
+  display: flex;
+  align-items: flex-start;
+  padding: var(--spacing-lg);
+  gap: var(--spacing-md);
+}
+
+.admin-toast-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.admin-toast-message {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-toast-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xs);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.admin-toast-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+  word-wrap: break-word;
+}
+
+.admin-toast-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-toast-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .admin-toast {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+  
+  .admin-toast-content {
+    padding: var(--spacing-md);
+  }
+  
+  .admin-toast-title {
+    font-size: 0.9rem;
+  }
+  
+  .admin-toast-text {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-toast-content {
+    padding: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
+  
+  .admin-toast-icon {
+    font-size: 1.2rem;
+  }
+}
