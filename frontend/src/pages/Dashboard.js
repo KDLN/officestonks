@@ -256,7 +256,7 @@ const Dashboard = () => {
         </div>
         
         <div className="dashboard-main">
-          {/* Left Column - News + VOURA */}
+          {/* Left Column - News */}
           <aside className="dashboard-left-column">
             <div className="portfolio-value">
               <h2>Total Portfolio Value</h2>
@@ -274,16 +274,6 @@ const Dashboard = () => {
             </div>
             
             <NewsDisplay />
-            
-            {/* VOURA Section - Placeholder for now */}
-            <div className="voura-section">
-              <div className="section-header">
-                <h2>VOURA</h2>
-              </div>
-              <div className="voura-content">
-                <p>Coming soon...</p>
-              </div>
-            </div>
           </aside>
           
           {/* Main Content - Portfolio and Stocks */}
