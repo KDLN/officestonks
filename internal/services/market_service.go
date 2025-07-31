@@ -18,6 +18,7 @@ type MarketService struct {
 	portfolioRepo  models.PortfolioRepository
 	transactionRepo models.TransactionRepository
 	sectorRepo     models.SectorRepository
+	newsService    *NewsService
 	simulator      *market.MarketSimulator
 }
 
@@ -28,10 +29,16 @@ func NewMarketService(
 	portfolioRepo models.PortfolioRepository,
 	transactionRepo models.TransactionRepository,
 	sectorRepo models.SectorRepository,
+	newsService *NewsService,
 ) *MarketService {
 	// Create a market simulator with faster updates and higher volatility for more dynamic price movements
 	// 2-second updates and 5% volatility
 	simulator := market.NewMarketSimulator(2*time.Second, 0.05)
+	
+	// Connect the news service to the simulator for automated news generation
+	if newsService != nil {
+		simulator.SetNewsService(newsService)
+	}
 	
 	// Return the service
 	return &MarketService{
@@ -40,6 +47,7 @@ func NewMarketService(
 		portfolioRepo:  portfolioRepo,
 		transactionRepo: transactionRepo,
 		sectorRepo:     sectorRepo,
+		newsService:    newsService,
 		simulator:      simulator,
 	}
 }
@@ -65,7 +73,7 @@ func (s *MarketService) InitializeSimulator() error {
 	
 	// Add stocks to the simulator
 	for id, stock := range stocks {
-		s.simulator.AddStock(id, stock.Symbol, stock.Sector, stock.SectorID, stock.Price)
+		s.simulator.AddStock(id, stock.Symbol, stock.Name, stock.Sector, stock.SectorID, stock.Price)
 	}
 	
 	// Start the simulator
@@ -328,4 +336,61 @@ func (s *MarketService) AtomicResetStockPrices() error {
 	}
 	
 	return nil
+}
+
+// Testing methods for crisis events
+
+// ForceCrisisEvent forces a specific stock into crisis for testing
+func (s *MarketService) ForceCrisisEvent(stockID int) error {
+	return s.simulator.ForceCrisisEvent(stockID)
+}
+
+// ForceBankruptcy forces a specific stock into bankruptcy for testing
+func (s *MarketService) ForceBankruptcy(stockID int) error {
+	return s.simulator.ForceBankruptcy(stockID)
+}
+
+// ForceRecovery forces a specific stock recovery for testing
+func (s *MarketService) ForceRecovery(stockID int) error {
+	return s.simulator.ForceRecovery(stockID)
+}
+
+// GetSimulatorStockInfo returns current stock info from simulator for testing
+func (s *MarketService) GetSimulatorStockInfo(stockID int) (map[string]interface{}, error) {
+	stock, exists := s.simulator.GetStockInfo(stockID)
+	if !exists {
+		return nil, fmt.Errorf("stock with ID %d not found in simulator", stockID)
+	}
+	
+	return map[string]interface{}{
+		"id":         stock.ID,
+		"symbol":     stock.Symbol,
+		"name":       stock.Name,
+		"sector":     stock.Sector,
+		"sector_id":  stock.SectorID,
+		"base_price": stock.BasePrice,
+		"trend":      stock.Trend,
+		"trend_counter": stock.TrendCounter,
+	}, nil
+}
+
+// ListSimulatorStocks returns all stocks in the simulator for testing
+func (s *MarketService) ListSimulatorStocks() map[int]map[string]interface{} {
+	stocks := s.simulator.ListAllStocks()
+	result := make(map[int]map[string]interface{})
+	
+	for id, stock := range stocks {
+		result[id] = map[string]interface{}{
+			"id":         stock.ID,
+			"symbol":     stock.Symbol,
+			"name":       stock.Name,
+			"sector":     stock.Sector,
+			"sector_id":  stock.SectorID,
+			"base_price": stock.BasePrice,
+			"trend":      stock.Trend,
+			"trend_counter": stock.TrendCounter,
+		}
+	}
+	
+	return result
 }

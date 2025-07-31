@@ -205,3 +205,262 @@
   border: 1px solid #ccc;
   border-radius: 4px;
 }
+
+/* Crisis Testing Section */
+.crisis-testing-section {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 2px solid #ff9800;
+}
+
+.crisis-testing-section h2 {
+  color: #d32f2f;
+  margin-bottom: 8px;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-description {
+  color: #666;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.crisis-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stock-input-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stock-input-group label {
+  font-weight: 600;
+  color: #333;
+  min-width: 80px;
+}
+
+.stock-input-group input {
+  padding: 10px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+  width: 200px;
+  transition: border-color 0.2s;
+}
+
+.stock-input-group input:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
+}
+
+.crisis-action-buttons {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.crisis-button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.crisis-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.crisis-button-crisis {
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: white;
+}
+
+.crisis-button-crisis:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff6666, #dd1111);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.3);
+}
+
+.crisis-button-bankruptcy {
+  background: linear-gradient(135deg, #8b0000, #5a0000);
+  color: white;
+}
+
+.crisis-button-bankruptcy:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a01010, #6b0000);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
+}
+
+.crisis-button-recovery {
+  background: linear-gradient(135deg, #00aa44, #008833);
+  color: white;
+}
+
+.crisis-button-recovery:hover:not(:disabled) {
+  background: linear-gradient(135deg, #00cc55, #009944);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 170, 68, 0.3);
+}
+
+.crisis-button-status {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+  color: white;
+}
+
+.crisis-button-status:hover:not(:disabled) {
+  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+/* Simulator Status Display */
+.simulator-status {
+  margin-top: 24px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.simulator-status h3 {
+  color: #333;
+  margin-bottom: 16px;
+  font-size: 1.4rem;
+}
+
+.status-info {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.status-info p {
+  margin: 0;
+  color: #555;
+}
+
+.stocks-status h4 {
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.stocks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stock-status-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  transition: box-shadow 0.2s;
+}
+
+.stock-status-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stock-symbol {
+  font-weight: bold;
+  color: #2563eb;
+  font-size: 16px;
+}
+
+.stock-id {
+  font-size: 12px;
+  color: #666;
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.stock-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stock-price {
+  font-size: 18px;
+  font-weight: bold;
+  color: #059669;
+}
+
+.stock-trend {
+  font-size: 12px;
+  color: #666;
+}
+
+.stock-sector {
+  font-size: 12px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.more-stocks {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .crisis-action-buttons {
+    flex-direction: column;
+  }
+  
+  .crisis-button {
+    min-width: auto;
+  }
+  
+  .status-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .stocks-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stock-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .stock-input-group input {
+    width: 100%;
+  }
+}

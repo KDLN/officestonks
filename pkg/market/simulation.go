@@ -1,6 +1,7 @@
 package market
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
@@ -15,6 +16,14 @@ type StockUpdate struct {
 	Price   float64
 }
 
+// NewsServiceInterface defines methods for news generation
+type NewsServiceInterface interface {
+	GenerateCrisisNews(stockID int, stockSymbol, stockName, sectorName string) error
+	GenerateBankruptcyNews(stockID int, stockSymbol, stockName, sectorName string) error
+	GenerateRecoveryNews(stockID int, stockSymbol, stockName, sectorName string, newPrice float64) error
+	GenerateSectorContagionNews(sectorName string, eventType string, affectedCount int) error
+}
+
 // MarketSimulator handles the stock price simulation
 type MarketSimulator struct {
 	stocksInfo     map[int]StockInfo
@@ -26,12 +35,14 @@ type MarketSimulator struct {
 	stopChan       chan struct{}
 	pauseChan      chan bool
 	isPaused       bool
+	newsService    NewsServiceInterface
 }
 
 // StockInfo contains information about a stock for simulation
 type StockInfo struct {
 	ID           int
 	Symbol       string
+	Name         string   // Company name for news generation
 	BasePrice    float64
 	Sector       string
 	SectorID     int
@@ -59,7 +70,16 @@ func NewMarketSimulator(updateInterval time.Duration, volatility float64) *Marke
 		stopChan:       make(chan struct{}),
 		pauseChan:      make(chan bool, 1),
 		isPaused:       false,
+		newsService:    nil, // Will be set later
 	}
+}
+
+// SetNewsService connects a news service for automated news generation
+func (s *MarketSimulator) SetNewsService(newsService NewsServiceInterface) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.newsService = newsService
+	log.Printf("📰 News service connected to market simulator")
 }
 
 // AddSector adds a sector to the simulator
@@ -80,7 +100,7 @@ func (s *MarketSimulator) AddSector(id int, name string, volatilityModifier floa
 }
 
 // AddStock adds a stock to the simulator
-func (s *MarketSimulator) AddStock(id int, symbol, sector string, sectorID int, basePrice float64) {
+func (s *MarketSimulator) AddStock(id int, symbol, name, sector string, sectorID int, basePrice float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	
@@ -96,6 +116,7 @@ func (s *MarketSimulator) AddStock(id int, symbol, sector string, sectorID int, 
 	s.stocksInfo[id] = StockInfo{
 		ID:           id,
 		Symbol:       symbol,
+		Name:         name,
 		BasePrice:    basePrice,
 		Sector:       sector,
 		SectorID:     sectorID,
@@ -326,6 +347,12 @@ func (s *MarketSimulator) updatePrices() {
 func (s *MarketSimulator) processCrisisEvent(stockID int, stock StockInfo) {
 	log.Printf("🚨 CRISIS EVENT: %s at $0.01 - Rolling for fate...", stock.Symbol)
 	
+	// Generate crisis news if this is the first time hitting $0.01
+	// We'll track this better later, for now just generate news occasionally
+	if s.newsService != nil && rand.Float64() < 0.3 { // 30% chance to generate crisis news
+		s.newsService.GenerateCrisisNews(stock.ID, stock.Symbol, stock.Name, stock.Sector)
+	}
+	
 	// Crisis event probabilities
 	roll := rand.Float64()
 	
@@ -345,8 +372,12 @@ func (s *MarketSimulator) processCrisisEvent(stockID int, stock StockInfo) {
 func (s *MarketSimulator) triggerBankruptcy(stockID int, stock StockInfo) {
 	log.Printf("📰 NEWS: %s files for bankruptcy - stock delisted", stock.Symbol)
 	
-	// TODO: This will need database integration later
-	// For now, just apply sector contagion and mark as delisted
+	// Generate bankruptcy news
+	if s.newsService != nil {
+		s.newsService.GenerateBankruptcyNews(stock.ID, stock.Symbol, stock.Name, stock.Sector)
+	}
+	
+	// Apply sector contagion before replacing stock
 	s.applySectorContagion(stockID, stock, "bankruptcy")
 	
 	// Remove stock from active trading (set to delisted status)
@@ -369,6 +400,11 @@ func (s *MarketSimulator) triggerRecovery(stockID int, stock StockInfo) {
 	// Cap recovery to reasonable range
 	if newPrice > 50 {
 		newPrice = rand.Float64()*30 + 10 // $10-40 range for major recovery
+	}
+	
+	// Generate recovery news before updating price
+	if s.newsService != nil {
+		s.newsService.GenerateRecoveryNews(stock.ID, stock.Symbol, stock.Name, stock.Sector, newPrice)
 	}
 	
 	stock.BasePrice = newPrice
@@ -422,6 +458,11 @@ func (s *MarketSimulator) applySectorContagion(stockID int, stock StockInfo, eve
 	}
 	
 	log.Printf("🔗 CONTAGION: Affected %d stocks in %s sector", contagionCount, stock.Sector)
+	
+	// Generate sector contagion news if multiple stocks are affected
+	if contagionCount >= 2 && s.newsService != nil {
+		s.newsService.GenerateSectorContagionNews(stock.Sector, eventType, contagionCount)
+	}
 }
 
 // Pause pauses the market simulation (prevents price updates)
@@ -498,6 +539,108 @@ func (s *MarketSimulator) ValidateAllStocks() {
 			log.Printf("Fixed corrupted stock data for %s: price=%.2f, trend=%.4f", stock.Symbol, stock.BasePrice, stock.Trend)
 		}
 	}
+}
+
+// Testing methods for crisis events
+
+// ForceCrisisEvent forces a stock into crisis at $0.01 for testing
+func (s *MarketSimulator) ForceCrisisEvent(stockID int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	stock, exists := s.stocksInfo[stockID]
+	if !exists {
+		return fmt.Errorf("stock with ID %d not found", stockID)
+	}
+	
+	log.Printf("🧪 TESTING: Forcing crisis event for %s", stock.Symbol)
+	
+	// Set stock to crisis price
+	stock.BasePrice = 0.01
+	stock.Trend = -0.05 // Strong negative trend
+	s.stocksInfo[stockID] = stock
+	
+	// Trigger crisis event processing
+	s.processCrisisEvent(stockID, stock)
+	
+	// Send price update
+	select {
+	case s.updateChan <- StockUpdate{
+		StockID: stockID,
+		Symbol:  stock.Symbol,
+		Price:   0.01,
+	}:
+	default:
+		// Channel full, skip update
+	}
+	
+	return nil
+}
+
+// ForceBankruptcy forces a stock into bankruptcy for testing
+func (s *MarketSimulator) ForceBankruptcy(stockID int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	stock, exists := s.stocksInfo[stockID]
+	if !exists {
+		return fmt.Errorf("stock with ID %d not found", stockID)
+	}
+	
+	log.Printf("🧪 TESTING: Forcing bankruptcy for %s", stock.Symbol)
+	
+	// Set to crisis price first
+	stock.BasePrice = 0.01
+	s.stocksInfo[stockID] = stock
+	
+	// Trigger bankruptcy directly
+	s.triggerBankruptcy(stockID, stock)
+	
+	return nil
+}
+
+// ForceRecovery forces a stock recovery for testing
+func (s *MarketSimulator) ForceRecovery(stockID int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	stock, exists := s.stocksInfo[stockID]
+	if !exists {
+		return fmt.Errorf("stock with ID %d not found", stockID)
+	}
+	
+	log.Printf("🧪 TESTING: Forcing recovery for %s", stock.Symbol)
+	
+	// Set to crisis price first
+	stock.BasePrice = 0.01
+	s.stocksInfo[stockID] = stock
+	
+	// Trigger recovery directly
+	s.triggerRecovery(stockID, stock)
+	
+	return nil
+}
+
+// GetStockInfo returns current stock information for testing
+func (s *MarketSimulator) GetStockInfo(stockID int) (StockInfo, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	stock, exists := s.stocksInfo[stockID]
+	return stock, exists
+}
+
+// ListAllStocks returns all stocks in the simulator for testing
+func (s *MarketSimulator) ListAllStocks() map[int]StockInfo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	// Return a copy to avoid race conditions
+	result := make(map[int]StockInfo)
+	for id, stock := range s.stocksInfo {
+		result[id] = stock
+	}
+	return result
 }
 
 // ProcessTransaction simulates market impact of a transaction

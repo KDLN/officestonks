@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
-import { initWebSocket, addWebSocketListener } from '../services/websocket';
+import { initWebSocket, addWebSocketListener, getWebSocketInstance } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
+import CrisisAlertManager from '../components/CrisisAlertManager';
 import './Dashboard.css';
 
 // Default empty states to prevent null references
@@ -23,6 +24,7 @@ const Dashboard = () => {
   const [topStocks, setTopStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   const fetchData = async () => {
     console.log('🎯 Dashboard fetchData started');
@@ -93,6 +95,8 @@ const Dashboard = () => {
       console.log('🔌 Initializing WebSocket connection...');
       initWebSocket().then(() => {
         console.log('✅ WebSocket initialized successfully');
+        // Set the socket instance for the CrisisAlertManager
+        setSocket(getWebSocketInstance());
       }).catch(err => {
         console.error('❌ Failed to initialize WebSocket:', err);
         // Don't block the UI, just log the error
@@ -382,6 +386,9 @@ const Dashboard = () => {
 
       {/* Chat Component */}
       <Chat />
+      
+      {/* Crisis Alert Manager */}
+      <CrisisAlertManager socket={socket} />
     </div>
   );
 };

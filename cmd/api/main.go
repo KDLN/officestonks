@@ -93,7 +93,8 @@ func main() {
 	// Create services
 	log.Println("Creating application services...")
 	authService := services.NewAuthService(userRepo)
-	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo)
+	newsService := services.NewNewsService(newsRepo)
+	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo, newsService)
 	userService := services.NewUserService(userRepo, portfolioRepo)
 	log.Println("✅ Services created successfully")
 
@@ -114,7 +115,6 @@ func main() {
 
 	// Create chat service with the websocket hub
 	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
-	newsService := services.NewNewsService(newsRepo)
 	changelogService := services.NewChangelogService(changelogRepo)
 	auditService := services.NewAuditService(auditRepo)
 
@@ -307,6 +307,12 @@ func main() {
 
 	// Audit log
 	adminRouter.HandleFunc("/audit", auditHandler.GetRecentEvents).Methods("GET", "OPTIONS")
+
+	// Crisis testing endpoints
+	adminRouter.HandleFunc("/crisis/force", adminHandler.ForceCrisisEvent).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/crisis/bankruptcy", adminHandler.ForceBankruptcy).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/crisis/recovery", adminHandler.ForceRecovery).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/simulator/status", adminHandler.GetSimulatorStatus).Methods("GET", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

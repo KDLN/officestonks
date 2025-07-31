@@ -556,3 +556,217 @@ func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+// Crisis testing endpoints
+
+// ForceCrisisEvent forces a stock into crisis for testing (admin only)
+func (h *AdminHandler) ForceCrisisEvent(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Parse request body
+	var req struct {
+		StockID int `json:"stock_id"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	
+	if req.StockID <= 0 {
+		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
+		return
+	}
+	
+	log.Printf("🧪 Admin forcing crisis event for stock ID: %d", req.StockID)
+	
+	// Force crisis event
+	err := h.marketService.ForceCrisisEvent(req.StockID)
+	if err != nil {
+		log.Printf("Error forcing crisis event: %v", err)
+		http.Error(w, fmt.Sprintf("Error forcing crisis: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// Get stock info after crisis
+	stockInfo, err := h.marketService.GetSimulatorStockInfo(req.StockID)
+	if err != nil {
+		log.Printf("Error getting stock info: %v", err)
+		stockInfo = map[string]interface{}{"error": "Could not retrieve updated stock info"}
+	}
+	
+	response := map[string]interface{}{
+		"message":    "Crisis event forced successfully",
+		"success":    true,
+		"stock_id":   req.StockID,
+		"stock_info": stockInfo,
+		"timestamp":  time.Now().String(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ForceBankruptcy forces a stock into bankruptcy for testing (admin only)
+func (h *AdminHandler) ForceBankruptcy(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var req struct {
+		StockID int `json:"stock_id"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	
+	if req.StockID <= 0 {
+		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
+		return
+	}
+	
+	log.Printf("🧪 Admin forcing bankruptcy for stock ID: %d", req.StockID)
+	
+	err := h.marketService.ForceBankruptcy(req.StockID)
+	if err != nil {
+		log.Printf("Error forcing bankruptcy: %v", err)
+		http.Error(w, fmt.Sprintf("Error forcing bankruptcy: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	stockInfo, err := h.marketService.GetSimulatorStockInfo(req.StockID)
+	if err != nil {
+		log.Printf("Error getting stock info: %v", err)
+		stockInfo = map[string]interface{}{"error": "Could not retrieve updated stock info"}
+	}
+	
+	response := map[string]interface{}{
+		"message":    "Bankruptcy forced successfully",
+		"success":    true,
+		"stock_id":   req.StockID,
+		"stock_info": stockInfo,
+		"timestamp":  time.Now().String(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ForceRecovery forces a stock recovery for testing (admin only)
+func (h *AdminHandler) ForceRecovery(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var req struct {
+		StockID int `json:"stock_id"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	
+	if req.StockID <= 0 {
+		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
+		return
+	}
+	
+	log.Printf("🧪 Admin forcing recovery for stock ID: %d", req.StockID)
+	
+	err := h.marketService.ForceRecovery(req.StockID)
+	if err != nil {
+		log.Printf("Error forcing recovery: %v", err)
+		http.Error(w, fmt.Sprintf("Error forcing recovery: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	stockInfo, err := h.marketService.GetSimulatorStockInfo(req.StockID)
+	if err != nil {
+		log.Printf("Error getting stock info: %v", err)
+		stockInfo = map[string]interface{}{"error": "Could not retrieve updated stock info"}
+	}
+	
+	response := map[string]interface{}{
+		"message":    "Recovery forced successfully",
+		"success":    true,
+		"stock_id":   req.StockID,
+		"stock_info": stockInfo,
+		"timestamp":  time.Now().String(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetSimulatorStatus returns the current status of all stocks in the simulator (admin only)
+func (h *AdminHandler) GetSimulatorStatus(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "GET" {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	log.Println("🧪 Admin requesting simulator status")
+	
+	stocks := h.marketService.ListSimulatorStocks()
+	
+	response := map[string]interface{}{
+		"message":     "Simulator status retrieved successfully",
+		"success":     true,
+		"stocks":      stocks,
+		"stock_count": len(stocks),
+		"timestamp":   time.Now().String(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// setCORSHeaders helper function to set CORS headers consistently
+func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+}

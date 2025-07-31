@@ -285,3 +285,96 @@ export const loadBalancedConfig = async () => {
     throw error;
   }
 };
+
+// Crisis Testing Functions
+
+// Force a crisis event for a specific stock
+export const forceCrisisEvent = async (stockId) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/crisis/force`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ stock_id: stockId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to force crisis event");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error forcing crisis event:", error);
+    throw error;
+  }
+};
+
+// Force a bankruptcy event for a specific stock
+export const forceBankruptcy = async (stockId) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/crisis/bankruptcy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ stock_id: stockId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to force bankruptcy");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error forcing bankruptcy:", error);
+    throw error;
+  }
+};
+
+// Force a recovery event for a specific stock
+export const forceRecovery = async (stockId) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/crisis/recovery`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ stock_id: stockId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to force recovery");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error forcing recovery:", error);
+    throw error;
+  }
+};
+
+// Get simulator status for all stocks
+export const getSimulatorStatus = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/simulator/status`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to get simulator status");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error getting simulator status:", error);
+    throw error;
+  }
+};

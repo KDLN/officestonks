@@ -133,6 +133,23 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- News Items Table (for crisis events and market news)
+CREATE TABLE IF NOT EXISTS news_items (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  type ENUM('company', 'sector', 'market', 'crisis', 'recovery', 'bankruptcy') NOT NULL,
+  stock_id INT NULL,
+  stock_symbol VARCHAR(10) NULL,
+  sector_name VARCHAR(50) NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  impact_type ENUM('immediate', 'gradual') DEFAULT 'immediate',
+  impact_score INT NOT NULL DEFAULT 0, -- -100 to +100
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP NOT NULL,
+  is_automated BOOLEAN DEFAULT TRUE,
+  FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE SET NULL
+);
 `
 
 // Initial seed data SQL

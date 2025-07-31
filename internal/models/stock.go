@@ -40,6 +40,7 @@ type StockRepository interface {
 	LoadStocksForSimulation() (map[int]struct {
 		ID       int
 		Symbol   string
+		Name     string
 		Sector   string
 		SectorID int
 		Price    float64

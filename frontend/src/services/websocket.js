@@ -238,3 +238,8 @@ export const sendWebSocketMessage = (message) => {
 export const isWebSocketConnected = () => {
   return socket && socket.readyState === WebSocket.OPEN;
 };
+
+// Get the current WebSocket instance (for components that need direct access)
+export const getWebSocketInstance = () => {
+  return socket;
+};

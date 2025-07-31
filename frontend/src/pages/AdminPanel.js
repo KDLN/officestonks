@@ -14,6 +14,10 @@ import {
   updateGameConfig,
   resetGameConfig,
   loadBalancedConfig,
+  forceCrisisEvent,
+  forceBankruptcy,
+  forceRecovery,
+  getSimulatorStatus,
 } from "../services/admin";
 import "./AdminPanel.css";
 
@@ -29,6 +33,9 @@ const AdminPanel = () => {
   const [newsExpiry, setNewsExpiry] = useState("");
   const [gameConfig, setGameConfig] = useState(null);
   const [configLoading, setConfigLoading] = useState(false);
+  const [crisisStockId, setCrisisStockId] = useState("");
+  const [simulatorStatus, setSimulatorStatus] = useState(null);
+  const [crisisLoading, setCrisisLoading] = useState(false);
 
   // Check if user is admin and load users data
   useEffect(() => {
@@ -265,6 +272,98 @@ const AdminPanel = () => {
     }
   };
 
+  // Crisis testing functions
+  const handleForceCrisis = async () => {
+    if (!crisisStockId) {
+      setError("Please enter a stock ID");
+      return;
+    }
+
+    try {
+      setCrisisLoading(true);
+      setError(null);
+      setStatusMessage("Forcing crisis event...");
+      
+      const result = await forceCrisisEvent(parseInt(crisisStockId));
+      setStatusMessage("Crisis event triggered successfully!");
+      console.log("Crisis event result:", result);
+      
+      // Refresh simulator status
+      await fetchSimulatorStatus();
+      
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error("Error forcing crisis:", err);
+      setError("Failed to force crisis: " + err.message);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setCrisisLoading(false);
+    }
+  };
+
+  const handleForceBankruptcy = async () => {
+    if (!crisisStockId) {
+      setError("Please enter a stock ID");
+      return;
+    }
+
+    try {
+      setCrisisLoading(true);
+      setError(null);
+      setStatusMessage("Forcing bankruptcy...");
+      
+      const result = await forceBankruptcy(parseInt(crisisStockId));
+      setStatusMessage("Bankruptcy triggered successfully!");
+      console.log("Bankruptcy result:", result);
+      
+      await fetchSimulatorStatus();
+      
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error("Error forcing bankruptcy:", err);
+      setError("Failed to force bankruptcy: " + err.message);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setCrisisLoading(false);
+    }
+  };
+
+  const handleForceRecovery = async () => {
+    if (!crisisStockId) {
+      setError("Please enter a stock ID");
+      return;
+    }
+
+    try {
+      setCrisisLoading(true);
+      setError(null);
+      setStatusMessage("Forcing recovery...");
+      
+      const result = await forceRecovery(parseInt(crisisStockId));
+      setStatusMessage("Recovery triggered successfully!");
+      console.log("Recovery result:", result);
+      
+      await fetchSimulatorStatus();
+      
+      setTimeout(() => setStatusMessage(null), 3000);
+    } catch (err) {
+      console.error("Error forcing recovery:", err);
+      setError("Failed to force recovery: " + err.message);
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setCrisisLoading(false);
+    }
+  };
+
+  const fetchSimulatorStatus = async () => {
+    try {
+      const status = await getSimulatorStatus();
+      setSimulatorStatus(status);
+    } catch (err) {
+      console.error("Error fetching simulator status:", err);
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading admin panel...</div>;
   }
@@ -333,6 +432,96 @@ const AdminPanel = () => {
               Clear All Chat Messages
             </button>
           </div>
+        </div>
+
+        <div className="crisis-testing-section">
+          <h2>🧪 Crisis Testing</h2>
+          <p className="section-description">
+            Test crisis events, bankruptcies, and recoveries for debugging and demonstration purposes.
+          </p>
+          
+          <div className="crisis-controls">
+            <div className="stock-input-group">
+              <label htmlFor="crisisStockId">Stock ID:</label>
+              <input
+                id="crisisStockId"
+                type="number"
+                value={crisisStockId}
+                onChange={(e) => setCrisisStockId(e.target.value)}
+                placeholder="Enter stock ID (e.g., 1)"
+                min="1"
+              />
+            </div>
+            
+            <div className="crisis-action-buttons">
+              <button 
+                onClick={handleForceCrisis}
+                disabled={crisisLoading || !crisisStockId}
+                className="crisis-button crisis-button-crisis"
+              >
+                🚨 Force Crisis Event
+              </button>
+              <button 
+                onClick={handleForceBankruptcy}
+                disabled={crisisLoading || !crisisStockId}
+                className="crisis-button crisis-button-bankruptcy"
+              >
+                💀 Force Bankruptcy
+              </button>
+              <button 
+                onClick={handleForceRecovery}
+                disabled={crisisLoading || !crisisStockId}
+                className="crisis-button crisis-button-recovery"
+              >
+                🚀 Force Recovery
+              </button>
+              <button 
+                onClick={fetchSimulatorStatus}
+                disabled={crisisLoading}
+                className="crisis-button crisis-button-status"
+              >
+                📊 Get Simulator Status
+              </button>
+            </div>
+          </div>
+
+          {simulatorStatus && (
+            <div className="simulator-status">
+              <h3>Simulator Status</h3>
+              <div className="status-info">
+                <p><strong>Total Stocks:</strong> {simulatorStatus.stock_count}</p>
+                <p><strong>Last Updated:</strong> {new Date(simulatorStatus.timestamp).toLocaleString()}</p>
+              </div>
+              
+              {simulatorStatus.stocks && Object.keys(simulatorStatus.stocks).length > 0 && (
+                <div className="stocks-status">
+                  <h4>Stock Details:</h4>
+                  <div className="stocks-grid">
+                    {Object.entries(simulatorStatus.stocks).slice(0, 10).map(([id, stock]) => (
+                      <div key={id} className="stock-status-card">
+                        <div className="stock-header">
+                          <span className="stock-symbol">{stock.symbol}</span>
+                          <span className="stock-id">ID: {id}</span>
+                        </div>
+                        <div className="stock-info">
+                          <div className="stock-price">${parseFloat(stock.base_price || 0).toFixed(2)}</div>
+                          <div className="stock-trend">
+                            Trend: {parseFloat(stock.trend || 0).toFixed(4)}
+                          </div>
+                          <div className="stock-sector">{stock.sector}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {Object.keys(simulatorStatus.stocks).length > 10 && (
+                    <p className="more-stocks">
+                      ... and {Object.keys(simulatorStatus.stocks).length - 10} more stocks
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="users-section">

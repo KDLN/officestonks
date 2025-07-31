@@ -142,6 +142,7 @@ func (r *StockRepo) UpdateStockPrice(stockID int, newPrice float64) error {
 func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	ID       int
 	Symbol   string
+	Name     string
 	Sector   string
 	SectorID int
 	Price    float64
@@ -162,6 +163,7 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	stocks := make(map[int]struct {
 		ID       int
 		Symbol   string
+		Name     string
 		Sector   string
 		SectorID int
 		Price    float64
@@ -198,6 +200,7 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 		stocks[id] = struct {
 			ID       int
 			Symbol   string
+			Name     string
 			Sector   string
 			SectorID int
 			Price    float64
@@ -205,6 +208,7 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 		}{
 			ID:       id,
 			Symbol:   symbol,
+			Name:     name,
 			Sector:   sector,
 			SectorID: sectorID,
 			Price:    price,
