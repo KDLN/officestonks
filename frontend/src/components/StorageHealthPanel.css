@@ -1,0 +1,223 @@
+.storage-health-panel {
+  background: var(--card-bg, #1a1a1a);
+  border: 1px solid var(--border-color, #333);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.storage-health-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-secondary, #2a2a2a);
+  border-bottom: 1px solid var(--border-color, #333);
+  transition: background-color 0.2s ease;
+}
+
+.storage-health-header:hover {
+  background: var(--bg-hover, #333);
+}
+
+.storage-health-icon {
+  font-size: 18px;
+  margin-right: 12px;
+}
+
+.storage-health-title {
+  font-weight: 600;
+  color: var(--text-color, #fff);
+  flex: 1;
+}
+
+.storage-health-version {
+  font-size: 12px;
+  color: var(--text-secondary, #aaa);
+  background: var(--bg-tertiary, #333);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 12px;
+}
+
+.storage-health-arrow {
+  color: var(--text-secondary, #aaa);
+  transition: transform 0.2s ease;
+  font-size: 12px;
+}
+
+.storage-health-arrow.expanded {
+  transform: rotate(180deg);
+}
+
+.storage-health-details {
+  padding: 16px;
+}
+
+.storage-health-loading {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary, #aaa);
+}
+
+.storage-health-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-tertiary, #2a2a2a);
+  border-radius: 6px;
+}
+
+.health-item {
+  color: var(--text-color, #fff);
+  font-size: 14px;
+}
+
+.health-item strong {
+  color: var(--text-secondary, #aaa);
+  font-weight: 500;
+}
+
+.storage-health-section {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color, #333);
+}
+
+.section-title.error {
+  color: var(--error-color, #f44336);
+}
+
+.section-title.warning {
+  color: var(--warning-color, #ff9800);
+}
+
+.issue-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.issue-item {
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.issue-item.error {
+  background: rgba(244, 67, 54, 0.1);
+  border-left: 3px solid var(--error-color, #f44336);
+  color: var(--text-color, #fff);
+}
+
+.issue-item.warning {
+  background: rgba(255, 152, 0, 0.1);
+  border-left: 3px solid var(--warning-color, #ff9800);
+  color: var(--text-color, #fff);
+}
+
+.migration-log {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #333);
+  border-radius: 4px;
+  background: var(--bg-tertiary, #2a2a2a);
+}
+
+.migration-entry {
+  display: grid;
+  grid-template-columns: 80px 140px 1fr;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color, #333);
+  font-size: 12px;
+  align-items: center;
+}
+
+.migration-entry:last-child {
+  border-bottom: none;
+}
+
+.migration-type {
+  background: var(--accent-color, #4CAF50);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+  text-align: center;
+  font-size: 11px;
+}
+
+.migration-time {
+  color: var(--text-secondary, #aaa);
+}
+
+.migration-message {
+  color: var(--text-color, #fff);
+}
+
+.migration-more {
+  padding: 8px 12px;
+  text-align: center;
+  color: var(--text-secondary, #aaa);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.storage-health-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, #333);
+}
+
+.storage-health-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary {
+  background: var(--bg-secondary, #333);
+  color: var(--text-color, #fff);
+  border: 1px solid var(--border-color, #555);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover, #444);
+  transform: translateY(-1px);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .storage-health-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .migration-entry {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  
+  .migration-type {
+    justify-self: start;
+  }
+  
+  .storage-health-actions {
+    flex-direction: column;
+  }
+}

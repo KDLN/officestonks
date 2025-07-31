@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, getWebSocketInstance } from '../services/websocket';
+import { safeGetItem, safeSetItem } from '../services/storageManager';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';
@@ -26,15 +27,15 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [socket, setSocket] = useState(null);
   const [chatDrawerOpen, setChatDrawerOpen] = useState(() => {
-    const saved = localStorage.getItem('chatDrawerOpen');
-    return saved !== null ? JSON.parse(saved) : false;
+    const saved = safeGetItem('chatDrawerOpen', 'false');
+    return saved === 'true';
   });
 
   // Save chat drawer state to localStorage
   const toggleChatDrawer = () => {
     const newState = !chatDrawerOpen;
     setChatDrawerOpen(newState);
-    localStorage.setItem('chatDrawerOpen', JSON.stringify(newState));
+    safeSetItem('chatDrawerOpen', newState.toString());
   };
 
   const fetchData = async () => {

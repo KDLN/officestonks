@@ -49,10 +49,11 @@ export const syncAuthWithBackend = async () => {
     });
     
     // Store the Office Stonks token for game API calls
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('userId', data.userID)
-    localStorage.setItem('username', data.username)
-    localStorage.setItem('isAdmin', data.isAdmin)
+    const { safeSetItem } = await import('./storageManager');
+    safeSetItem('token', data.token);
+    safeSetItem('userId', data.userID);
+    safeSetItem('username', data.username);
+    safeSetItem('isAdmin', data.isAdmin);
     
     return data
   } catch (error) {
@@ -123,10 +124,11 @@ export const authenticatedFetch = async (url, options = {}) => {
   if (response.status === 401 || response.status === 403) {
     console.log('🔄 Auth failed, attempting token refresh...');
     // Token might be invalid or expired - clear stored credentials
-    localStorage.removeItem('token')
-    localStorage.removeItem('userId')
-    localStorage.removeItem('username')
-    localStorage.removeItem('isAdmin')
+    const { safeRemoveItem } = await import('./storageManager');
+    safeRemoveItem('token');
+    safeRemoveItem('userId');
+    safeRemoveItem('username');
+    safeRemoveItem('isAdmin');
 
     try {
       // Attempt to resync auth from Supabase session (deduplicated)

@@ -80,24 +80,33 @@ const AppContent = () => {
 function App() {
   // Log app initialization
   React.useEffect(() => {
-    console.log('🚀 Office Stonks app initializing...');
-    console.log('🌍 Current environment:', {
-      hostname: window.location.hostname,
-      pathname: window.location.pathname,
-      search: window.location.search,
-      protocol: window.location.protocol
-    });
-    console.log('⚙️ Environment variables:', {
-      REACT_APP_BACKEND_URL: process.env.REACT_APP_BACKEND_URL,
-      REACT_APP_API_URL: process.env.REACT_APP_API_URL,
-      REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL?.substring(0, 20) + '...',
-      NODE_ENV: process.env.NODE_ENV
-    });
-    console.log('💾 LocalStorage contents:', {
-      token: localStorage.getItem('token') ? 'present' : 'missing',
-      userId: localStorage.getItem('userId') || 'missing',
-      username: localStorage.getItem('username') || 'missing'
-    });
+    const initializeApp = async () => {
+      console.log('🚀 Office Stonks app initializing...');
+      console.log('🌍 Current environment:', {
+        hostname: window.location.hostname,
+        pathname: window.location.pathname,
+        search: window.location.search,
+        protocol: window.location.protocol
+      });
+      console.log('⚙️ Environment variables:', {
+        REACT_APP_BACKEND_URL: process.env.REACT_APP_BACKEND_URL,
+        REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+        REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL?.substring(0, 20) + '...',
+        NODE_ENV: process.env.NODE_ENV
+      });
+
+      // Initialize storage manager before reading localStorage
+      const { initializeStorage } = await import('./services/storageManager');
+      await initializeStorage();
+
+      console.log('💾 LocalStorage contents:', {
+        token: localStorage.getItem('token') ? 'present' : 'missing',
+        userId: localStorage.getItem('userId') || 'missing',
+        username: localStorage.getItem('username') || 'missing'
+      });
+    };
+
+    initializeApp();
   }, []);
 
   return (
