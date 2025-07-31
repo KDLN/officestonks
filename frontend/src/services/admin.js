@@ -377,3 +377,24 @@ export const runCrisisTests = async () => {
     throw error;
   }
 };
+
+export const runPortfolioTests = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/portfolio`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to run portfolio tests");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error running portfolio tests:", error);
+    throw error;
+  }
+};

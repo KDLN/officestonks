@@ -131,6 +131,7 @@ func main() {
 	auditHandler := handlers.NewAuditHandler(auditService)
 	gameConfigHandler := handlers.NewGameConfigHandler()
 	testHandler := handlers.NewTestHandler(marketService, userService, stockRepo, portfolioRepo, delistedStockRepo, portfolioLossRepo, newsRepo)
+	portfolioTestHandler := handlers.NewPortfolioTestHandler(marketService, userService, stockRepo, userRepo, portfolioRepo, transactionRepo)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -317,6 +318,7 @@ func main() {
 	// Test orchestration endpoints
 	adminRouter.HandleFunc("/tests/status", testHandler.GetTestStatus).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/tests/crisis", testHandler.RunCrisisTests).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/tests/portfolio", portfolioTestHandler.RunPortfolioTests).Methods("POST", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

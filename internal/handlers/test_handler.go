@@ -327,10 +327,12 @@ func (h *TestHandler) GetTestStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
 		"available_tests": []string{
 			"Crisis Mechanics Test Suite",
+			"Portfolio & Trading Test Suite",
 		},
 		"test_endpoints": map[string]string{
-			"run_crisis_tests": "/api/admin/tests/crisis",
-			"get_test_status":  "/api/admin/tests/status",
+			"run_crisis_tests":    "/api/admin/tests/crisis",
+			"run_portfolio_tests": "/api/admin/tests/portfolio",
+			"get_test_status":     "/api/admin/tests/status",
 		},
 		"environment": map[string]interface{}{
 			"simulator_running": true, // Could check actual status

@@ -371,6 +371,39 @@
   line-height: 1.4;
 }
 
+.test-suites-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-top: 16px;
+}
+
+.suite-info {
+  background: white;
+  border-radius: 6px;
+  padding: 16px;
+  border: 1px solid #e0e0e0;
+}
+
+.suite-info h5 {
+  margin-bottom: 12px;
+  color: #444;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.suite-info ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.suite-info li {
+  margin-bottom: 8px;
+  color: #555;
+  line-height: 1.4;
+  font-size: 0.9rem;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .test-controls {
@@ -412,5 +445,10 @@
   
   .test-meta {
     justify-content: space-between;
+  }
+  
+  .test-suites-info {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 }

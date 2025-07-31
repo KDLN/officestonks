@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Navigation from '../components/Navigation';
-import { runCrisisTests, getTestStatus } from '../services/admin';
+import { runCrisisTests, runPortfolioTests, getTestStatus } from '../services/admin';
 import './Tests.css';
 
 const Tests = () => {
@@ -38,6 +38,9 @@ const Tests = () => {
       switch (selectedTest) {
         case 'crisis':
           results = await runCrisisTests();
+          break;
+        case 'portfolio':
+          results = await runPortfolioTests();
           break;
         default:
           throw new Error('Unknown test type');
@@ -96,6 +99,7 @@ const Tests = () => {
               disabled={isRunning}
             >
               <option value="crisis">Crisis Mechanics Test Suite</option>
+              <option value="portfolio">Portfolio & Trading Test Suite</option>
               {/* Add more test suites here in the future */}
             </select>
           </div>
@@ -211,14 +215,31 @@ const Tests = () => {
             <h3>Ready to Run Tests</h3>
             <p>Select a test suite and click "Run Tests" to begin automated testing.</p>
             <div className="test-info">
-              <h4>Crisis Mechanics Test Suite includes:</h4>
-              <ul>
-                <li>Force Crisis Event - Tests stock crisis at $0.01</li>
-                <li>Bankruptcy with Portfolio Impact - Tests bankruptcy processing</li>
-                <li>Recovery Event - Tests stock recovery mechanics</li>
-                <li>News Generation Verification - Checks automated news</li>
-                <li>Sector Contagion Check - Analyzes sector-wide effects</li>
-              </ul>
+              <h4>Available Test Suites:</h4>
+              <div className="test-suites-info">
+                <div className="suite-info">
+                  <h5>🚨 Crisis Mechanics Test Suite:</h5>
+                  <ul>
+                    <li>Force Crisis Event - Tests stock crisis at $0.01</li>
+                    <li>Bankruptcy with Portfolio Impact - Tests bankruptcy processing</li>
+                    <li>Recovery Event - Tests stock recovery mechanics</li>
+                    <li>News Generation Verification - Checks automated news</li>
+                    <li>Sector Contagion Check - Analyzes sector-wide effects</li>
+                  </ul>
+                </div>
+                <div className="suite-info">
+                  <h5>💼 Portfolio & Trading Test Suite:</h5>
+                  <ul>
+                    <li>Portfolio Calculation Accuracy - Verifies portfolio value calculations</li>
+                    <li>Buy Order Processing - Tests stock purchase mechanics</li>
+                    <li>Sell Order Processing - Tests stock selling mechanics</li>
+                    <li>Insufficient Funds Handling - Tests error handling for poor users</li>
+                    <li>Share Quantity Validation - Tests invalid quantity rejection</li>
+                    <li>Transaction History Integrity - Verifies transaction recording</li>
+                    <li>Concurrent Trading Simulation - Tests rapid trading scenarios</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
         )}
