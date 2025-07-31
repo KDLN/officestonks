@@ -304,6 +304,11 @@ func (s *MarketSimulator) updatePrices() {
 		info.BasePrice = newPrice
 		s.stocksInfo[id] = info
 
+		// Check for crisis events if stock hits $0.01
+		if newPrice <= 0.01 {
+			s.processCrisisEvent(id, info)
+		}
+
 		// Send the update
 		select {
 		case s.updateChan <- StockUpdate{
@@ -315,6 +320,108 @@ func (s *MarketSimulator) updatePrices() {
 			// Channel is full, skip this update
 		}
 	}
+}
+
+// processCrisisEvent handles bankruptcy/recovery events for stocks at $0.01
+func (s *MarketSimulator) processCrisisEvent(stockID int, stock StockInfo) {
+	log.Printf("🚨 CRISIS EVENT: %s at $0.01 - Rolling for fate...", stock.Symbol)
+	
+	// Crisis event probabilities
+	roll := rand.Float64()
+	
+	if roll < 0.05 { // 5% chance of bankruptcy
+		log.Printf("💀 BANKRUPTCY: %s going bankrupt!", stock.Symbol)
+		s.triggerBankruptcy(stockID, stock)
+	} else if roll < 0.08 { // 3% chance of recovery (5% + 3% = 8% total)
+		log.Printf("🚀 RECOVERY: %s staging dramatic comeback!", stock.Symbol)
+		s.triggerRecovery(stockID, stock)
+	} else {
+		// 92% chance of stagnation - just stay at $0.01
+		log.Printf("⏳ STAGNATION: %s remains in crisis at $0.01", stock.Symbol)
+	}
+}
+
+// triggerBankruptcy processes a stock bankruptcy event
+func (s *MarketSimulator) triggerBankruptcy(stockID int, stock StockInfo) {
+	log.Printf("📰 NEWS: %s files for bankruptcy - stock delisted", stock.Symbol)
+	
+	// TODO: This will need database integration later
+	// For now, just apply sector contagion and mark as delisted
+	s.applySectorContagion(stockID, stock, "bankruptcy")
+	
+	// Remove stock from active trading (set to delisted status)
+	// For now, just reset to a higher price to simulate removal and re-listing
+	stock.BasePrice = rand.Float64()*5 + 1 // $1-6 range for "new company"
+	stock.Trend = 0 // Reset trend
+	s.stocksInfo[stockID] = stock
+	
+	log.Printf("📈 SIMULATION: %s replaced with new company at $%.2f", stock.Symbol, stock.BasePrice)
+}
+
+// triggerRecovery processes a stock recovery event
+func (s *MarketSimulator) triggerRecovery(stockID int, stock StockInfo) {
+	log.Printf("📰 NEWS: Surprise acquisition saves %s!", stock.Symbol)
+	
+	// Recovery jump: 10x to 100x potential (1-5 dollar range)
+	recoveryMultiplier := rand.Float64()*400 + 100 // 100x to 500x
+	newPrice := 0.01 * recoveryMultiplier
+	
+	// Cap recovery to reasonable range
+	if newPrice > 50 {
+		newPrice = rand.Float64()*30 + 10 // $10-40 range for major recovery
+	}
+	
+	stock.BasePrice = newPrice
+	stock.Trend = 0.02 + rand.Float64()*0.03 // Positive trend for a while
+	stock.TrendCounter = rand.Intn(20) + 10 // Longer positive trend
+	s.stocksInfo[stockID] = stock
+	
+	log.Printf("🚀 RECOVERY: %s jumps to $%.2f (%.0fx return!)", stock.Symbol, newPrice, newPrice/0.01)
+	
+	// Apply positive sector contagion
+	s.applySectorContagion(stockID, stock, "recovery")
+}
+
+// applySectorContagion applies crisis effects to sector peers
+func (s *MarketSimulator) applySectorContagion(stockID int, stock StockInfo, eventType string) {
+	if stock.SectorID == 0 {
+		return // No sector assigned
+	}
+	
+	log.Printf("🔗 CONTAGION: Applying %s contagion to %s sector", eventType, stock.Sector)
+	
+	contagionCount := 0
+	for id, peerStock := range s.stocksInfo {
+		if id != stockID && peerStock.SectorID == stock.SectorID {
+			switch eventType {
+			case "bankruptcy":
+				// Major negative impact on sector
+				peerStock.Trend -= 0.05 // Push trend strongly negative
+				
+				// Small chance to trigger crisis in vulnerable stocks
+				if peerStock.BasePrice < 10.0 && rand.Float64() < 0.1 {
+					crashAmount := 0.3 + rand.Float64()*0.4 // 30-70% crash
+					peerStock.BasePrice *= (1 - crashAmount)
+					if peerStock.BasePrice < 0.01 {
+						peerStock.BasePrice = 0.01
+					}
+					log.Printf("💥 CONTAGION CRASH: %s drops %.0f%% due to sector crisis", peerStock.Symbol, crashAmount*100)
+				}
+				contagionCount++
+				
+			case "recovery":
+				// Positive sentiment for sector
+				peerStock.Trend += 0.01 + rand.Float64()*0.02 // 1-3% positive trend
+				peerStock.TrendCounter = rand.Intn(10) + 5 // Short-term boost
+				log.Printf("📈 CONTAGION BOOST: %s gets positive sentiment", peerStock.Symbol)
+				contagionCount++
+			}
+			
+			s.stocksInfo[id] = peerStock
+		}
+	}
+	
+	log.Printf("🔗 CONTAGION: Affected %d stocks in %s sector", contagionCount, stock.Sector)
 }
 
 // Pause pauses the market simulation (prevents price updates)
