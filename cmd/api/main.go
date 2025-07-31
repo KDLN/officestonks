@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -29,9 +30,11 @@ import (
 
 func main() {
 	// Print startup information
-	log.Println("Starting Office Stonks API server...")
+	log.Println("🚀 Starting Office Stonks API server v1.1.3 (FORCE DEPLOY - Infinity Fix + Changelog Modal)...")
 	log.Printf("Working directory: %s\n", getMustString("pwd"))
 	log.Printf("Available files: %s\n", getMustString("ls -la"))
+	log.Println("🔧 This deployment includes: Infinity sanitization, WebSocket fixes, Changelog modal")
+	log.Println("📅 Deployment timestamp:", time.Now().Format("2006-01-02 15:04:05 MST"))
 
 	// Remove reference to environment variables for production security
 	log.Println("Environment loaded")
@@ -79,12 +82,18 @@ func main() {
 	transactionRepo := repository.NewTransactionRepo(db)
 	chatRepo := repository.NewChatRepo(db)
 	newsRepo := repository.NewNewsRepo(db)
+	sectorRepo := repository.NewSectorRepo(db)
+	changelogRepo := repository.NewChangelogRepo(db)
+	auditRepo := repository.NewAuditRepo(db)
+	// TODO: Will be used for crisis/bankruptcy mechanics
+	// delistedStockRepo := repository.NewDelistedStockRepo(db)
+	// portfolioLossRepo := repository.NewPortfolioLossRepo(db)
 	log.Println("✅ Repositories created successfully")
 
 	// Create services
 	log.Println("Creating application services...")
 	authService := services.NewAuthService(userRepo)
-	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo)
+	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo)
 	userService := services.NewUserService(userRepo, portfolioRepo)
 	log.Println("✅ Services created successfully")
 
@@ -106,17 +115,21 @@ func main() {
 	// Create chat service with the websocket hub
 	chatService := services.NewChatService(chatRepo, userRepo, wsHub)
 	newsService := services.NewNewsService(newsRepo)
+	changelogService := services.NewChangelogService(changelogRepo)
+	auditService := services.NewAuditService(auditRepo)
 
 	// Create websocket handler
 	wsHandler := websocket.NewWebSocketHandler(wsHub, authService)
 
 	// Create handlers
-	authHandler := handlers.NewAuthHandler(authService)
+	authHandler := handlers.NewAuthHandler(authService, auditService)
 	marketHandler := handlers.NewMarketHandler(marketService)
 	userHandler := handlers.NewUserHandler(userService)
 	chatHandler := handlers.NewChatHandler(chatService)
 	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)
 	newsHandler := handlers.NewNewsHandler(newsService)
+	changelogHandler := handlers.NewChangelogHandler(changelogService)
+	auditHandler := handlers.NewAuditHandler(auditService)
 	gameConfigHandler := handlers.NewGameConfigHandler()
 
 	// Create middleware
@@ -213,7 +226,7 @@ func main() {
 	authRouter.HandleFunc("/debug/supabase", authHandler.DebugSupabaseConfig).Methods("GET", "OPTIONS")
 	authRouter.HandleFunc("/check-username", authHandler.CheckUsernameAvailability).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/version", authHandler.GetVersion).Methods("GET", "OPTIONS")
-	
+
 	// Protected auth routes
 	protectedAuthRouter := authRouter.PathPrefix("").Subrouter()
 	protectedAuthRouter.Use(authMiddleware.Authenticate)
@@ -225,6 +238,10 @@ func main() {
 
 	// Public user routes
 	apiRouter.HandleFunc("/users/leaderboard", userHandler.GetLeaderboard).Methods("GET", "OPTIONS")
+
+	// Public changelog routes
+	apiRouter.HandleFunc("/changelog", changelogHandler.GetPublicChangelog).Methods("GET", "OPTIONS")
+	apiRouter.HandleFunc("/changelog/{version}", changelogHandler.GetChangelogByVersion).Methods("GET", "OPTIONS")
 
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
@@ -281,6 +298,15 @@ func main() {
 	adminRouter.HandleFunc("/game-config", gameConfigHandler.UpdateGameConfig).Methods("PUT", "OPTIONS")
 	adminRouter.HandleFunc("/game-config/reset", gameConfigHandler.ResetGameConfig).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/game-config/balanced", gameConfigHandler.LoadBalancedConfig).Methods("POST", "OPTIONS")
+
+	// Admin changelog management
+	adminRouter.HandleFunc("/changelog", changelogHandler.GetAllChangelog).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/changelog", changelogHandler.CreateChangelog).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/changelog/{id:[0-9]+}/visibility", changelogHandler.UpdateChangelogVisibility).Methods("PUT", "OPTIONS")
+	adminRouter.HandleFunc("/changelog/{id:[0-9]+}", changelogHandler.DeleteChangelog).Methods("DELETE", "OPTIONS")
+
+	// Audit log
+	adminRouter.HandleFunc("/audit", auditHandler.GetRecentEvents).Methods("GET", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -396,6 +422,49 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rateLimiter.GetStats())
 	}).Methods("GET", "OPTIONS")
+
+	// Emergency stock price reset endpoint (no auth required - for fixing infinity errors)
+	apiRouter.HandleFunc("/emergency/reset-stocks", func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Emergency stock price reset called")
+
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+
+		// Reset stock prices
+		stocks, err := stockRepo.GetAllStocks()
+		if err != nil {
+			log.Printf("Emergency reset failed to get stocks: %v", err)
+			http.Error(w, "Failed to get stocks", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Emergency reset: Found %d stocks to reset", len(stocks))
+
+		for _, stock := range stocks {
+			// Generate a new random price between $1 and $1000
+			newPrice := 1.0 + (rand.Float64() * 999.0)
+
+			err = stockRepo.UpdateStockPrice(stock.ID, newPrice)
+			if err != nil {
+				log.Printf("Emergency reset: Failed to update %s: %v", stock.Symbol, err)
+				continue
+			}
+
+			log.Printf("Emergency reset: Updated %s to $%.2f", stock.Symbol, newPrice)
+		}
+
+		// Validate market simulator
+		log.Println("Emergency reset: Validating market simulator...")
+		marketService.ValidateSimulator()
+
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":      true,
+			"message":      "Emergency stock reset completed",
+			"stocks_reset": len(stocks),
+		})
+	}).Methods("GET", "POST", "OPTIONS")
 
 	// Serve static files from frontend build directory (fallback to filesystem)
 	staticDir := "./frontend/build/"

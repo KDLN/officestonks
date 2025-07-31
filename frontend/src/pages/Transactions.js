@@ -31,7 +31,7 @@ const Transactions = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [offset, limit]);
+  }, [offset, limit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefresh = () => {
     fetchTransactions();

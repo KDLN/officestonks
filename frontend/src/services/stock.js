@@ -1,5 +1,4 @@
 // Stock market service for frontend
-import { getToken } from './auth';
 import { authenticatedFetch } from './authBridge';
 
 // Check the current hostname to determine if we're running locally
@@ -17,7 +16,9 @@ console.log("Stock service using API URL:", API_URL);
 
 // Get all available stocks
 export const getAllStocks = async () => {
+  console.log('📈 Fetching all stocks from:', `${API_URL}/stocks`);
   try {
+    const startTime = Date.now();
     const response = await fetch(`${API_URL}/stocks`, {
       method: 'GET',
       headers: {
@@ -26,13 +27,24 @@ export const getAllStocks = async () => {
       credentials: 'include',
     });
 
+    const fetchTime = Date.now() - startTime;
+    console.log(`📈 Stocks fetch response in ${fetchTime}ms:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('📈 Stocks fetch failed:', errorText);
       throw new Error('Failed to fetch stocks');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('📈 Stocks data parsed successfully:', data?.length || 0, 'stocks');
+    return data;
   } catch (error) {
-    console.error('Error fetching stocks:', error);
+    console.error('📈 Error fetching stocks:', error);
     throw error;
   }
 };
@@ -61,7 +73,9 @@ export const getStockById = async (stockId) => {
 
 // Get the user's portfolio
 export const getUserPortfolio = async () => {
+  console.log('💼 Fetching user portfolio from:', `${API_URL}/portfolio`);
   try {
+    const startTime = Date.now();
     const response = await authenticatedFetch(`${API_URL}/portfolio`, {
       method: 'GET',
       headers: {
@@ -69,13 +83,29 @@ export const getUserPortfolio = async () => {
       },
     });
 
+    const fetchTime = Date.now() - startTime;
+    console.log(`💼 Portfolio fetch response in ${fetchTime}ms:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('💼 Portfolio fetch failed:', errorText);
       throw new Error('Failed to fetch portfolio');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('💼 Portfolio data parsed successfully:', {
+      total_value: data?.total_value || 0,
+      cash_balance: data?.cash_balance || 0,
+      stock_value: data?.stock_value || 0,
+      items_count: data?.portfolio_items?.length || 0
+    });
+    return data;
   } catch (error) {
-    console.error('Error fetching portfolio:', error);
+    console.error('💼 Error fetching portfolio:', error);
     throw error;
   }
 };
@@ -109,7 +139,9 @@ export const executeTrade = async (stockId, quantity, action) => {
 
 // Get transaction history
 export const getTransactionHistory = async (limit = 50, offset = 0) => {
+  console.log('📊 Fetching transaction history from:', `${API_URL}/transactions?limit=${limit}&offset=${offset}`);
   try {
+    const startTime = Date.now();
     const response = await authenticatedFetch(`${API_URL}/transactions?limit=${limit}&offset=${offset}`, {
       method: 'GET',
       headers: {
@@ -117,13 +149,24 @@ export const getTransactionHistory = async (limit = 50, offset = 0) => {
       },
     });
 
+    const fetchTime = Date.now() - startTime;
+    console.log(`📊 Transactions fetch response in ${fetchTime}ms:`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('📊 Transactions fetch failed:', errorText);
       throw new Error('Failed to fetch transaction history');
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('📊 Transactions data parsed successfully:', data?.length || 0, 'transactions');
+    return data;
   } catch (error) {
-    console.error('Error fetching transaction history:', error);
+    console.error('📊 Error fetching transaction history:', error);
     throw error;
   }
 };

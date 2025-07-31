@@ -74,10 +74,78 @@ CREATE TABLE IF NOT EXISTS news (
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Sectors Table
+CREATE TABLE IF NOT EXISTS sectors (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(50) UNIQUE NOT NULL,
+  description TEXT,
+  trend FLOAT DEFAULT 0,
+  volatility_modifier FLOAT DEFAULT 1.0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Delisted Stocks Table (tracks stocks that went bankrupt)
+CREATE TABLE IF NOT EXISTS delisted_stocks (
+  id INT PRIMARY KEY,
+  symbol VARCHAR(10) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  sector VARCHAR(50),
+  final_price DECIMAL(10,2),
+  delisted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  reason ENUM('bankruptcy', 'merger', 'admin') DEFAULT 'bankruptcy'
+);
+
+-- Portfolio Losses Table (tracks player losses from bankruptcies)
+CREATE TABLE IF NOT EXISTS portfolio_losses (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  stock_id INT NOT NULL,
+  stock_symbol VARCHAR(10) NOT NULL,
+  stock_name VARCHAR(100) NOT NULL,
+  quantity INT NOT NULL,
+  loss_amount DECIMAL(15,2) NOT NULL,
+  delisted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Changelog Table (tracks system updates and announcements)
+CREATE TABLE IF NOT EXISTS changelog (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  version VARCHAR(20) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  changes JSON,
+  change_type ENUM('feature', 'improvement', 'bugfix', 'breaking') NOT NULL,
+  is_major BOOLEAN DEFAULT FALSE,
+  is_visible BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  created_by INT NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- Audit Logs Table
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  action VARCHAR(50) NOT NULL,
+  ip_address VARCHAR(45),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
 `
 
 // Initial seed data SQL
 const seedDataSQL = `
+-- Initial seed data for sectors
+INSERT IGNORE INTO sectors (name, description) VALUES
+('Technology', 'Software, hardware, and internet companies'),
+('Automotive', 'Vehicle manufacturers and suppliers'),
+('Financial Services', 'Banks, insurance, and financial institutions'),
+('Retail', 'Consumer retail and e-commerce'),
+('Entertainment', 'Media, streaming, and entertainment companies'),
+('Healthcare', 'Pharmaceuticals, biotech, and medical devices');
+
 -- Initial seed data for stocks
 INSERT IGNORE INTO stocks (symbol, name, sector, current_price) VALUES
 ('APPL', 'Apple Inc.', 'Technology', 150.00),
@@ -94,6 +162,25 @@ INSERT IGNORE INTO stocks (symbol, name, sector, current_price) VALUES
 -- Add default admin user (password is 'admin123')
 INSERT IGNORE INTO users (username, password_hash, cash_balance, is_admin) VALUES
 ('admin', '$2a$10$l6jzERQJiOVnWw8FN2qQw.fxJfZsXnuKNtGV.OU63s8SLsBJBvvV2', 10000.00, 1);
+
+-- Initial changelog entries
+INSERT IGNORE INTO changelog (version, title, description, changes, change_type, is_major, is_visible) VALUES
+('v1.0.0', 'Office Stonks Launch', 'Initial release of the multiplayer stock market simulation game.', 
+ JSON_ARRAY(
+   'Real-time stock trading with live price updates',
+   'Portfolio management and transaction history',
+   'Leaderboard rankings by portfolio value',
+   'Live chat system for social interaction',
+   'Admin controls for market management'
+ ), 'feature', true, true),
+('v1.1.0', 'Market Sectors Foundation', 'Introduced market sectors with correlated stock movements for more realistic trading.', 
+ JSON_ARRAY(
+   'Added 6 market sectors: Technology, Automotive, Financial Services, Retail, Entertainment, Healthcare',
+   'Stock prices now influenced by both individual trends (70%) and sector trends (30%)',
+   'Sector-wide correlations create realistic market behavior',
+   'Enhanced market simulator with sector tracking',
+   'Database schema updated to support sector relationships'
+ ), 'feature', true, true);
 `
 
 // InitSchema initializes the database schema
@@ -196,6 +283,92 @@ func runMigrations() error {
 		log.Println("Successfully added status column")
 	} else {
 		log.Println("status column already exists, skipping migration")
+	}
+
+	// Check if sector_id column exists in stocks table
+	var sectorColumnExists bool
+	err = RetryQueryRow(DB, `
+		SELECT COUNT(*) > 0
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_SCHEMA = DATABASE() 
+		AND TABLE_NAME = 'stocks' 
+		AND COLUMN_NAME = 'sector_id'
+	`).Scan(&sectorColumnExists)
+	
+	if err != nil {
+		log.Printf("Error checking if sector_id column exists: %v", err)
+		return err
+	}
+	
+	if !sectorColumnExists {
+		log.Println("Adding sector_id column to stocks table...")
+		_, err = RetryExec(DB, "ALTER TABLE stocks ADD COLUMN sector_id INT NULL")
+		if err != nil {
+			log.Printf("Error adding sector_id column: %v", err)
+			return err
+		}
+
+		// Add foreign key constraint
+		_, err = RetryExec(DB, "ALTER TABLE stocks ADD FOREIGN KEY (sector_id) REFERENCES sectors(id)")
+		if err != nil {
+			log.Printf("Error adding sector_id foreign key: %v", err)
+			return err
+		}
+
+		// Update existing stocks with sector IDs
+		log.Println("Updating existing stocks with sector IDs...")
+		sectorUpdates := []string{
+			"UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Technology') WHERE symbol IN ('APPL', 'GOOG', 'AMZN', 'MSFT')",
+			"UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Automotive') WHERE symbol = 'TSLA'",
+			"UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Financial Services') WHERE symbol = 'JPM'",
+			"UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Retail') WHERE symbol = 'WMT'",
+			"UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Entertainment') WHERE symbol IN ('DIS', 'NFLX')",
+			"UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Healthcare') WHERE symbol = 'PFE'",
+		}
+
+		for _, update := range sectorUpdates {
+			_, err = RetryExec(DB, update)
+			if err != nil {
+				log.Printf("Error updating stock sectors: %v", err)
+				return err
+			}
+		}
+
+		log.Println("Successfully added sector_id column and updated existing stocks")
+	} else {
+		log.Println("sector_id column already exists, skipping migration")
+	}
+
+	// Check if crisis_start column exists in stocks table
+	var crisisStartExists bool
+	err = RetryQueryRow(DB, `
+		SELECT COUNT(*) > 0
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_SCHEMA = DATABASE() 
+		AND TABLE_NAME = 'stocks' 
+		AND COLUMN_NAME = 'crisis_start'
+	`).Scan(&crisisStartExists)
+	
+	if err != nil {
+		log.Printf("Error checking if crisis_start column exists: %v", err)
+		return err
+	}
+	
+	if !crisisStartExists {
+		log.Println("Adding crisis/bankruptcy columns to stocks table...")
+		_, err = RetryExec(DB, `
+			ALTER TABLE stocks 
+			ADD COLUMN crisis_start TIMESTAMP NULL,
+			ADD COLUMN recovery_chance FLOAT DEFAULT 0.03,
+			ADD COLUMN bankruptcy_chance FLOAT DEFAULT 0.05
+		`)
+		if err != nil {
+			log.Printf("Error adding crisis columns: %v", err)
+			return err
+		}
+		log.Println("Successfully added crisis/bankruptcy columns")
+	} else {
+		log.Println("Crisis columns already exist, skipping migration")
 	}
 	
 	return nil

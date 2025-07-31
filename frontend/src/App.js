@@ -11,22 +11,40 @@ import StockDetail from './pages/StockDetail';
 import Leaderboard from './pages/Leaderboard';
 import Transactions from './pages/Transactions';
 import AdminPanel from './pages/AdminPanel';
+import AuditLog from './pages/AuditLog';
 import Portfolio from './pages/Portfolio';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
+import ChangelogModal from './components/ChangelogModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ChangelogProvider, useChangelog } from './contexts/ChangelogContext';
 
 // Leaderboard component is now implemented
 
 // Transactions component is now implemented
 
-function App() {
+const AppContent = () => {
+  const { manualTrigger, closeChangelog } = useChangelog();
+
+  // Check for render issues
+  React.useEffect(() => {
+    const checkRenderHealth = () => {
+      const root = document.getElementById('root');
+      if (root && root.children.length === 0) {
+        console.error('❌ App failed to render properly');
+        window.location.reload();
+      }
+    };
+    
+    // Check after a short delay
+    const timer = setTimeout(checkRenderHealth, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <AuthSync>
-          <Router>
+    <Router>
           <div className="App">
             <Routes>
             <Route path="/login" element={<Login />} />
@@ -40,15 +58,54 @@ function App() {
             <Route path="/leaderboard" element={<ProtectedRoute element={<Leaderboard />} />} />
             <Route path="/transactions" element={<ProtectedRoute element={<Transactions />} />} />
             <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} />} />
+            <Route path="/audit" element={<ProtectedRoute element={<AuditLog />} />} />
 
             {/* Default redirect */}
             <Route path="*" element={<Navigate to="/login" />} />
           </Routes>
+          
+          {/* Global changelog modal - shows for authenticated users */}
+          <ChangelogModal manualTrigger={manualTrigger} onManualClose={closeChangelog} />
           </div>
           </Router>
-        </AuthSync>
-      </ThemeProvider>
-    </AuthProvider>
+  );
+};
+
+function App() {
+  // Log app initialization
+  React.useEffect(() => {
+    console.log('🚀 Office Stonks app initializing...');
+    console.log('🌍 Current environment:', {
+      hostname: window.location.hostname,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      protocol: window.location.protocol
+    });
+    console.log('⚙️ Environment variables:', {
+      REACT_APP_BACKEND_URL: process.env.REACT_APP_BACKEND_URL,
+      REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+      REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL?.substring(0, 20) + '...',
+      NODE_ENV: process.env.NODE_ENV
+    });
+    console.log('💾 LocalStorage contents:', {
+      token: localStorage.getItem('token') ? 'present' : 'missing',
+      userId: localStorage.getItem('userId') || 'missing',
+      username: localStorage.getItem('username') || 'missing'
+    });
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <ChangelogProvider>
+            <AuthSync>
+              <AppContent />
+            </AuthSync>
+          </ChangelogProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

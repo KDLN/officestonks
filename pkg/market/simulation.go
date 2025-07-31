@@ -1,6 +1,7 @@
 package market
 
 import (
+	"log"
 	"math"
 	"math/rand"
 	"sync"
@@ -17,6 +18,7 @@ type StockUpdate struct {
 // MarketSimulator handles the stock price simulation
 type MarketSimulator struct {
 	stocksInfo     map[int]StockInfo
+	sectorsInfo    map[int]SectorInfo
 	updateInterval time.Duration
 	volatility     float64
 	mu             sync.RWMutex
@@ -32,14 +34,25 @@ type StockInfo struct {
 	Symbol       string
 	BasePrice    float64
 	Sector       string
+	SectorID     int
 	Trend        float64  // Bias for price movement: positive means upward trend, negative means downward
 	TrendCounter int      // Counter to track trend duration
+}
+
+// SectorInfo tracks sector-wide trends and volatility
+type SectorInfo struct {
+	ID                 int
+	Name               string
+	Trend              float64 // Sector-wide trend
+	VolatilityModifier float64 // Multiplier for sector volatility
+	StockCount         int     // Number of stocks in this sector
 }
 
 // NewMarketSimulator creates a new market simulator
 func NewMarketSimulator(updateInterval time.Duration, volatility float64) *MarketSimulator {
 	return &MarketSimulator{
 		stocksInfo:     make(map[int]StockInfo),
+		sectorsInfo:    make(map[int]SectorInfo),
 		updateInterval: updateInterval,
 		volatility:     volatility,
 		updateChan:     make(chan StockUpdate, 100),
@@ -49,10 +62,33 @@ func NewMarketSimulator(updateInterval time.Duration, volatility float64) *Marke
 	}
 }
 
-// AddStock adds a stock to the simulator
-func (s *MarketSimulator) AddStock(id int, symbol, sector string, basePrice float64) {
+// AddSector adds a sector to the simulator
+func (s *MarketSimulator) AddSector(id int, name string, volatilityModifier float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	
+	// Initialize with a small random trend
+	initialTrend := (rand.Float64() * 0.04) - 0.02  // Range: -0.02 to 0.02
+	
+	s.sectorsInfo[id] = SectorInfo{
+		ID:                 id,
+		Name:               name,
+		Trend:              initialTrend,
+		VolatilityModifier: volatilityModifier,
+		StockCount:         0, // Will be updated as stocks are added
+	}
+}
+
+// AddStock adds a stock to the simulator
+func (s *MarketSimulator) AddStock(id int, symbol, sector string, sectorID int, basePrice float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Validate base price before adding
+	if math.IsInf(basePrice, 0) || math.IsNaN(basePrice) || basePrice <= 0 {
+		log.Printf("⚠️ Invalid base price for stock %s: %f, setting to $10.00", symbol, basePrice)
+		basePrice = 10.00
+	}
 	
 	// Initialize with a random trend (slightly biased upward for a bull market)
 	initialTrend := (rand.Float64() * 0.1) - 0.03  // Range: -0.03 to 0.07, slightly positive bias
@@ -62,8 +98,15 @@ func (s *MarketSimulator) AddStock(id int, symbol, sector string, basePrice floa
 		Symbol:       symbol,
 		BasePrice:    basePrice,
 		Sector:       sector,
+		SectorID:     sectorID,
 		Trend:        initialTrend,
 		TrendCounter: rand.Intn(10) + 5, // Random initial trend duration (5-15 updates)
+	}
+	
+	// Update sector stock count
+	if sector, exists := s.sectorsInfo[sectorID]; exists {
+		sector.StockCount++
+		s.sectorsInfo[sectorID] = sector
 	}
 }
 
@@ -113,13 +156,41 @@ func (s *MarketSimulator) simulationLoop() {
 	}
 }
 
+// updateSectorTrends updates sector-wide trends (called less frequently than stock updates)
+func (s *MarketSimulator) updateSectorTrends() {
+	for sectorID, sector := range s.sectorsInfo {
+		// Sector trends change more slowly than individual stocks (10% chance per update)
+		if rand.Float64() < 0.1 {
+			adjustment := (rand.Float64() - 0.5) * 0.02 // ±1% change
+			sector.Trend += adjustment
+			
+			// Cap sector trends to reasonable limits
+			if sector.Trend > 0.05 {
+				sector.Trend = 0.05
+			} else if sector.Trend < -0.05 {
+				sector.Trend = -0.05
+			}
+			
+			s.sectorsInfo[sectorID] = sector
+		}
+	}
+}
+
 // updatePrices calculates new prices for all stocks
 func (s *MarketSimulator) updatePrices() {
 	s.mu.Lock() // Use write lock since we're updating the stocksInfo
 	defer s.mu.Unlock()
 
+	// Update sector trends first
+	s.updateSectorTrends()
+
 	// Update all stocks
 	for id, info := range s.stocksInfo {
+		// Validate base price before any calculations
+		if math.IsInf(info.BasePrice, 0) || math.IsNaN(info.BasePrice) || info.BasePrice <= 0 {
+			info.BasePrice = 0.01 // Reset to safe value
+			s.stocksInfo[id] = info
+		}
 		// Check if we need to change the trend
 		if info.TrendCounter <= 0 {
 			// Time to reverse or modify the trend
@@ -144,19 +215,63 @@ func (s *MarketSimulator) updatePrices() {
 			info.TrendCounter--
 		}
 
-		// Calculate new price with random fluctuation + trend bias
-		// Base random change
+		// Calculate new price with sector correlation
+		// Individual stock factors (70% weight)
 		randomChange := (rand.Float64() - 0.5) * s.volatility
-
-		// Add trend bias to the random change
-		biasedChange := randomChange + info.Trend
-
+		individualChange := randomChange + info.Trend
+		
+		// Validate individual change
+		if math.IsInf(individualChange, 0) || math.IsNaN(individualChange) {
+			individualChange = randomChange // fallback to just random change
+		}
+		
+		// Sector factors (30% weight)
+		var sectorChange float64
+		if info.SectorID > 0 {
+			if sector, exists := s.sectorsInfo[info.SectorID]; exists {
+				sectorVolatility := s.volatility * sector.VolatilityModifier * 0.3
+				if sectorVolatility > 0 && !math.IsInf(sectorVolatility, 0) && !math.IsNaN(sectorVolatility) {
+					sectorRandomChange := (rand.Float64() - 0.5) * sectorVolatility
+					if !math.IsInf(sector.Trend, 0) && !math.IsNaN(sector.Trend) {
+						sectorChange = sectorRandomChange + sector.Trend
+					} else {
+						sectorChange = sectorRandomChange
+					}
+				}
+			}
+		}
+		
+		// Validate sector change
+		if math.IsInf(sectorChange, 0) || math.IsNaN(sectorChange) {
+			sectorChange = 0
+		}
+		
+		// Combined change: 70% individual, 30% sector
+		totalChange := (individualChange * 0.7) + (sectorChange * 0.3)
+		
+		// Validate total change - cap extreme values
+		if math.IsInf(totalChange, 0) || math.IsNaN(totalChange) {
+			totalChange = 0 // Reset to no change
+		} else if totalChange > 0.5 { // Cap at 50% change per update
+			totalChange = 0.5
+		} else if totalChange < -0.5 {
+			totalChange = -0.5
+		}
+		
 		// Calculate final price change
-		newPrice := info.BasePrice * (1 + biasedChange)
+		newPrice := info.BasePrice * (1 + totalChange)
 
-		// Ensure price doesn't go below 0.01
+		// Validate the calculated price
+		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+			// Reset to a safe price if calculation went wrong
+			newPrice = 0.01
+		}
+
+		// Ensure price doesn't go below 0.01 or above reasonable maximum
 		if newPrice < 0.01 {
 			newPrice = 0.01
+		} else if newPrice > 1000000 { // Cap at $1M per share
+			newPrice = 1000000
 		}
 
 		// Add some randomness to make prices jumpy sometimes (market surprises)
@@ -170,10 +285,20 @@ func (s *MarketSimulator) updatePrices() {
 				jumpMultiplier = 1.0 - (rand.Float64() * 0.05) // 0-5% jump down
 			}
 			newPrice *= jumpMultiplier
+			
+			// Validate after jump
+			if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+				newPrice = 0.01
+			}
 		}
 
 		// Round to 2 decimal places
 		newPrice = math.Round(newPrice*100) / 100
+		
+		// Final validation after rounding
+		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+			newPrice = 0.01
+		}
 
 		// Update the base price for future calculations
 		info.BasePrice = newPrice
@@ -218,8 +343,53 @@ func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
 	defer s.mu.Unlock()
 	
 	if stock, exists := s.stocksInfo[stockID]; exists {
+		// Validate and set new price
+		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+			newPrice = 0.01
+		}
 		stock.BasePrice = newPrice
+		
+		// Reset trend to prevent carrying over corrupted values
+		stock.Trend = 0
+		stock.TrendCounter = rand.Intn(10) + 5
+		
 		s.stocksInfo[stockID] = stock
+	}
+}
+
+// ValidateAllStocks checks and fixes all stocks in the simulator
+func (s *MarketSimulator) ValidateAllStocks() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	for id, stock := range s.stocksInfo {
+		fixed := false
+		
+		// Fix invalid base prices
+		if math.IsInf(stock.BasePrice, 0) || math.IsNaN(stock.BasePrice) || stock.BasePrice <= 0 {
+			stock.BasePrice = 0.01
+			fixed = true
+		}
+		
+		// Fix invalid trends
+		if math.IsInf(stock.Trend, 0) || math.IsNaN(stock.Trend) {
+			stock.Trend = 0
+			fixed = true
+		}
+		
+		// Cap extreme trends
+		if stock.Trend > 0.1 {
+			stock.Trend = 0.1
+			fixed = true
+		} else if stock.Trend < -0.1 {
+			stock.Trend = -0.1
+			fixed = true
+		}
+		
+		if fixed {
+			s.stocksInfo[id] = stock
+			log.Printf("Fixed corrupted stock data for %s: price=%.2f, trend=%.4f", stock.Symbol, stock.BasePrice, stock.Trend)
+		}
 	}
 }
 
@@ -258,8 +428,16 @@ func (s *MarketSimulator) ProcessTransaction(stockID int, quantity int, isBuy bo
 
 	// Calculate new price
 	newPrice := stock.BasePrice * (1 + impactFactor)
+	
+	// Validate the calculated price
+	if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
+		newPrice = 0.01
+	}
+	
 	if newPrice < 0.01 {
 		newPrice = 0.01
+	} else if newPrice > 1000000 { // Cap at $1M per share
+		newPrice = 1000000
 	}
 
 	// Round to 2 decimal places

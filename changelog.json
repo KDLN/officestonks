@@ -1,0 +1,62 @@
+{
+  "entries": [
+    {
+      "id": 3,
+      "version": "v1.1.0",
+      "title": "Market Sectors Foundation",
+      "description": "Introduced market sectors with correlated stock movements for more realistic trading experience.",
+      "changes": [
+        "Added 6 market sectors: Technology, Automotive, Financial Services, Retail, Entertainment, Healthcare",
+        "Stock prices now influenced by both individual trends (70%) and sector trends (30%)",
+        "Sector-wide correlations create realistic market behavior patterns",
+        "Enhanced market simulator with comprehensive sector tracking",
+        "Database schema updated to support sector relationships and crisis management",
+        "Fixed critical infinity errors that could crash the trading system",
+        "Improved WebSocket message handling with sanitization",
+        "Added changelog system with automatic popup notifications"
+      ],
+      "change_type": "feature",
+      "is_major": true,
+      "is_visible": true,
+      "created_at": "2025-01-30T00:00:00Z"
+    },
+    {
+      "id": 2,
+      "version": "v1.0.2",
+      "title": "Authentication & UI Improvements", 
+      "description": "Enhanced user experience with better authentication flow and loading states.",
+      "changes": [
+        "Fixed login redirect issues after successful authentication",
+        "Improved loading spinner animations and removed problematic circular spinner",
+        "Enhanced error handling with global ErrorBoundary component",
+        "Added comprehensive diagnostic logging for better debugging",
+        "Fixed navigation layer z-index conflicts",
+        "Streamlined Discord OAuth integration"
+      ],
+      "change_type": "improvement",
+      "is_major": false,
+      "is_visible": true,
+      "created_at": "2025-01-29T00:00:00Z"
+    },
+    {
+      "id": 1,
+      "version": "v1.0.1",
+      "title": "Initial Release Stability",
+      "description": "Core trading platform with essential features for multiplayer stock market simulation.",
+      "changes": [
+        "Real-time stock trading with portfolio management",
+        "WebSocket-based live price updates every 2 seconds",
+        "User authentication and registration system",
+        "Leaderboard rankings and portfolio tracking",
+        "Transaction history and detailed analytics",
+        "Real-time chat system for community interaction",
+        "Admin panel for game management and controls",
+        "Mobile-responsive design for all devices"
+      ],
+      "change_type": "feature",
+      "is_major": true,
+      "is_visible": true,
+      "created_at": "2025-01-25T00:00:00Z"
+    }
+  ]
+}

@@ -2,7 +2,20 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import Navigation from './Navigation';
+import { ChangelogProvider } from '../contexts/ChangelogContext';
+import { ThemeProvider } from '../contexts/ThemeContext';
 import * as authService from '../services/auth';
+
+// Provide matchMedia mock for ThemeProvider
+beforeAll(() => {
+  if (!window.matchMedia) {
+    window.matchMedia = () => ({
+      matches: false,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+    });
+  }
+});
 
 // Mock the auth service
 jest.mock('../services/auth', () => ({
@@ -24,7 +37,11 @@ describe('Navigation Component', () => {
   test('renders all navigation links', () => {
     render(
       <BrowserRouter>
-        <Navigation />
+        <ThemeProvider>
+          <ChangelogProvider>
+            <Navigation />
+          </ChangelogProvider>
+        </ThemeProvider>
       </BrowserRouter>
     );
 
@@ -40,7 +57,11 @@ describe('Navigation Component', () => {
   test('calls logout when logout button is clicked', () => {
     render(
       <BrowserRouter>
-        <Navigation />
+        <ThemeProvider>
+          <ChangelogProvider>
+            <Navigation />
+          </ChangelogProvider>
+        </ThemeProvider>
       </BrowserRouter>
     );
 

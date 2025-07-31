@@ -1,23 +1,15 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import LoadingScreen from './LoadingScreen';
 
 // Component to protect routes that require authentication
 const ProtectedRoute = ({ element }) => {
   const { user, loading } = useAuth();
 
-  // Show loading spinner while checking auth status
+  // Show loading screen while checking auth status
   if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <div>Loading...</div>
-      </div>
-    );
+    return <LoadingScreen message="Checking authentication..." />;
   }
 
   // Check if user is authenticated

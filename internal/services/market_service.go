@@ -3,6 +3,8 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
+	"math"
 	"time"
 
 	"officestonks/internal/models"
@@ -15,6 +17,7 @@ type MarketService struct {
 	userRepo       models.UserRepository
 	portfolioRepo  models.PortfolioRepository
 	transactionRepo models.TransactionRepository
+	sectorRepo     models.SectorRepository
 	simulator      *market.MarketSimulator
 }
 
@@ -24,6 +27,7 @@ func NewMarketService(
 	userRepo models.UserRepository,
 	portfolioRepo models.PortfolioRepository,
 	transactionRepo models.TransactionRepository,
+	sectorRepo models.SectorRepository,
 ) *MarketService {
 	// Create a market simulator with faster updates and higher volatility for more dynamic price movements
 	// 2-second updates and 5% volatility
@@ -35,21 +39,33 @@ func NewMarketService(
 		userRepo:       userRepo,
 		portfolioRepo:  portfolioRepo,
 		transactionRepo: transactionRepo,
+		sectorRepo:     sectorRepo,
 		simulator:      simulator,
 	}
 }
 
 // InitializeSimulator loads stocks and starts the simulation
 func (s *MarketService) InitializeSimulator() error {
+	// Load all sectors from the database
+	sectors, err := s.sectorRepo.GetAllSectors()
+	if err != nil {
+		return fmt.Errorf("failed to load sectors: %w", err)
+	}
+	
+	// Add sectors to the simulator
+	for _, sector := range sectors {
+		s.simulator.AddSector(sector.ID, sector.Name, sector.VolatilityModifier)
+	}
+	
 	// Load all stocks from the database
 	stocks, err := s.stockRepo.LoadStocksForSimulation()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load stocks: %w", err)
 	}
 	
 	// Add stocks to the simulator
 	for id, stock := range stocks {
-		s.simulator.AddStock(id, stock.Symbol, stock.Sector, stock.Price)
+		s.simulator.AddStock(id, stock.Symbol, stock.Sector, stock.SectorID, stock.Price)
 	}
 	
 	// Start the simulator
@@ -66,10 +82,23 @@ func (s *MarketService) updateStockPrices() {
 	updateChan := s.simulator.GetUpdateChannel()
 	
 	for update := range updateChan {
+		// Validate price before updating database
+		if math.IsInf(update.Price, 0) || math.IsNaN(update.Price) || update.Price <= 0 {
+			log.Printf("Skipping database update for stock %s: invalid price %f", update.Symbol, update.Price)
+			continue
+		}
+		
+		// Ensure price is within reasonable bounds
+		price := update.Price
+		if price < 0.01 {
+			price = 0.01
+		} else if price > 1000000 {
+			price = 1000000
+		}
+		
 		// Update the stock price in the database
-		if err := s.stockRepo.UpdateStockPrice(update.StockID, update.Price); err != nil {
-			// Log the error but continue processing updates
-			// In a real application, you'd want better error handling
+		if err := s.stockRepo.UpdateStockPrice(update.StockID, price); err != nil {
+			log.Printf("Error updating stock price for %s: %v", update.Symbol, err)
 			continue
 		}
 	}
@@ -239,6 +268,13 @@ func (s *MarketService) GetUserTransactions(userID, limit, offset int) ([]*model
 // GetSimulatorUpdates returns the channel for stock price updates
 func (s *MarketService) GetSimulatorUpdates() <-chan market.StockUpdate {
 	return s.simulator.GetUpdateChannel()
+}
+
+// ValidateSimulator checks and fixes any corrupted data in the market simulator
+func (s *MarketService) ValidateSimulator() {
+	log.Println("Validating and fixing market simulator data...")
+	s.simulator.ValidateAllStocks()
+	log.Println("Market simulator validation completed")
 }
 
 // PauseSimulator pauses the market simulation

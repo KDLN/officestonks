@@ -48,7 +48,7 @@ func ValidateUsername(username string) error {
 	if !usernameRegex.MatchString(username) {
 		return ValidationError{"username", "can only contain letters, numbers, and underscores"}
 	}
-	
+
 	// Check for reserved usernames
 	reserved := []string{"admin", "root", "system", "null", "undefined", "api", "www", "ftp", "mail", "test"}
 	lowerUsername := strings.ToLower(username)
@@ -57,7 +57,7 @@ func ValidateUsername(username string) error {
 			return ValidationError{"username", "username is reserved"}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -69,7 +69,7 @@ func ValidatePassword(password string) error {
 	if len(password) > MaxPasswordLength {
 		return ValidationError{"password", fmt.Sprintf("must be less than %d characters", MaxPasswordLength)}
 	}
-	
+
 	// Check for complexity requirements
 	var hasUpper, hasLower, hasDigit, hasSpecial bool
 	for _, char := range password {
@@ -84,11 +84,11 @@ func ValidatePassword(password string) error {
 			hasSpecial = true
 		}
 	}
-	
-	if !hasUpper || !hasLower || !hasDigit {
-		return ValidationError{"password", "must contain at least one uppercase letter, one lowercase letter, and one digit"}
+
+	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
+		return ValidationError{"password", "must contain uppercase, lowercase, digit, and special character"}
 	}
-	
+
 	return nil
 }
 
@@ -114,12 +114,12 @@ func ValidateMessage(message string) error {
 	if len(message) > MaxMessageLength {
 		return ValidationError{"message", fmt.Sprintf("must be less than %d characters", MaxMessageLength)}
 	}
-	
+
 	// Check for potential injection attempts
 	if sqlPattern.MatchString(message) {
 		return ValidationError{"message", "contains potentially unsafe content"}
 	}
-	
+
 	return nil
 }
 
@@ -168,13 +168,13 @@ func ValidateStockID(stockID int) error {
 func SanitizeString(input string) string {
 	// Remove any HTML tags and escape HTML entities
 	sanitized := html.EscapeString(input)
-	
+
 	// Remove any remaining potentially dangerous content
 	sanitized = strings.ReplaceAll(sanitized, "<", "&lt;")
 	sanitized = strings.ReplaceAll(sanitized, ">", "&gt;")
 	sanitized = strings.ReplaceAll(sanitized, "javascript:", "")
 	sanitized = strings.ReplaceAll(sanitized, "data:", "")
-	
+
 	return sanitized
 }
 
@@ -190,7 +190,7 @@ func ValidateAndSanitizeMessage(message string) (string, error) {
 func IsValidJSON(str string) bool {
 	str = strings.TrimSpace(str)
 	return (strings.HasPrefix(str, "{") && strings.HasSuffix(str, "}")) ||
-		   (strings.HasPrefix(str, "[") && strings.HasSuffix(str, "]"))
+		(strings.HasPrefix(str, "[") && strings.HasSuffix(str, "]"))
 }
 
 // ContainsSQLInjection checks for common SQL injection patterns

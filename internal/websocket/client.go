@@ -3,6 +3,9 @@ package websocket
 import (
 	"encoding/json"
 	"log"
+	"math"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -132,12 +135,92 @@ func (c *Client) writePump() {
 	}
 }
 
+// sanitizeMessage recursively removes infinity and NaN values from a message
+func sanitizeMessage(v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+
+	val := reflect.ValueOf(v)
+	switch val.Kind() {
+	case reflect.Float32, reflect.Float64:
+		f := val.Float()
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			log.Printf("🚨 SANITIZING INVALID FLOAT: %f -> 0.01", f)
+			return 0.01 // Replace with a safe default
+		}
+		return f
+	case reflect.Slice, reflect.Array:
+		result := make([]interface{}, val.Len())
+		for i := 0; i < val.Len(); i++ {
+			result[i] = sanitizeMessage(val.Index(i).Interface())
+		}
+		return result
+	case reflect.Map:
+		result := make(map[string]interface{})
+		for _, key := range val.MapKeys() {
+			keyStr := key.String()
+			result[keyStr] = sanitizeMessage(val.MapIndex(key).Interface())
+		}
+		return result
+	case reflect.Struct:
+		// For structs, create a map representation
+		result := make(map[string]interface{})
+		typ := val.Type()
+		for i := 0; i < val.NumField(); i++ {
+			field := typ.Field(i)
+			if field.IsExported() {
+				fieldValue := val.Field(i)
+				if fieldValue.CanInterface() {
+					// Use JSON tag name if available, otherwise use field name
+					name := field.Name
+					if tag := field.Tag.Get("json"); tag != "" && tag != "-" {
+						// Handle comma-separated options like "price,omitempty"
+						if commaIndex := strings.Index(tag, ","); commaIndex != -1 {
+							name = tag[:commaIndex]
+						} else {
+							name = tag
+						}
+					}
+					result[name] = sanitizeMessage(fieldValue.Interface())
+				}
+			}
+		}
+		return result
+	case reflect.Ptr:
+		if val.IsNil() {
+			return nil
+		}
+		return sanitizeMessage(val.Elem().Interface())
+	default:
+		return v
+	}
+}
+
 // Send sends a message to the client
 func (c *Client) Send(message interface{}) {
-	// Convert message to JSON
-	jsonMessage, err := json.Marshal(message)
+	// ALWAYS sanitize first - never try to marshal unsanitized messages
+	sanitizedMessage := sanitizeMessage(message)
+	
+	// Convert sanitized message to JSON
+	jsonMessage, err := json.Marshal(sanitizedMessage)
 	if err != nil {
-		log.Printf("Error marshaling message: %v", err)
+		log.Printf("🚨 JSON MARSHAL ERROR after sanitization for user %d: %v", c.userID, err)
+		log.Printf("🚨 Original message type: %T", message)
+		log.Printf("🚨 Sanitized message: %+v", sanitizedMessage)
+		
+		// Last resort: send a safe error message
+		errorMessage := map[string]interface{}{
+			"type": "error",
+			"message": "Failed to send update",
+		}
+		if safeJson, safeErr := json.Marshal(errorMessage); safeErr == nil {
+			select {
+			case c.send <- safeJson:
+			default:
+				log.Printf("Client send buffer full during error recovery for user %d", c.userID)
+			}
+		}
 		return
 	}
 	

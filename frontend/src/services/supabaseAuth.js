@@ -1,9 +1,20 @@
 import { supabase } from './supabase'
+import { getEnvironmentConfig, logEnvironmentInfo } from '../config/environment'
+
+// Helper function to check if Supabase is available
+const requireSupabase = () => {
+  if (!supabase) {
+    throw new Error('Supabase is not configured. Please use email authentication instead.')
+  }
+  return supabase
+}
 
 // Sign up new user
 export const signUp = async (email, password, userData = {}) => {
+  const sb = requireSupabase()
+  
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await sb.auth.signUp({
       email,
       password,
       options: {
@@ -12,7 +23,7 @@ export const signUp = async (email, password, userData = {}) => {
           username: userData.username,
           ...userData
         },
-        emailRedirectTo: window.location.origin + '/dashboard'
+        emailRedirectTo: getEnvironmentConfig().dashboardUrl
       }
     })
 
@@ -94,7 +105,7 @@ export const isAuthenticated = async () => {
 export const resetPassword = async (email) => {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      redirectTo: `${getEnvironmentConfig().origin}/reset-password`
     })
     if (error) throw error
     return true
@@ -121,16 +132,23 @@ export const updatePassword = async (newPassword) => {
 // Social auth providers
 export const signInWithProvider = async (provider) => {
   try {
+    const envConfig = logEnvironmentInfo()
+    const redirectUrl = envConfig.dashboardUrl
+    
+    console.log(`${provider} OAuth redirect URL:`, redirectUrl)
+    console.log('Environment:', envConfig.environment)
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/dashboard`
+        redirectTo: redirectUrl
       }
     })
     if (error) throw error
     return data
   } catch (error) {
     console.error(`${provider} sign in error:`, error)
+    console.error('Environment config:', getEnvironmentConfig())
     throw error
   }
 }
