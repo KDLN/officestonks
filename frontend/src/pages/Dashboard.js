@@ -243,7 +243,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard-page">
       <Navigation />
-      <div className={`dashboard-container ${chatDrawerOpen ? 'chat-open' : ''}`}>
+      <div className="dashboard-container">
         <div className="dashboard-header">
           <h1>Dashboard</h1>
           <button 
