@@ -10,11 +10,11 @@
   max-width: var(--container-xl);
   margin: 0 auto;
   padding: var(--spacing-lg) var(--spacing-md);
-  transition: margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dashboard-container.chat-open {
-  margin-right: 350px; /* Push content left when chat is open */
+  margin-left: -350px; /* Push content left when chat is open */
 }
 
 .dashboard-header {
@@ -416,7 +416,7 @@
   }
   
   .dashboard-container.chat-open {
-    margin-right: 320px; /* Adjust push for tablet */
+    margin-left: -320px; /* Adjust push for tablet */
   }
 }
 
@@ -445,7 +445,7 @@
   }
   
   .dashboard-container.chat-open {
-    margin-right: 300px; /* Adjust push for mobile */
+    margin-left: -300px; /* Adjust push for mobile */
   }
   
   .chat-toggle-btn {
@@ -507,7 +507,7 @@
   }
   
   .dashboard-container.chat-open {
-    margin-right: 280px; /* Adjust push for small mobile */
+    margin-left: -280px; /* Adjust push for small mobile */
   }
   
   .dashboard-container {
