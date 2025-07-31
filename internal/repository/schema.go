@@ -209,6 +209,17 @@ INSERT IGNORE INTO changelog (version, title, description, changes, change_type,
    'Sector-wide correlations create realistic market behavior',
    'Enhanced market simulator with sector tracking',
    'Database schema updated to support sector relationships'
+ ), 'feature', true, true),
+('v1.2.0', 'Crisis & News System', 'Major update transforming crisis events into exciting high-stakes gameplay with comprehensive news coverage.', 
+ JSON_ARRAY(
+   'Price Zone Volatility: Penny stocks (10%), Low-cap (7%), Mid-cap (5%), Large-cap (3%) for realistic market behavior',
+   'Breaking News Ticker: Auto-rotating crisis alerts with play/pause controls on dashboard',
+   'Enhanced News Display: Filter by Crisis, Bankruptcy, Recovery, Sector with color-coded items and stock symbols',
+   'Portfolio Crisis Alerts: Real-time warnings for stocks at $0.01 with bankruptcy risk and recovery potential',
+   'Crisis Mechanics: 5% bankruptcy chance, 3% recovery chance every 2 seconds for $0.01 stocks',
+   'Trade Frequency Limiting: 5-second cooldown with 20 trades/hour limit per user for security',
+   'Database Integration: Sector foreign key relationships and complete schema for crisis tracking',
+   'Mobile Responsive: All new components optimized for mobile devices with smooth animations'
  ), 'feature', true, true);
 `
 
