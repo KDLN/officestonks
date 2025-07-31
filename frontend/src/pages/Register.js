@@ -33,7 +33,7 @@ const Register = () => {
 
     try {
       // Use the workaround for noop mailer
-      const result = await registerWithWorkaround(email, password, username);
+      await registerWithWorkaround(email, password, username);
       
       // If successful, navigate to dashboard
       navigate('/dashboard');

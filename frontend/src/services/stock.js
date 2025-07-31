@@ -1,5 +1,4 @@
 // Stock market service for frontend
-import { getToken } from './auth';
 import { authenticatedFetch } from './authBridge';
 
 // Check the current hostname to determine if we're running locally

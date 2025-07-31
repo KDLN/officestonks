@@ -7,7 +7,7 @@ import { register as officeRegister, login as officeLogin } from './auth';
 export const registerWithWorkaround = async (email, password, username) => {
   try {
     // First, try to register with Supabase
-    const { data: supabaseData, error: supabaseError } = await supabase.auth.signUp({
+    const { error: supabaseError } = await supabase.auth.signUp({
       email,
       password,
       options: {

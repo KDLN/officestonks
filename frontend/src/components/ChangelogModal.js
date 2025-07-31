@@ -104,30 +104,6 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
     }
   };
 
-  const fetchChangelog = async () => {
-    try {
-      setLoading(true);
-      
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/changelog?limit=10', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch changelog');
-      
-      const data = await response.json();
-      const entries = data.entries || [];
-      setChangelog(entries);
-      
-    } catch (error) {
-      console.error('Error fetching changelog:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleClose = () => {
     if (Array.isArray(changelog) && changelog.length > 0) {
