@@ -243,7 +243,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard-page">
       <Navigation />
-      <div className="dashboard-container">
+      <div className={`dashboard-container ${chatDrawerOpen ? 'chat-open' : ''}`}>
         <div className="dashboard-header">
           <h1>Dashboard</h1>
           <button 
@@ -438,13 +438,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Chat Drawer Overlay */}
-      {chatDrawerOpen && (
-        <div 
-          className="chat-drawer-overlay"
-          onClick={toggleChatDrawer}
-        />
-      )}
 
       {/* Crisis Alert Manager */}
       <CrisisAlertManager socket={socket} />
