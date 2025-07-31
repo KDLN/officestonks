@@ -234,10 +234,7 @@ const Dashboard = () => {
       <Navigation />
       <div className="dashboard-container">
         <div className="dashboard-header">
-          <div>
-            <h1>Dashboard</h1>
-            <NewsDisplay />
-          </div>
+          <h1>Dashboard</h1>
           <div className="portfolio-value">
             <h2>Total Portfolio Value</h2>
             <div className="value">${(portfolio?.total_value || 0).toFixed(2)}</div>
@@ -253,6 +250,15 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+        
+        <div className="dashboard-main">
+          {/* Left Sidebar - News */}
+          <aside className="dashboard-sidebar">
+            <NewsDisplay />
+          </aside>
+          
+          {/* Main Content - Portfolio and Stocks */}
+          <main className="dashboard-main-content">
         
         <div className="dashboard-content">
           <div className="dashboard-section">
@@ -381,6 +387,8 @@ const Dashboard = () => {
               </table>
             </div>
           </div>
+        </div>
+          </main>
         </div>
       </div>
 

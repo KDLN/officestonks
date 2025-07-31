@@ -15,10 +15,28 @@
 .dashboard-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: var(--spacing-xl);
   flex-wrap: wrap;
   gap: var(--spacing-lg);
+}
+
+/* 3-Column Layout */
+.dashboard-main {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--spacing-xl);
+  align-items: start;
+}
+
+.dashboard-sidebar {
+  position: sticky;
+  top: var(--spacing-lg);
+  height: fit-content;
+}
+
+.dashboard-main-content {
+  min-width: 0; /* Prevents overflow issues */
 }
 
 .dashboard-header h1 {
@@ -222,10 +240,32 @@
   50% { background-color: rgba(231, 76, 60, 0.1); }
 }
 
-/* Mobile Responsive Design */
+/* Tablet and Mobile Responsive Design */
+@media (max-width: 1024px) {
+  .dashboard-main {
+    grid-template-columns: 280px 1fr;
+    gap: var(--spacing-lg);
+  }
+}
+
 @media (max-width: 768px) {
   .dashboard-container {
     padding: var(--spacing-md) var(--spacing-sm);
+  }
+  
+  /* Stack layout on mobile */
+  .dashboard-main {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-lg);
+  }
+  
+  .dashboard-sidebar {
+    position: static;
+    order: 2; /* Move news below main content on mobile */
+  }
+  
+  .dashboard-main-content {
+    order: 1;
   }
   
   .dashboard-header {
