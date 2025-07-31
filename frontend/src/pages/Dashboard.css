@@ -122,6 +122,58 @@
   flex-direction: column;
 }
 
+/* Override Chat component styles when inside drawer */
+.chat-drawer-content .chat-container {
+  position: static !important;
+  width: 100% !important;
+  height: 100% !important;
+  bottom: auto !important;
+  right: auto !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  z-index: auto !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+.chat-drawer-content .chat-header {
+  display: none !important; /* Hide original header since drawer has its own */
+}
+
+.chat-drawer-content .chat-messages {
+  flex: 1;
+  background: var(--bg-primary);
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
+.chat-drawer-content .chat-form {
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  padding: var(--spacing-md);
+}
+
+.chat-drawer-content .chat-input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.chat-drawer-content .chat-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.chat-drawer-content .message.other {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.chat-drawer-content .empty-chat {
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
 /* Chat Drawer Overlay */
 .chat-drawer-overlay {
   position: fixed;
