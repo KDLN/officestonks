@@ -1,20 +1,23 @@
 import { getCurrentSession } from './supabaseAuth'
 import { getToken as getOfficeToken } from './auth'
 import { validateToken } from './tokenManager'
+import logger from './logger'
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com'
 
 // Sync Supabase session with Office Stonks backend
 export const syncAuthWithBackend = async () => {
-  console.log('🔄 Starting auth sync with backend...');
+  const apiLogger = logger.apiCall('POST', '/api/auth/supabase');
+  
+  logger.info('Starting auth sync with backend');
   const session = await getCurrentSession()
   
   if (!session?.access_token) {
-    console.log('❌ No Supabase session found for backend sync');
+    logger.warn('No Supabase session found for backend sync');
     return null
   }
 
-  console.log('✅ Supabase session found, syncing with backend...');
+  logger.debug('Supabase session found, syncing with backend');
   try {
     const startTime = Date.now();
     // Send Supabase token to backend for validation and user creation/sync
@@ -28,24 +31,25 @@ export const syncAuthWithBackend = async () => {
     })
 
     const syncTime = Date.now() - startTime;
-    console.log(`🔄 Backend sync response in ${syncTime}ms:`, {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    });
-
+    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('🔄 Backend sync failed:', errorText);
+      apiLogger.error(new Error('Backend sync failed'), {
+        status: response.status,
+        statusText: response.statusText,
+        errorText,
+        syncTime
+      });
       throw new Error('Failed to sync with backend')
     }
 
     const data = await response.json()
-    console.log('✅ Backend sync successful:', {
+    apiLogger.success(response, {
       hasToken: !!data.token,
       userID: data.userID,
       username: data.username,
-      isAdmin: data.isAdmin
+      isAdmin: data.isAdmin,
+      syncTime
     });
     
     // Store the Office Stonks token for game API calls
@@ -57,7 +61,10 @@ export const syncAuthWithBackend = async () => {
     
     return data
   } catch (error) {
-    console.error('🔄 Auth sync error:', error)
+    logger.error('Auth sync error', { 
+      error: error.message,
+      stack: error.stack
+    });
     throw error
   }
 }
@@ -67,18 +74,18 @@ export const getAuthToken = async () => {
   // First check if we have an Office Stonks token from auth sync
   const officeToken = getOfficeToken()
   if (officeToken) {
-    console.log('🔑 Using Office Stonks token for authentication');
+    logger.trace('Using Office Stonks token for authentication');
     return officeToken
   }
   
   // Fall back to Supabase session token
   const session = await getCurrentSession()
   if (session?.access_token) {
-    console.log('🔑 Using Supabase session token for authentication');
+    logger.trace('Using Supabase session token for authentication');
     return session.access_token
   }
   
-  console.log('❌ No authentication token available');
+  logger.warn('No authentication token available');
   return null
 }
 

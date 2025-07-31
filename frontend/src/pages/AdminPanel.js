@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navigation from "../components/Navigation";
 import GameConfigSection from "../components/GameConfigSection";
 import StorageHealthPanel from "../components/StorageHealthPanel";
+import LogsPanel from "../components/LogsPanel";
 import {
   checkAdminStatus,
   getAllUsers,
@@ -385,6 +386,8 @@ const AdminPanel = () => {
         </div>
 
         <StorageHealthPanel />
+
+        <LogsPanel />
 
         <div className="announcement-section">
           <h2>Admin Announcement</h2>

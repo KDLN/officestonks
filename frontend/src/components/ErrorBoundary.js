@@ -1,4 +1,5 @@
 import React from 'react';
+import logger from '../services/logger';
 import './ErrorBoundary.css';
 
 class ErrorBoundary extends React.Component {
@@ -18,8 +19,19 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error details for debugging
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log error with full context using our logger
+    logger.error('React Error Boundary triggered', {
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      },
+      componentStack: errorInfo.componentStack,
+      component: this.props.component || 'Unknown',
+      errorCount: this.state.errorCount + 1,
+      url: window.location.href,
+      timestamp: new Date().toISOString()
+    });
     
     // Update state with error details
     this.setState(prevState => ({
@@ -28,25 +40,34 @@ class ErrorBoundary extends React.Component {
       errorCount: prevState.errorCount + 1
     }));
 
-    // Log to external error reporting service if needed
-    // Example: logErrorToService(error, errorInfo);
+    // Log user action that led to error
+    logger.userAction('error_boundary_triggered', {
+      errorMessage: error.message,
+      component: this.props.component || 'Unknown',
+      errorCount: this.state.errorCount + 1
+    });
   }
 
   handleReset = () => {
+    logger.userAction('error_boundary_reset_clicked', {
+      errorCount: this.state.errorCount,
+      errorMessage: this.state.error?.message
+    });
+
     // Clear all localStorage data
     try {
       localStorage.clear();
-      console.log('Cleared all localStorage data');
+      logger.info('Cleared all localStorage data');
     } catch (err) {
-      console.error('Failed to clear localStorage:', err);
+      logger.error('Failed to clear localStorage', { error: err.message });
     }
 
     // Clear sessionStorage too
     try {
       sessionStorage.clear();
-      console.log('Cleared all sessionStorage data');
+      logger.info('Cleared all sessionStorage data');
     } catch (err) {
-      console.error('Failed to clear sessionStorage:', err);
+      logger.error('Failed to clear sessionStorage', { error: err.message });
     }
 
     // Reload the page to start fresh
@@ -54,6 +75,11 @@ class ErrorBoundary extends React.Component {
   };
 
   handleSoftReset = () => {
+    logger.userAction('error_boundary_retry_clicked', {
+      errorCount: this.state.errorCount,
+      errorMessage: this.state.error?.message
+    });
+
     // Try to recover without clearing data
     this.setState({ 
       hasError: false, 
