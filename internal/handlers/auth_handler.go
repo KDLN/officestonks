@@ -334,6 +334,38 @@ func (h *AuthHandler) SetUsername(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RefreshToken handles token refresh requests
+func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
+	// Get authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, "Authorization header required", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract token
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == authHeader {
+		http.Error(w, "Invalid authorization header format", http.StatusBadRequest)
+		return
+	}
+
+	// Refresh the token
+	newToken, err := auth.RefreshToken(token)
+	if err != nil {
+		log.Printf("Token refresh error: %v", err)
+		http.Error(w, "Token refresh failed", http.StatusUnauthorized)
+		return
+	}
+
+	// Return new token
+	resp := map[string]string{
+		"token": newToken,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 // GetVersion returns the current build version/timestamp
 func (h *AuthHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	version := map[string]interface{}{

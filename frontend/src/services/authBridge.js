@@ -1,5 +1,6 @@
 import { getCurrentSession } from './supabaseAuth'
 import { getToken as getOfficeToken } from './auth'
+import { validateToken } from './tokenManager'
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com'
 
@@ -85,6 +86,14 @@ let syncPromise = null
 
 export const authenticatedFetch = async (url, options = {}) => {
   console.log('🌐 Making authenticated request to:', url);
+  
+  // Validate token before making request
+  const tokenValid = await validateToken();
+  if (!tokenValid) {
+    console.error('🌐 Token validation failed before request');
+    throw new Error('Token validation failed')
+  }
+  
   let token = await getAuthToken()
 
   if (!token) {

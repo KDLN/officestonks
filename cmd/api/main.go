@@ -223,6 +223,7 @@ func main() {
 	authRouter := apiRouter.PathPrefix("/auth").Subrouter()
 	authRouter.HandleFunc("/register", authHandler.Register).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/login", authHandler.Login).Methods("POST", "OPTIONS")
+	authRouter.HandleFunc("/refresh", authHandler.RefreshToken).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/supabase", authHandler.SupabaseAuth).Methods("POST", "OPTIONS")
 	authRouter.HandleFunc("/debug/supabase", authHandler.DebugSupabaseConfig).Methods("GET", "OPTIONS")
 	authRouter.HandleFunc("/check-username", authHandler.CheckUsernameAvailability).Methods("POST", "OPTIONS")
