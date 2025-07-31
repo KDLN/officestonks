@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { formatCurrency, formatPercentage, formatDate } from '../utils';
 import './Dashboard.css';  // Import Dashboard styles for consistent UI
 import './Portfolio.css';
 
@@ -59,23 +60,6 @@ function Portfolio() {
     return { amount: gainLoss, percentage };
   };
 
-  const formatCurrency = (amount) => {
-    return `$${amount.toFixed(2)}`;
-  };
-
-  const formatPercentage = (value) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
 
   if (loading) {
     return (

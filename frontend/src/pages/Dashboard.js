@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, getWebSocketInstance } from '../services/websocket';
-import { safeGetItem, safeSetItem } from '../services/storageManager';
+import { safeGetItem, safeSetItem } from '../utils';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';

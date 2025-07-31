@@ -3,6 +3,7 @@ import Navigation from '../components/Navigation';
 import { getLeaderboard } from '../services/user';
 import { getUserId } from '../services/auth';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { formatCurrency } from '../utils';
 import './Leaderboard.css';
 
 const Leaderboard = () => {
@@ -28,9 +29,6 @@ const Leaderboard = () => {
     fetchLeaderboard();
   }, []);
 
-  const formatCurrency = (value) => {
-    return `$${value.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
-  };
 
   const handleRefresh = () => {
     fetchLeaderboard();

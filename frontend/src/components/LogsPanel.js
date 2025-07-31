@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import logger, { getRecentLogs, exportLogs } from '../services/logger';
+import { formatTime } from '../utils';
 import './LogsPanel.css';
 
 const LogsPanel = () => {
@@ -56,9 +57,6 @@ const LogsPanel = () => {
     return emojis[level] || '📝';
   };
 
-  const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString();
-  };
 
   const handleExportLogs = () => {
     const logsData = exportLogs();
@@ -185,7 +183,7 @@ const LogsPanel = () => {
                       {getLogLevelEmoji(log.level)} {log.level}
                     </span>
                     <span className="log-timestamp">
-                      {formatTimestamp(log.timestamp)}
+                      {formatTime(log.timestamp)}
                     </span>
                     <span className="log-session-time">
                       +{Math.round(log.sessionTime / 1000)}s

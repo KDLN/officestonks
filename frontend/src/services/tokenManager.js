@@ -1,4 +1,5 @@
 // Token management service for proactive token validation and refresh
+import { safeGetItem, safeSetItem, safeRemoveItem } from '../utils';
 
 // Token validation constants
 const TOKEN_REFRESH_THRESHOLD = 2 * 60 * 60 * 1000; // Refresh if expires within 2 hours
@@ -9,36 +10,6 @@ class TokenManager {
     this.checkInterval = null;
     this.isRefreshing = false;
     this.refreshPromise = null;
-  }
-
-  // Safe storage operations
-  safeGetItem(key) {
-    try {
-      return localStorage.getItem(key);
-    } catch (error) {
-      console.error(`📦 Error reading localStorage key "${key}":`, error);
-      return null;
-    }
-  }
-
-  safeSetItem(key, value) {
-    try {
-      localStorage.setItem(key, value);
-      return true;
-    } catch (error) {
-      console.error(`📦 Error writing localStorage key "${key}":`, error);
-      return false;
-    }
-  }
-
-  safeRemoveItem(key) {
-    try {
-      localStorage.removeItem(key);
-      return true;
-    } catch (error) {
-      console.error(`📦 Error removing localStorage key "${key}":`, error);
-      return false;
-    }
   }
 
   // Initialize token monitoring
@@ -90,7 +61,7 @@ class TokenManager {
 
   // Get current token expiration status
   getTokenStatus() {
-    const token = this.safeGetItem('token');
+    const token = safeGetItem('token');
     if (!token) {
       return { valid: false, reason: 'no_token' };
     }
@@ -156,7 +127,7 @@ class TokenManager {
 
   // Perform the actual token refresh
   async performTokenRefresh() {
-    const currentToken = this.safeGetItem('token');
+    const currentToken = safeGetItem('token');
     if (!currentToken) {
       throw new Error('No token to refresh');
     }
@@ -179,7 +150,7 @@ class TokenManager {
       const data = await response.json();
       
       // Update stored token
-      this.safeSetItem('token', data.token);
+      safeSetItem('token', data.token);
       
       console.log('🔐 Token refreshed successfully');
       
@@ -207,10 +178,10 @@ class TokenManager {
     this.stopTokenMonitoring();
     
     // Clear all auth data
-    this.safeRemoveItem('token');
-    this.safeRemoveItem('userId');
-    this.safeRemoveItem('username');
-    this.safeRemoveItem('isAdmin');
+    safeRemoveItem('token');
+    safeRemoveItem('userId');
+    safeRemoveItem('username');
+    safeRemoveItem('isAdmin');
     
     // Redirect to login if not already there
     if (!window.location.pathname.includes('/login')) {
