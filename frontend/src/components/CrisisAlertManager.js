@@ -7,119 +7,104 @@ const CrisisAlertManager = ({ socket }) => {
   // Generate unique ID for alerts
   const generateAlertId = () => Date.now() + Math.random();
 
+  // Helper function to create alert object
+  const createAlert = useCallback((type, stockSymbol, stockName, message, details, options = {}) => ({
+    id: generateAlertId(),
+    type,
+    stockSymbol,
+    stockName,
+    message,
+    details,
+    timestamp: new Date().toISOString(),
+    ...options
+  }), []);
+
   // Process stock price updates to detect crisis events
   const processStockUpdate = useCallback((data) => {
     if (!data || !data.price) return;
 
     const price = parseFloat(data.price);
+    const stockName = data.name || `Stock ${data.symbol}`;
     
     // Detect crisis - stock hits $0.01
     if (price <= 0.01) {
-      const alert = {
-        id: generateAlertId(),
-        type: 'crisis',
-        stockSymbol: data.symbol,
-        stockName: data.name || `Stock ${data.symbol}`,
-        message: `${data.symbol} has crashed to penny stock levels!`,
-        details: 'This stock is now in crisis territory and may face bankruptcy or recovery.',
-        price: price,
-        sector: data.sector,
-        impact: -95, // Rough impact percentage
-        timestamp: new Date().toISOString(),
-        duration: 10000 // 10 seconds for crisis alerts
-      };
-      
+      const alert = createAlert(
+        'crisis',
+        data.symbol,
+        stockName,
+        `${data.symbol} has crashed to penny stock levels!`,
+        'This stock is now in crisis territory and may face bankruptcy or recovery.',
+        { price, sector: data.sector, impact: -95, duration: 10000 }
+      );
+      addAlert(alert);
+      return;
+    }
+
+    if (!data.previousPrice || data.previousPrice <= 0) return;
+
+    const priceChange = ((price - data.previousPrice) / data.previousPrice) * 100;
+    
+    // Detect major price drops (>20%)
+    if (priceChange < -20) {
+      const alert = createAlert(
+        'sector',
+        data.symbol,
+        stockName,
+        `${data.symbol} drops ${Math.abs(priceChange).toFixed(1)}% in market turmoil!`,
+        'Significant price movement detected. Monitor for potential sector impact.',
+        { price, sector: data.sector, impact: priceChange, duration: 6000 }
+      );
       addAlert(alert);
     }
-    // Detect major price drops (>20% in one update)
-    else if (data.previousPrice && data.previousPrice > 0) {
-      const priceDrop = ((data.previousPrice - price) / data.previousPrice) * 100;
-      
-      if (priceDrop > 20) {
-        const alert = {
-          id: generateAlertId(),
-          type: 'sector',
-          stockSymbol: data.symbol,
-          stockName: data.name || `Stock ${data.symbol}`,
-          message: `${data.symbol} drops ${priceDrop.toFixed(1)}% in market turmoil!`,
-          details: 'Significant price movement detected. Monitor for potential sector impact.',
-          price: price,
-          sector: data.sector,
-          impact: -priceDrop,
-          timestamp: new Date().toISOString(),
-          duration: 6000
-        };
-        
-        addAlert(alert);
-      }
+    // Detect major price jumps (>100% recovery)
+    else if (priceChange > 100) {
+      const alert = createAlert(
+        'recovery',
+        data.symbol,
+        stockName,
+        `${data.symbol} rockets ${priceChange.toFixed(0)}% higher!`,
+        'Dramatic recovery detected. This could be a turnaround story.',
+        { price, sector: data.sector, impact: priceChange, duration: 8000 }
+      );
+      addAlert(alert);
     }
-    // Detect major price jumps (recovery-like behavior)
-    else if (data.previousPrice && data.previousPrice > 0) {
-      const priceJump = ((price - data.previousPrice) / data.previousPrice) * 100;
-      
-      if (priceJump > 100) { // 100%+ jump
-        const alert = {
-          id: generateAlertId(),
-          type: 'recovery',
-          stockSymbol: data.symbol,
-          stockName: data.name || `Stock ${data.symbol}`,
-          message: `${data.symbol} rockets ${priceJump.toFixed(0)}% higher!`,
-          details: 'Dramatic recovery detected. This could be a turnaround story.',
-          price: price,
-          sector: data.sector,
-          impact: priceJump,
-          timestamp: new Date().toISOString(),
-          duration: 8000
-        };
-        
-        addAlert(alert);
-      }
-    }
-  }, []);
+  }, [createAlert]);
+
+  // Helper function to get news alert duration
+  const getNewsAlertDuration = (type) => {
+    const durations = {
+      bankruptcy: 12000,
+      recovery: 10000,
+      sector: 6000,
+      crisis: 8000
+    };
+    return durations[type] || durations.crisis;
+  };
 
   // Process news items to create alerts
   const processNewsUpdate = useCallback((newsItem) => {
     if (!newsItem) return;
 
-    let alertType = 'crisis';
-    let icon = '📰';
-    let duration = 8000;
+    const alertType = newsItem.type || 'crisis';
+    const duration = getNewsAlertDuration(alertType);
+    const details = newsItem.content ? newsItem.content.substring(0, 150) + '...' : null;
 
-    // Map news types to alert types
-    switch (newsItem.type) {
-      case 'bankruptcy':
-        alertType = 'bankruptcy';
-        duration = 12000; // Bankruptcy news stays longer
-        break;
-      case 'recovery':
-        alertType = 'recovery';
-        duration = 10000;
-        break;
-      case 'sector':
-        alertType = 'sector';
-        duration = 6000;
-        break;
-      case 'crisis':
-      default:
-        alertType = 'crisis';
-        break;
-    }
-
-    const alert = {
-      id: generateAlertId(),
-      type: alertType,
-      stockSymbol: newsItem.stock_symbol,
-      stockName: newsItem.stock_name,
-      message: newsItem.title,
-      details: newsItem.content ? newsItem.content.substring(0, 150) + '...' : null,
-      sector: newsItem.sector_name,
-      impact: newsItem.impact_score,
-      timestamp: newsItem.created_at || new Date().toISOString(),
-      duration
-    };
+    const alert = createAlert(
+      alertType,
+      newsItem.stock_symbol,
+      newsItem.stock_name,
+      newsItem.title,
+      details,
+      {
+        sector: newsItem.sector_name,
+        impact: newsItem.impact_score,
+        timestamp: newsItem.created_at || new Date().toISOString(),
+        duration
+      }
+    );
 
     addAlert(alert);
-  }, []);
+  }, [createAlert]);
 
   // Add alert to the queue
   const addAlert = (alert) => {
@@ -159,21 +144,21 @@ const CrisisAlertManager = ({ socket }) => {
 
     const handleCrisisEvent = (data) => {
       try {
-        // Direct crisis event from admin testing or automated system
         if (data.type === 'crisis_event') {
-          const alert = {
-            id: generateAlertId(),
-            type: data.event_type || 'crisis',
-            stockSymbol: data.stock_symbol,
-            stockName: data.stock_name,
-            message: data.message || 'Crisis event detected',
-            details: data.details,
-            price: data.price,
-            sector: data.sector,
-            impact: data.impact,
-            timestamp: data.timestamp || new Date().toISOString(),
-            duration: 10000
-          };
+          const alert = createAlert(
+            data.event_type || 'crisis',
+            data.stock_symbol,
+            data.stock_name,
+            data.message || 'Crisis event detected',
+            data.details,
+            {
+              price: data.price,
+              sector: data.sector,
+              impact: data.impact,
+              timestamp: data.timestamp || new Date().toISOString(),
+              duration: 10000
+            }
+          );
           
           addAlert(alert);
         }
@@ -209,7 +194,7 @@ const CrisisAlertManager = ({ socket }) => {
     return () => {
       window.removeEventListener('crisis-alert', handleCustomCrisisEvent);
     };
-  }, [socket, processStockUpdate, processNewsUpdate]);
+  }, [socket, processStockUpdate, processNewsUpdate, createAlert]);
 
   return (
     <div className="crisis-alert-manager">

@@ -168,36 +168,47 @@ class StorageManager {
     });
   }
 
-  // Validate storage structure against schema
+  // Helper function to validate a single schema key
+  validateSchemaKey(key, config) {
+    const value = localStorage.getItem(key);
+    const issues = { errors: [], warnings: [] };
+
+    // Check required fields
+    if (config.required && !value) {
+      issues.errors.push(`Missing required key: ${key}`);
+      return issues;
+    }
+
+    // Check data types
+    if (value && config.type && !this.validateDataType(value, config.type)) {
+      issues.warnings.push(`Invalid type for ${key}: expected ${config.type}`);
+    }
+
+    return issues;
+  }
+
+  // Helper function to check if a key is expected
+  isExpectedKey(key) {
+    return STORAGE_SCHEMA[key] || 
+           key.startsWith(BACKUP_PREFIX) || 
+           (key.startsWith('sb-') && key.includes('-auth-token'));
+  }
+
+  // Validate storage structure against schema (simplified)
   validateStorageStructure() {
     const errors = [];
     const warnings = [];
 
+    // Validate schema keys
     Object.entries(STORAGE_SCHEMA).forEach(([key, config]) => {
-      const value = localStorage.getItem(key);
-
-      // Check required fields
-      if (config.required && !value) {
-        errors.push(`Missing required key: ${key}`);
-        return;
-      }
-
-      // Check data types
-      if (value && config.type) {
-        const isValid = this.validateDataType(value, config.type);
-        if (!isValid) {
-          warnings.push(`Invalid type for ${key}: expected ${config.type}`);
-        }
-      }
+      const issues = this.validateSchemaKey(key, config);
+      errors.push(...issues.errors);
+      warnings.push(...issues.warnings);
     });
 
-    // Check for unexpected keys (potential data corruption)
+    // Check for unexpected keys
     Object.keys(localStorage).forEach(key => {
-      const isSchemaKey = STORAGE_SCHEMA[key];
-      const isBackupKey = key.startsWith(BACKUP_PREFIX);
-      const isSupabaseKey = key.startsWith('sb-') && key.includes('-auth-token');
-      
-      if (!isSchemaKey && !isBackupKey && !isSupabaseKey) {
+      if (!this.isExpectedKey(key)) {
         warnings.push(`Unexpected localStorage key: ${key}`);
       }
     });

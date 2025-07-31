@@ -40,7 +40,6 @@ const AppContent = () => {
       }
     };
     
-    // Check after a short delay
     const timer = setTimeout(checkRenderHealth, 2000);
     return () => clearTimeout(timer);
   }, []);
@@ -78,32 +77,42 @@ const AppContent = () => {
 };
 
 function App() {
+  // Helper function to log environment info
+  const logEnvironmentInfo = () => {
+    console.log('🌍 Current environment:', {
+      hostname: window.location.hostname,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      protocol: window.location.protocol
+    });
+    console.log('⚙️ Environment variables:', {
+      REACT_APP_BACKEND_URL: process.env.REACT_APP_BACKEND_URL,
+      REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+      REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL?.substring(0, 20) + '...',
+      NODE_ENV: process.env.NODE_ENV
+    });
+  };
+
+  // Helper function to log localStorage info
+  const logStorageInfo = () => {
+    console.log('💾 LocalStorage contents:', {
+      token: localStorage.getItem('token') ? 'present' : 'missing',
+      userId: localStorage.getItem('userId') || 'missing',
+      username: localStorage.getItem('username') || 'missing'
+    });
+  };
+
   // Log app initialization
   React.useEffect(() => {
     const initializeApp = async () => {
       console.log('🚀 Office Stonks app initializing...');
-      console.log('🌍 Current environment:', {
-        hostname: window.location.hostname,
-        pathname: window.location.pathname,
-        search: window.location.search,
-        protocol: window.location.protocol
-      });
-      console.log('⚙️ Environment variables:', {
-        REACT_APP_BACKEND_URL: process.env.REACT_APP_BACKEND_URL,
-        REACT_APP_API_URL: process.env.REACT_APP_API_URL,
-        REACT_APP_SUPABASE_URL: process.env.REACT_APP_SUPABASE_URL?.substring(0, 20) + '...',
-        NODE_ENV: process.env.NODE_ENV
-      });
+      logEnvironmentInfo();
 
       // Initialize storage manager before reading localStorage
       const { initializeStorage } = await import('./services/storageManager');
       await initializeStorage();
 
-      console.log('💾 LocalStorage contents:', {
-        token: localStorage.getItem('token') ? 'present' : 'missing',
-        userId: localStorage.getItem('userId') || 'missing',
-        username: localStorage.getItem('username') || 'missing'
-      });
+      logStorageInfo();
     };
 
     initializeApp();

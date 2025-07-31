@@ -38,6 +38,35 @@ const AdminPanel = () => {
   const [announcementText, setAnnouncementText] = useState("");
   const [announcementType, setAnnouncementType] = useState("general");
 
+  // Helper function for consistent status/error handling
+  const setTemporaryStatus = (message, duration = 3000) => {
+    setStatusMessage(message);
+    setTimeout(() => setStatusMessage(null), duration);
+  };
+
+  const setTemporaryError = (message, duration = 5000) => {
+    setError(message);
+    setTimeout(() => setError(null), duration);
+  };
+
+  // Helper function for common admin action pattern
+  const handleAdminAction = async (actionName, actionFn, successMessage) => {
+    try {
+      setError(null);
+      setStatusMessage(`${actionName}...`);
+      console.log(actionName);
+
+      const result = await actionFn();
+      console.log(`${actionName} result:`, result);
+
+      setTemporaryStatus(successMessage);
+    } catch (err) {
+      console.error(`Error ${actionName.toLowerCase()}:`, err);
+      setStatusMessage(null);
+      setTemporaryError(`Failed to ${actionName.toLowerCase()}: ${err.message}`);
+    }
+  };
+
   // Check if user is admin and load users data
   useEffect(() => {
     const checkAccess = async () => {
@@ -102,8 +131,7 @@ const AdminPanel = () => {
       setStatusMessage("Updating game configuration...");
       const result = await updateGameConfig(updatedConfig);
       setGameConfig(result);
-      setStatusMessage("Game configuration updated successfully!");
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTemporaryStatus("Game configuration updated successfully!");
     } catch (err) {
       console.error("Error updating game config:", err);
       setError(`Failed to update game configuration: ${err.message}`);
@@ -120,8 +148,7 @@ const AdminPanel = () => {
       setStatusMessage("Resetting game configuration to defaults...");
       const result = await resetGameConfig();
       setGameConfig(result);
-      setStatusMessage("Game configuration reset to defaults!");
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTemporaryStatus("Game configuration reset to defaults!");
     } catch (err) {
       console.error("Error resetting game config:", err);
       setError(`Failed to reset game configuration: ${err.message}`);
@@ -138,8 +165,7 @@ const AdminPanel = () => {
       setStatusMessage("Loading balanced game configuration...");
       const result = await loadBalancedConfig();
       setGameConfig(result);
-      setStatusMessage("Balanced game configuration loaded!");
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTemporaryStatus("Balanced game configuration loaded!");
     } catch (err) {
       console.error("Error loading balanced config:", err);
       setError(`Failed to load balanced configuration: ${err.message}`);
@@ -147,49 +173,19 @@ const AdminPanel = () => {
   };
 
   const handleResetStockPrices = async () => {
-    try {
-      setError(null);
-      setStatusMessage("Resetting stock prices...");
-      console.log("Resetting stock prices...");
-
-      const result = await resetStockPrices();
-      console.log("Reset stock prices result:", result);
-
-      setStatusMessage("Stock prices reset successfully!");
-
-      // Clear status message after 3 seconds
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err) {
-      console.error("Error resetting stock prices:", err);
-      setStatusMessage(null);
-      setError("Failed to reset stock prices: " + err.message);
-
-      // Clear error after 5 seconds
-      setTimeout(() => setError(null), 5000);
-    }
+    await handleAdminAction(
+      "Resetting stock prices",
+      resetStockPrices,
+      "Stock prices reset successfully!"
+    );
   };
 
   const handleClearChat = async () => {
-    try {
-      setError(null);
-      setStatusMessage("Clearing chat messages...");
-      console.log("Clearing chat messages...");
-
-      const result = await clearAllChats();
-      console.log("Clear chat result:", result);
-
-      setStatusMessage("Chat messages cleared successfully!");
-
-      // Clear status message after 3 seconds
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err) {
-      console.error("Error clearing chat messages:", err);
-      setStatusMessage(null);
-      setError("Failed to clear chat messages: " + err.message);
-
-      // Clear error after 5 seconds
-      setTimeout(() => setError(null), 5000);
-    }
+    await handleAdminAction(
+      "Clearing chat messages",
+      clearAllChats,
+      "Chat messages cleared successfully!"
+    );
   };
 
   const handleSendAnnouncement = () => {
@@ -205,8 +201,7 @@ const AdminPanel = () => {
     window.dispatchEvent(event);
     
     setAnnouncementText("");
-    setStatusMessage(`${announcementType} announcement sent!`);
-    setTimeout(() => setStatusMessage(null), 3000);
+    setTemporaryStatus(`${announcementType} announcement sent!`);
   };
 
   const handleToggleAdmin = async (user) => {
@@ -226,24 +221,16 @@ const AdminPanel = () => {
       const result = await updateUser(user.id, userData);
       console.log("Update user result:", result);
 
-      // Refresh user list
       await fetchUsers();
-      setStatusMessage(`Updated admin status for ${user.username}`);
-
-      // Clear status message after 3 seconds
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTemporaryStatus(`Updated admin status for ${user.username}`);
     } catch (err) {
       console.error("Error updating user:", err);
       setStatusMessage(null);
-      setError("Failed to update user: " + err.message);
-
-      // Clear error after 5 seconds
-      setTimeout(() => setError(null), 5000);
+      setTemporaryError("Failed to update user: " + err.message);
     }
   };
 
   const handleDeleteUser = async (userId, username) => {
-    // Ask for confirmation
     if (!window.confirm(`Are you sure you want to delete user ${username}?`)) {
       return;
     }
@@ -256,104 +243,58 @@ const AdminPanel = () => {
       const result = await deleteUser(userId);
       console.log("Delete user result:", result);
 
-      // Refresh user list
       await fetchUsers();
-      setStatusMessage(`User ${username} deleted successfully`);
-
-      // Clear status message after 3 seconds
-      setTimeout(() => setStatusMessage(null), 3000);
+      setTemporaryStatus(`User ${username} deleted successfully`);
     } catch (err) {
       console.error("Error deleting user:", err);
       setStatusMessage(null);
-      setError("Failed to delete user: " + err.message);
+      setTemporaryError("Failed to delete user: " + err.message);
+    }
+  };
 
-      // Clear error after 5 seconds
-      setTimeout(() => setError(null), 5000);
+  // Helper function for crisis actions
+  const handleCrisisAction = async (actionName, actionFn, successMessage) => {
+    if (!crisisStockId) {
+      setError("Please enter a stock ID");
+      return;
+    }
+
+    try {
+      setCrisisLoading(true);
+      setError(null);
+      setStatusMessage(`${actionName}...`);
+      
+      const result = await actionFn(parseInt(crisisStockId));
+      setTemporaryStatus(successMessage);
+      console.log(`${actionName} result:`, result);
+      
+      await fetchSimulatorStatus();
+    } catch (err) {
+      console.error(`Error ${actionName.toLowerCase()}:`, err);
+      setTemporaryError(`Failed to ${actionName.toLowerCase()}: ${err.message}`);
+    } finally {
+      setCrisisLoading(false);
     }
   };
 
   // Crisis testing functions
-  const handleForceCrisis = async () => {
-    if (!crisisStockId) {
-      setError("Please enter a stock ID");
-      return;
-    }
+  const handleForceCrisis = () => handleCrisisAction(
+    "Forcing crisis event",
+    forceCrisisEvent,
+    "Crisis event triggered successfully!"
+  );
 
-    try {
-      setCrisisLoading(true);
-      setError(null);
-      setStatusMessage("Forcing crisis event...");
-      
-      const result = await forceCrisisEvent(parseInt(crisisStockId));
-      setStatusMessage("Crisis event triggered successfully!");
-      console.log("Crisis event result:", result);
-      
-      // Refresh simulator status
-      await fetchSimulatorStatus();
-      
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err) {
-      console.error("Error forcing crisis:", err);
-      setError("Failed to force crisis: " + err.message);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setCrisisLoading(false);
-    }
-  };
+  const handleForceBankruptcy = () => handleCrisisAction(
+    "Forcing bankruptcy",
+    forceBankruptcy,
+    "Bankruptcy triggered successfully!"
+  );
 
-  const handleForceBankruptcy = async () => {
-    if (!crisisStockId) {
-      setError("Please enter a stock ID");
-      return;
-    }
-
-    try {
-      setCrisisLoading(true);
-      setError(null);
-      setStatusMessage("Forcing bankruptcy...");
-      
-      const result = await forceBankruptcy(parseInt(crisisStockId));
-      setStatusMessage("Bankruptcy triggered successfully!");
-      console.log("Bankruptcy result:", result);
-      
-      await fetchSimulatorStatus();
-      
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err) {
-      console.error("Error forcing bankruptcy:", err);
-      setError("Failed to force bankruptcy: " + err.message);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setCrisisLoading(false);
-    }
-  };
-
-  const handleForceRecovery = async () => {
-    if (!crisisStockId) {
-      setError("Please enter a stock ID");
-      return;
-    }
-
-    try {
-      setCrisisLoading(true);
-      setError(null);
-      setStatusMessage("Forcing recovery...");
-      
-      const result = await forceRecovery(parseInt(crisisStockId));
-      setStatusMessage("Recovery triggered successfully!");
-      console.log("Recovery result:", result);
-      
-      await fetchSimulatorStatus();
-      
-      setTimeout(() => setStatusMessage(null), 3000);
-    } catch (err) {
-      console.error("Error forcing recovery:", err);
-      setError("Failed to force recovery: " + err.message);
-      setTimeout(() => setError(null), 5000);
-    } finally {
-      setCrisisLoading(false);
-    }
-  };
+  const handleForceRecovery = () => handleCrisisAction(
+    "Forcing recovery",
+    forceRecovery,
+    "Recovery triggered successfully!"
+  );
 
   const fetchSimulatorStatus = async () => {
     try {

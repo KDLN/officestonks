@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, getWebSocketInstance } from '../services/websocket';
 import { safeGetItem, safeSetItem } from '../utils';
+import logger from '../services/logger';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';
@@ -38,60 +39,61 @@ const Dashboard = () => {
     safeSetItem('chatDrawerOpen', newState.toString());
   };
 
-  const fetchData = async () => {
-    console.log('🎯 Dashboard fetchData started');
-    try {
-      console.log('🔄 Fetching dashboard data from APIs...');
-      
-      // Fetch portfolio, transactions, and stocks data in parallel
-      const startTime = Date.now();
+  // Helper function to fetch dashboard data with logging
+  const fetchDashboardData = async () => {
+    return logger.performance('Dashboard data fetch', async () => {
       const [portfolioData, transactionsData, stocksData] = await Promise.all([
-        getUserPortfolio().then(data => {
-          console.log('✅ Portfolio data received:', data);
-          return data;
-        }).catch(err => {
-          console.error('❌ Portfolio fetch failed:', err);
-          throw err;
-        }),
-        getTransactionHistory(5).then(data => {
-          console.log('✅ Transactions data received:', data?.length || 0, 'transactions');
-          return data;
-        }).catch(err => {
-          console.error('❌ Transactions fetch failed:', err);
-          throw err;
-        }),
-        getAllStocks().then(data => {
-          console.log('✅ Stocks data received:', data?.length || 0, 'stocks');
-          return data;
-        }).catch(err => {
-          console.error('❌ Stocks fetch failed:', err);
-          throw err;
-        })
+        getUserPortfolio(),
+        getTransactionHistory(5),
+        getAllStocks()
       ]);
+
+      logger.debug('Dashboard data fetched successfully', {
+        portfolioItems: portfolioData?.portfolio_items?.length || 0,
+        transactionCount: transactionsData?.length || 0,
+        stockCount: stocksData?.length || 0
+      });
+
+      return { portfolioData, transactionsData, stocksData };
+    });
+  };
+
+  // Helper function to process stocks data
+  const processStocksData = (stocksData) => {
+    const sortedStocks = [...stocksData].sort((a, b) => b.current_price - a.current_price);
+    const topStocks = sortedStocks.slice(0, 5);
+    
+    logger.debug('Top stocks calculated', {
+      topStocks: topStocks.map(s => ({ symbol: s.symbol, price: s.current_price }))
+    });
+    
+    return topStocks;
+  };
+
+  // Simplified main fetch function
+  const fetchData = async () => {
+    logger.info('Starting dashboard data fetch');
+    
+    try {
+      const { portfolioData, transactionsData, stocksData } = await fetchDashboardData();
       
-      const fetchTime = Date.now() - startTime;
-      console.log(`⏱️ Data fetch completed in ${fetchTime}ms`);
-      
+      // Update state
       setPortfolio(portfolioData);
       setTransactions(transactionsData);
+      setTopStocks(processStocksData(stocksData));
       
-      // Get top 5 stocks by price
-      const sortedStocks = [...stocksData].sort((a, b) => b.current_price - a.current_price);
-      setTopStocks(sortedStocks.slice(0, 5));
-      console.log('📊 Top stocks calculated:', sortedStocks.slice(0, 5).map(s => s.symbol));
-      
-      console.log('✅ Dashboard data loading completed successfully');
       setLoading(false);
+      logger.info('Dashboard data loading completed successfully');
+      
     } catch (err) {
-      console.error('❌ Dashboard error:', err);
-      console.error('🔍 Error details:', {
-        message: err.message,
+      const errorMessage = err.response?.data?.error || 'Unable to load dashboard. Please check your connection and try again.';
+      
+      logger.error('Dashboard data fetch failed', {
+        error: err.message,
         status: err.response?.status,
-        statusText: err.response?.statusText,
-        data: err.response?.data
+        statusText: err.response?.statusText
       });
       
-      const errorMessage = err.response?.data?.error || 'Unable to load dashboard. Please check your connection and try again.';
       setError(errorMessage);
       setLoading(false);
     }

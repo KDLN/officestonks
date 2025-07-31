@@ -92,95 +92,115 @@ export const getAuthToken = async () => {
 // Enhanced fetch that includes proper authentication
 let syncPromise = null
 
-export const authenticatedFetch = async (url, options = {}) => {
-  console.log('🌐 Making authenticated request to:', url);
+// Helper function to clear stored auth credentials
+const clearStoredCredentials = async () => {
+  const { safeRemoveItem } = await import('./storageManager');
+  safeRemoveItem('token');
+  safeRemoveItem('userId');
+  safeRemoveItem('username');
+  safeRemoveItem('isAdmin');
+};
+
+// Helper function to create headers with authentication
+const createAuthHeaders = (token, options = {}) => ({
+  ...options.headers,
+  'Authorization': `Bearer ${token}`
+});
+
+// Helper function to make authenticated request
+const makeRequest = async (url, options, token) => {
+  const headers = createAuthHeaders(token, options);
   
-  // Validate token before making request
-  const tokenValid = await validateToken();
-  if (!tokenValid) {
-    console.error('🌐 Token validation failed before request');
-    throw new Error('Token validation failed')
-  }
+  logger.debug('Making authenticated request', { url, method: options.method || 'GET' });
   
-  let token = await getAuthToken()
-
-  if (!token) {
-    console.error('🌐 No authentication token available for request');
-    throw new Error('No authentication token available')
-  }
-
-  const headers = {
-    ...options.headers,
-    'Authorization': `Bearer ${token}`
-  }
-
-  console.log('🌐 Sending request with auth headers...');
-  let response = await fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
     credentials: 'include'
-  })
+  });
 
-  console.log('🌐 Response received:', {
-    url: url,
+  logger.debug('Response received', {
+    url,
     status: response.status,
     statusText: response.statusText,
     ok: response.ok
   });
 
-  if (response.status === 401 || response.status === 403) {
-    console.log('🔄 Auth failed, attempting token refresh...');
-    // Token might be invalid or expired - clear stored credentials
-    const { safeRemoveItem } = await import('./storageManager');
-    safeRemoveItem('token');
-    safeRemoveItem('userId');
-    safeRemoveItem('username');
-    safeRemoveItem('isAdmin');
+  return response;
+};
 
-    try {
-      // Attempt to resync auth from Supabase session (deduplicated)
-      if (!syncPromise) {
-        console.log('🔄 Starting new auth sync...');
-        syncPromise = syncAuthWithBackend().finally(() => { syncPromise = null })
-      } else {
-        console.log('🔄 Auth sync already in progress, waiting...');
-      }
-      await syncPromise
+// Helper function to handle auth sync and retry
+const handleAuthFailureAndRetry = async (url, options) => {
+  logger.warn('Auth failed, attempting token refresh');
+  
+  // Clear stored credentials
+  await clearStoredCredentials();
 
-      token = await getAuthToken()
-      if (token) {
-        console.log('🔄 Retrying request with new token...');
-        const retryHeaders = {
-          ...options.headers,
-          'Authorization': `Bearer ${token}`
-        }
-        response = await fetch(url, {
-          ...options,
-          headers: retryHeaders,
-          credentials: 'include'
-        })
-
-        console.log('🔄 Retry response:', {
-          status: response.status,
-          statusText: response.statusText,
-          ok: response.ok
-        });
-
-        if (response.ok) {
-          return response
-        }
-      }
-    } catch (err) {
-      console.error('🔄 Auth resync failed:', err)
+  try {
+    // Attempt to resync auth from Supabase session (deduplicated)
+    if (!syncPromise) {
+      logger.debug('Starting new auth sync');
+      syncPromise = syncAuthWithBackend().finally(() => { syncPromise = null });
+    } else {
+      logger.debug('Auth sync already in progress, waiting');
     }
+    
+    await syncPromise;
 
-    // Redirect to login if we still have no valid token
-    console.log('🚪 Redirecting to login due to auth failure');
-    if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/login'
+    const newToken = await getAuthToken();
+    if (newToken) {
+      logger.debug('Retrying request with new token');
+      const retryResponse = await makeRequest(url, options, newToken);
+      
+      if (retryResponse.ok) {
+        return retryResponse;
+      }
     }
-    return Promise.reject(new Error('Authentication failed - redirecting to login'))
+  } catch (err) {
+    logger.error('Auth resync failed', { error: err.message });
   }
 
-  return response
+  // Redirect to login if we still have no valid token
+  logger.warn('Redirecting to login due to auth failure');
+  if (!window.location.pathname.includes('/login')) {
+    window.location.href = '/login';
+  }
+  
+  throw new Error('Authentication failed - redirecting to login');
+};
+
+// Main authenticated fetch function (simplified)
+export const authenticatedFetch = async (url, options = {}) => {
+  const apiLogger = logger.apiCall(options.method || 'GET', url);
+  
+  try {
+    // Validate token before making request
+    const tokenValid = await validateToken();
+    if (!tokenValid) {
+      apiLogger.error(new Error('Token validation failed before request'));
+      throw new Error('Token validation failed');
+    }
+    
+    const token = await getAuthToken();
+    if (!token) {
+      apiLogger.error(new Error('No authentication token available'));
+      throw new Error('No authentication token available');
+    }
+
+    // Make the authenticated request
+    const response = await makeRequest(url, options, token);
+
+    // Handle auth failures with retry logic
+    if (response.status === 401 || response.status === 403) {
+      return await handleAuthFailureAndRetry(url, options);
+    }
+
+    // Success case
+    apiLogger.success(response);
+    return response;
+    
+  } catch (error) {
+    apiLogger.error(error);
+    throw error;
+  }
 }
