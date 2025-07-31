@@ -65,6 +65,11 @@ const Navigation = () => {
               <Link to="/audit" className="admin-link">Audit Log</Link>
             </li>
           )}
+          {isAdmin && (
+            <li>
+              <Link to="/tests" className="admin-link">🧪 Tests</Link>
+            </li>
+          )}
           <li>
             <button onClick={() => {
               console.log('Changelog button clicked');

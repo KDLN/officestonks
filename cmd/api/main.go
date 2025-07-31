@@ -130,6 +130,7 @@ func main() {
 	changelogHandler := handlers.NewChangelogHandler(changelogService)
 	auditHandler := handlers.NewAuditHandler(auditService)
 	gameConfigHandler := handlers.NewGameConfigHandler()
+	testHandler := handlers.NewTestHandler(marketService, userService, stockRepo, portfolioRepo, delistedStockRepo, portfolioLossRepo, newsRepo)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -312,6 +313,10 @@ func main() {
 	adminRouter.HandleFunc("/crisis/bankruptcy", adminHandler.ForceBankruptcy).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/crisis/recovery", adminHandler.ForceRecovery).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/simulator/status", adminHandler.GetSimulatorStatus).Methods("GET", "OPTIONS")
+
+	// Test orchestration endpoints
+	adminRouter.HandleFunc("/tests/status", testHandler.GetTestStatus).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/tests/crisis", testHandler.RunCrisisTests).Methods("POST", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

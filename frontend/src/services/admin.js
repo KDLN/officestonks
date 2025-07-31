@@ -334,3 +334,46 @@ export const getSimulatorStatus = async () => {
     throw error;
   }
 };
+
+// Test orchestration functions
+export const getTestStatus = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/status`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to get test status");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error getting test status:", error);
+    throw error;
+  }
+};
+
+export const runCrisisTests = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/crisis`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to run crisis tests");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error running crisis tests:", error);
+    throw error;
+  }
+};
