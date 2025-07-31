@@ -13,13 +13,15 @@ import (
 
 // MarketService handles stock market operations
 type MarketService struct {
-	stockRepo      models.StockRepository
-	userRepo       models.UserRepository
-	portfolioRepo  models.PortfolioRepository
-	transactionRepo models.TransactionRepository
-	sectorRepo     models.SectorRepository
-	newsService    *NewsService
-	simulator      *market.MarketSimulator
+	stockRepo           models.StockRepository
+	userRepo            models.UserRepository
+	portfolioRepo       models.PortfolioRepository
+	transactionRepo     models.TransactionRepository
+	sectorRepo          models.SectorRepository
+	delistedStockRepo   models.DelistedStockRepository
+	portfolioLossRepo   models.PortfolioLossRepository
+	newsService         *NewsService
+	simulator           *market.MarketSimulator
 }
 
 // NewMarketService creates a new market service
@@ -29,27 +31,36 @@ func NewMarketService(
 	portfolioRepo models.PortfolioRepository,
 	transactionRepo models.TransactionRepository,
 	sectorRepo models.SectorRepository,
+	delistedStockRepo models.DelistedStockRepository,
+	portfolioLossRepo models.PortfolioLossRepository,
 	newsService *NewsService,
 ) *MarketService {
 	// Create a market simulator with faster updates and higher volatility for more dynamic price movements
 	// 2-second updates and 5% volatility
 	simulator := market.NewMarketSimulator(2*time.Second, 0.05)
 	
+	// Create the service first
+	service := &MarketService{
+		stockRepo:           stockRepo,
+		userRepo:            userRepo,
+		portfolioRepo:       portfolioRepo,
+		transactionRepo:     transactionRepo,
+		sectorRepo:          sectorRepo,
+		delistedStockRepo:   delistedStockRepo,
+		portfolioLossRepo:   portfolioLossRepo,
+		newsService:         newsService,
+		simulator:           simulator,
+	}
+	
 	// Connect the news service to the simulator for automated news generation
 	if newsService != nil {
 		simulator.SetNewsService(newsService)
 	}
 	
-	// Return the service
-	return &MarketService{
-		stockRepo:      stockRepo,
-		userRepo:       userRepo,
-		portfolioRepo:  portfolioRepo,
-		transactionRepo: transactionRepo,
-		sectorRepo:     sectorRepo,
-		newsService:    newsService,
-		simulator:      simulator,
-	}
+	// Connect the bankruptcy handler (the service itself implements the interface)
+	simulator.SetBankruptcyHandler(service)
+	
+	return service
 }
 
 // InitializeSimulator loads stocks and starts the simulation
@@ -393,4 +404,70 @@ func (s *MarketService) ListSimulatorStocks() map[int]map[string]interface{} {
 	}
 	
 	return result
+}
+
+// ProcessStockBankruptcy handles the complete bankruptcy process for a stock
+func (s *MarketService) ProcessStockBankruptcy(stockID int) error {
+	// Get the stock information
+	stock, err := s.stockRepo.GetStockByID(stockID)
+	if err != nil {
+		return fmt.Errorf("failed to get stock info: %w", err)
+	}
+	
+	log.Printf("💀 Processing bankruptcy for %s (%s)", stock.Symbol, stock.Name)
+	
+	// Step 1: Get all users who own this stock
+	holders, err := s.portfolioRepo.GetAllHoldersOfStock(stockID)
+	if err != nil {
+		return fmt.Errorf("failed to get stock holders: %w", err)
+	}
+	
+	log.Printf("Found %d users holding %s stock", len(holders), stock.Symbol)
+	
+	// Step 2: Record portfolio losses for all holders
+	for _, holding := range holders {
+		lossAmount := float64(holding.Quantity) * stock.CurrentPrice
+		err := s.portfolioLossRepo.CreatePortfolioLoss(
+			holding.UserID,
+			stockID,
+			stock.Symbol,
+			stock.Name,
+			holding.Quantity,
+			lossAmount,
+		)
+		if err != nil {
+			log.Printf("Error recording portfolio loss for user %d: %v", holding.UserID, err)
+			// Continue processing other users even if one fails
+		} else {
+			log.Printf("💸 Recorded $%.2f loss for user %d from %s bankruptcy", lossAmount, holding.UserID, stock.Symbol)
+		}
+	}
+	
+	// Step 3: Record the delisted stock
+	err = s.delistedStockRepo.CreateDelistedStock(
+		stockID,
+		stock.Symbol,
+		stock.Name,
+		stock.Sector,
+		stock.CurrentPrice,
+		models.DelistingBankruptcy,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to record delisted stock: %w", err)
+	}
+	
+	// Step 4: Remove stock from all portfolios
+	err = s.portfolioRepo.RemoveStockFromAllPortfolios(stockID)
+	if err != nil {
+		return fmt.Errorf("failed to remove stock from portfolios: %w", err)
+	}
+	
+	// Step 5: Mark stock as delisted in database
+	err = s.stockRepo.DelistStock(stockID)
+	if err != nil {
+		return fmt.Errorf("failed to delist stock: %w", err)
+	}
+	
+	log.Printf("✅ Bankruptcy processing completed for %s", stock.Symbol)
+	return nil
 }

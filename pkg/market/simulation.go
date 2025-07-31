@@ -24,18 +24,24 @@ type NewsServiceInterface interface {
 	GenerateSectorContagionNews(sectorName string, eventType string, affectedCount int) error
 }
 
+// BankruptcyHandlerInterface defines methods for processing bankruptcies
+type BankruptcyHandlerInterface interface {
+	ProcessStockBankruptcy(stockID int) error
+}
+
 // MarketSimulator handles the stock price simulation
 type MarketSimulator struct {
-	stocksInfo     map[int]StockInfo
-	sectorsInfo    map[int]SectorInfo
-	updateInterval time.Duration
-	volatility     float64
-	mu             sync.RWMutex
-	updateChan     chan StockUpdate
-	stopChan       chan struct{}
-	pauseChan      chan bool
-	isPaused       bool
-	newsService    NewsServiceInterface
+	stocksInfo        map[int]StockInfo
+	sectorsInfo       map[int]SectorInfo
+	updateInterval    time.Duration
+	volatility        float64
+	mu                sync.RWMutex
+	updateChan        chan StockUpdate
+	stopChan          chan struct{}
+	pauseChan         chan bool
+	isPaused          bool
+	newsService       NewsServiceInterface
+	bankruptcyHandler BankruptcyHandlerInterface
 }
 
 // StockInfo contains information about a stock for simulation
@@ -69,8 +75,9 @@ func NewMarketSimulator(updateInterval time.Duration, volatility float64) *Marke
 		updateChan:     make(chan StockUpdate, 100),
 		stopChan:       make(chan struct{}),
 		pauseChan:      make(chan bool, 1),
-		isPaused:       false,
-		newsService:    nil, // Will be set later
+		isPaused:          false,
+		newsService:       nil, // Will be set later
+		bankruptcyHandler: nil, // Will be set later
 	}
 }
 
@@ -80,6 +87,14 @@ func (s *MarketSimulator) SetNewsService(newsService NewsServiceInterface) {
 	defer s.mu.Unlock()
 	s.newsService = newsService
 	log.Printf("📰 News service connected to market simulator")
+}
+
+// SetBankruptcyHandler connects a bankruptcy handler for portfolio processing
+func (s *MarketSimulator) SetBankruptcyHandler(handler BankruptcyHandlerInterface) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.bankruptcyHandler = handler
+	log.Printf("💀 Bankruptcy handler connected to market simulator")
 }
 
 // AddSector adds a sector to the simulator
@@ -377,11 +392,20 @@ func (s *MarketSimulator) triggerBankruptcy(stockID int, stock StockInfo) {
 		s.newsService.GenerateBankruptcyNews(stock.ID, stock.Symbol, stock.Name, stock.Sector)
 	}
 	
-	// Apply sector contagion before replacing stock
+	// Process bankruptcy with portfolio handling
+	if s.bankruptcyHandler != nil {
+		err := s.bankruptcyHandler.ProcessStockBankruptcy(stockID)
+		if err != nil {
+			log.Printf("❌ Error processing bankruptcy for %s: %v", stock.Symbol, err)
+		}
+	} else {
+		log.Printf("⚠️ No bankruptcy handler set - portfolio losses not recorded")
+	}
+	
+	// Apply sector contagion after processing bankruptcy
 	s.applySectorContagion(stockID, stock, "bankruptcy")
 	
-	// Remove stock from active trading (set to delisted status)
-	// For now, just reset to a higher price to simulate removal and re-listing
+	// Replace the bankrupt company with a new one (simulate new IPO)
 	stock.BasePrice = rand.Float64()*5 + 1 // $1-6 range for "new company"
 	stock.Trend = 0 // Reset trend
 	s.stocksInfo[stockID] = stock

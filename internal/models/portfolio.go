@@ -17,6 +17,8 @@ type PortfolioRepository interface {
 	UpdateStockQuantity(portfolioID, newQuantity int) error
 	RemoveStockFromPortfolio(portfolioID int) error
 	CalculatePortfolioValue(userID int) (float64, error)
+	GetAllHoldersOfStock(stockID int) ([]*Portfolio, error)
+	RemoveStockFromAllPortfolios(stockID int) error
 }
 
 // PortfolioSummary provides an overview of a user's entire portfolio

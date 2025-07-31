@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"log"
 
 	"officestonks/internal/models"
 )
@@ -180,4 +181,73 @@ func (r *PortfolioRepo) CalculatePortfolioValue(userID int) (float64, error) {
 	
 	// Return total portfolio value
 	return cashBalance + stockValue, nil
+}
+
+// GetAllHoldersOfStock gets all users who own a specific stock
+func (r *PortfolioRepo) GetAllHoldersOfStock(stockID int) ([]*models.Portfolio, error) {
+	query := `
+		SELECT p.id, p.user_id, p.stock_id, p.quantity,
+			   s.symbol, s.name, s.sector, s.current_price
+		FROM portfolios p
+		JOIN stocks s ON p.stock_id = s.id
+		WHERE p.stock_id = ?
+		ORDER BY p.user_id ASC
+	`
+	
+	rows, err := r.db.Query(query, stockID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var holdings []*models.Portfolio
+	for rows.Next() {
+		var p models.Portfolio
+		var stock models.Stock
+		
+		err := rows.Scan(
+			&p.ID,
+			&p.UserID,
+			&p.StockID,
+			&p.Quantity,
+			&stock.Symbol,
+			&stock.Name,
+			&stock.Sector,
+			&stock.CurrentPrice,
+		)
+		if err != nil {
+			return nil, err
+		}
+		
+		stock.ID = p.StockID
+		p.Stock = stock
+		holdings = append(holdings, &p)
+	}
+	
+	return holdings, nil
+}
+
+// RemoveStockFromAllPortfolios removes a stock from all user portfolios (for bankruptcy)
+func (r *PortfolioRepo) RemoveStockFromAllPortfolios(stockID int) error {
+	query := `
+		DELETE FROM portfolios
+		WHERE stock_id = ?
+	`
+	
+	result, err := r.db.Exec(query, stockID)
+	if err != nil {
+		return err
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	
+	// Log how many portfolio entries were removed
+	if rowsAffected > 0 {
+		log.Printf("Removed stock ID %d from %d user portfolios", stockID, rowsAffected)
+	}
+	
+	return nil
 }

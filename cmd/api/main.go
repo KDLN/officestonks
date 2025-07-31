@@ -85,16 +85,15 @@ func main() {
 	sectorRepo := repository.NewSectorRepo(db)
 	changelogRepo := repository.NewChangelogRepo(db)
 	auditRepo := repository.NewAuditRepo(db)
-	// TODO: Will be used for crisis/bankruptcy mechanics
-	// delistedStockRepo := repository.NewDelistedStockRepo(db)
-	// portfolioLossRepo := repository.NewPortfolioLossRepo(db)
+	delistedStockRepo := repository.NewDelistedStockRepo(db)
+	portfolioLossRepo := repository.NewPortfolioLossRepo(db)
 	log.Println("✅ Repositories created successfully")
 
 	// Create services
 	log.Println("Creating application services...")
 	authService := services.NewAuthService(userRepo)
 	newsService := services.NewNewsService(newsRepo)
-	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo, newsService)
+	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo, delistedStockRepo, portfolioLossRepo, newsService)
 	userService := services.NewUserService(userRepo, portfolioRepo)
 	log.Println("✅ Services created successfully")
 
