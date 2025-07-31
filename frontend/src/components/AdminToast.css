@@ -3,13 +3,29 @@
   top: 20px;
   right: 20px;
   z-index: 9999;
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
   color: white;
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(231, 76, 60, 0.3);
   max-width: 400px;
   animation: slideInRight 0.3s ease-out;
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Default/General styling */
+.admin-toast.general {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+  box-shadow: 0 8px 32px rgba(33, 150, 243, 0.3);
+}
+
+/* Notice styling */
+.admin-toast.notice {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  box-shadow: 0 8px 32px rgba(255, 152, 0, 0.3);
+}
+
+/* Server Shutdown styling */
+.admin-toast.shutdown {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  box-shadow: 0 8px 32px rgba(244, 67, 54, 0.3);
 }
 
 .admin-toast.closing {

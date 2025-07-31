@@ -19,6 +19,7 @@ import {
   getSimulatorStatus,
 } from "../services/admin";
 import "./AdminPanel.css";
+import "../components/announcement-styles.css";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ const AdminPanel = () => {
   const [simulatorStatus, setSimulatorStatus] = useState(null);
   const [crisisLoading, setCrisisLoading] = useState(false);
   const [announcementText, setAnnouncementText] = useState("");
+  const [announcementType, setAnnouncementType] = useState("general");
 
   // Check if user is admin and load users data
   useEffect(() => {
@@ -193,12 +195,15 @@ const AdminPanel = () => {
     
     // Create a custom event to trigger the toast
     const event = new CustomEvent('adminAnnouncement', {
-      detail: { message: announcementText.trim() }
+      detail: { 
+        message: announcementText.trim(),
+        type: announcementType
+      }
     });
     window.dispatchEvent(event);
     
     setAnnouncementText("");
-    setStatusMessage("Announcement sent!");
+    setStatusMessage(`${announcementType} announcement sent!`);
     setTimeout(() => setStatusMessage(null), 3000);
   };
 
@@ -381,18 +386,32 @@ const AdminPanel = () => {
         <div className="announcement-section">
           <h2>Admin Announcement</h2>
           <div className="announcement-form">
+            <div className="announcement-type-selector">
+              <label htmlFor="announcement-type">Type:</label>
+              <select 
+                id="announcement-type"
+                value={announcementType} 
+                onChange={(e) => setAnnouncementType(e.target.value)}
+                className="announcement-type-select"
+              >
+                <option value="general">📢 General</option>
+                <option value="notice">⚠️ Notice</option>
+                <option value="shutdown">🚨 Server Shutdown</option>
+              </select>
+            </div>
             <textarea
               placeholder="Type announcement message..."
               value={announcementText}
               onChange={(e) => setAnnouncementText(e.target.value)}
               rows={3}
+              className="announcement-textarea"
             />
             <button 
               onClick={handleSendAnnouncement} 
-              className="action-button"
+              className={`action-button announcement-btn ${announcementType}`}
               disabled={!announcementText.trim()}
             >
-              Send Toast Announcement
+              Send {announcementType.charAt(0).toUpperCase() + announcementType.slice(1)} Announcement
             </button>
           </div>
         </div>

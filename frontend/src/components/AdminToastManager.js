@@ -6,10 +6,11 @@ const AdminToastManager = () => {
 
   useEffect(() => {
     const handleAdminAnnouncement = (event) => {
-      const { message } = event.detail;
+      const { message, type } = event.detail;
       const newToast = {
         id: Date.now(),
-        message: message
+        message: message,
+        type: type || 'general'
       };
       
       setToasts(currentToasts => [...currentToasts, newToast]);
@@ -32,6 +33,7 @@ const AdminToastManager = () => {
         <AdminToast
           key={toast.id}
           message={toast.message}
+          type={toast.type}
           onClose={() => removeToast(toast.id)}
         />
       ))}
