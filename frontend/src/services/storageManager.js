@@ -17,10 +17,17 @@ const STORAGE_SCHEMA = {
   // UI preferences
   'chatDrawerOpen': { type: 'string', required: false, default: 'false' },
   'theme': { type: 'string', required: false, default: 'dark' },
+  'darkMode': { type: 'string', required: false }, // Legacy theme setting
+  'newsVisible': { type: 'string', required: false },
   
   // App state
   'lastLoginTime': { type: 'string', required: false },
   'changelogDismissed': { type: 'string', required: false },
+  'lastSeenChangelogVersion': { type: 'string', required: false },
+  'app_version': { type: 'string', required: false },
+  
+  // Supabase auth (external)
+  'sb-bmsmtdzsexzdnaivieqz-auth-token': { type: 'json', required: false },
   
   // Version tracking
   [VERSION_KEY]: { type: 'string', required: true, default: STORAGE_VERSION }
@@ -186,7 +193,11 @@ class StorageManager {
 
     // Check for unexpected keys (potential data corruption)
     Object.keys(localStorage).forEach(key => {
-      if (!STORAGE_SCHEMA[key] && !key.startsWith(BACKUP_PREFIX)) {
+      const isSchemaKey = STORAGE_SCHEMA[key];
+      const isBackupKey = key.startsWith(BACKUP_PREFIX);
+      const isSupabaseKey = key.startsWith('sb-') && key.includes('-auth-token');
+      
+      if (!isSchemaKey && !isBackupKey && !isSupabaseKey) {
         warnings.push(`Unexpected localStorage key: ${key}`);
       }
     });
