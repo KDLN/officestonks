@@ -4,12 +4,14 @@ import './NewsDisplay.css';
 
 const NewsDisplay = () => {
   const [news, setNews] = useState([]);
+  const [filteredNews, setFilteredNews] = useState([]);
   const [isVisible, setIsVisible] = useState(() => {
     const saved = localStorage.getItem('newsVisible');
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filter, setFilter] = useState('all'); // all, crisis, bankruptcy, recovery, sector
 
   // Save visibility preference to localStorage
   const toggleVisibility = () => {
@@ -45,6 +47,38 @@ const NewsDisplay = () => {
 
     fetchNews();
   }, []);
+
+  // Filter news based on selected filter
+  useEffect(() => {
+    if (filter === 'all') {
+      setFilteredNews(news);
+    } else {
+      const filtered = news.filter(item => item.type === filter);
+      setFilteredNews(filtered);
+    }
+  }, [news, filter]);
+
+  const getNewsTypeIcon = (type) => {
+    switch (type) {
+      case 'crisis': return '🚨';
+      case 'bankruptcy': return '💀';
+      case 'recovery': return '🚀';
+      case 'sector': return '🏭';
+      case 'market': return '📈';
+      default: return '📰';
+    }
+  };
+
+  const getNewsTypeColor = (type) => {
+    switch (type) {
+      case 'crisis': return '#ff4444';
+      case 'bankruptcy': return '#cc0000';
+      case 'recovery': return '#00cc44';
+      case 'sector': return '#4488ff';
+      case 'market': return '#888888';
+      default: return '#333333';
+    }
+  };
 
   if (loading) {
     return (
@@ -94,19 +128,71 @@ const NewsDisplay = () => {
       
       {isVisible && (
         <div className="news-content">
-          {news.map((item, index) => (
-            <div key={item.id || index} className="news-item">
-              <h4 className="news-title">{item.title}</h4>
-              <p className="news-text">{item.content}</p>
-              {item.expires_at && (
-                <div className="news-meta">
-                  <span className="expiry-info">
-                    Expires: {new Date(item.expires_at).toLocaleDateString()}
-                  </span>
+          <div className="news-filters">
+            <button 
+              className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All
+            </button>
+            <button 
+              className={`filter-btn ${filter === 'crisis' ? 'active' : ''}`}
+              onClick={() => setFilter('crisis')}
+            >
+              🚨 Crisis
+            </button>
+            <button 
+              className={`filter-btn ${filter === 'bankruptcy' ? 'active' : ''}`}
+              onClick={() => setFilter('bankruptcy')}
+            >
+              💀 Bankruptcy
+            </button>
+            <button 
+              className={`filter-btn ${filter === 'recovery' ? 'active' : ''}`}
+              onClick={() => setFilter('recovery')}
+            >
+              🚀 Recovery
+            </button>
+            <button 
+              className={`filter-btn ${filter === 'sector' ? 'active' : ''}`}
+              onClick={() => setFilter('sector')}
+            >
+              🏭 Sector
+            </button>
+          </div>
+          
+          <div className="news-items">
+            {filteredNews.map((item, index) => (
+              <div 
+                key={item.id || index} 
+                className={`news-item news-${item.type || 'default'}`}
+                style={{ borderLeftColor: getNewsTypeColor(item.type) }}
+              >
+                <div className="news-item-header">
+                  <span className="news-type-icon">{getNewsTypeIcon(item.type)}</span>
+                  <h4 className="news-title">{item.title}</h4>
+                  {item.stock_symbol && (
+                    <span className="news-stock-symbol">{item.stock_symbol}</span>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+                <p className="news-text">{item.content}</p>
+                <div className="news-meta">
+                  <span className="news-time">
+                    {new Date(item.created_at).toLocaleString()}
+                  </span>
+                  {item.expires_at && (
+                    <span className="expiry-info">
+                      Expires: {new Date(item.expires_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {filteredNews.length === 0 && (
+            <p className="no-news">No {filter === 'all' ? '' : filter} news at this time.</p>
+          )}
         </div>
       )}
     </div>

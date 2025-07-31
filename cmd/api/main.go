@@ -138,6 +138,9 @@ func main() {
 
 	// Create rate limiter (100 requests per minute per IP)
 	rateLimiter := middleware.NewRateLimiter(100, time.Minute)
+	
+	// Create trade frequency limiter (5 second cooldown, max 20 trades per hour per user)
+	tradeLimiter := middleware.NewTradeLimiter(5, 20)
 
 	// Initialize router with middleware
 	r := mux.NewRouter()
@@ -248,6 +251,7 @@ func main() {
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
 	protectedRouter.Use(authMiddleware.Authenticate)
+	protectedRouter.Use(tradeLimiter.Middleware)
 
 	// Protected market routes
 	protectedRouter.HandleFunc("/portfolio", marketHandler.GetUserPortfolio).Methods("GET", "OPTIONS")

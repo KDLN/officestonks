@@ -176,6 +176,18 @@ INSERT IGNORE INTO stocks (symbol, name, sector, current_price) VALUES
 ('NFLX', 'Netflix, Inc.', 'Entertainment', 580.00),
 ('PFE', 'Pfizer Inc.', 'Healthcare', 42.00);
 
+-- Add sector_id column to stocks table for foreign key relationship
+ALTER TABLE stocks ADD COLUMN IF NOT EXISTS sector_id INT NULL;
+ALTER TABLE stocks ADD CONSTRAINT fk_stocks_sector FOREIGN KEY (sector_id) REFERENCES sectors(id) ON DELETE SET NULL;
+
+-- Update existing stocks with sector_id based on sector name
+UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Technology') WHERE sector = 'Technology';
+UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Automotive') WHERE sector = 'Automotive';
+UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Financial Services') WHERE sector = 'Financial Services';
+UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Retail') WHERE sector = 'Retail';
+UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Entertainment') WHERE sector = 'Entertainment';
+UPDATE stocks SET sector_id = (SELECT id FROM sectors WHERE name = 'Healthcare') WHERE sector = 'Healthcare';
+
 -- Add default admin user (password is 'admin123')
 INSERT IGNORE INTO users (username, password_hash, cash_balance, is_admin) VALUES
 ('admin', '$2a$10$l6jzERQJiOVnWw8FN2qQw.fxJfZsXnuKNtGV.OU63s8SLsBJBvvV2', 10000.00, 1);

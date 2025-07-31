@@ -1,0 +1,295 @@
+.portfolio-crisis-alert {
+  margin-bottom: 2rem;
+}
+
+.crisis-section {
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  box-shadow: var(--shadow-medium);
+}
+
+.crisis-critical {
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  color: white;
+}
+
+.crisis-warning {
+  background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
+  color: white;
+}
+
+.crisis-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.crisis-icon {
+  font-size: 1.5rem;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8; 
+    transform: scale(1.1);
+  }
+}
+
+.crisis-header h3 {
+  margin: 0;
+  flex: 1;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.crisis-count {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.crisis-description {
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.crisis-description p {
+  margin: 0 0 1rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.crisis-stats {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+}
+
+.stat-item strong {
+  font-weight: 700;
+}
+
+.bankruptcy-risk {
+  color: #ffcccc;
+}
+
+.recovery-potential {
+  color: #ccffcc;
+}
+
+.volatility {
+  color: #ffffcc;
+}
+
+.crisis-stocks-list {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--text-primary);
+}
+
+.crisis-stock-item {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  align-items: center;
+  transition: background-color 0.2s ease;
+}
+
+.crisis-stock-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.crisis-stock-item:last-child {
+  border-bottom: none;
+}
+
+.crisis-stock-item.warning {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.stock-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stock-symbol {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.stock-symbol:hover {
+  color: var(--accent-hover);
+}
+
+.stock-name {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.stock-holding {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: right;
+}
+
+.quantity {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.price {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.value {
+  font-weight: 700;
+  color: var(--accent-primary);
+}
+
+.crisis-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.risk-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.risk-badge.bankruptcy {
+  background: #cc0000;
+  color: white;
+}
+
+.risk-badge.recovery {
+  background: #00cc44;
+  color: white;
+}
+
+.risk-badge.warning {
+  background: #ff8800;
+  color: white;
+}
+
+.crisis-footer {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-top: 1rem;
+}
+
+.crisis-tips h4 {
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.crisis-tips ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: var(--text-primary);
+}
+
+.crisis-tips li {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.crisis-tips li strong {
+  color: var(--accent-primary);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .crisis-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .crisis-header h3 {
+    font-size: 1rem;
+  }
+  
+  .crisis-description {
+    padding: 0.75rem 1rem;
+  }
+  
+  .crisis-stats {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .crisis-stock-item {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
+    text-align: left;
+  }
+  
+  .stock-holding {
+    text-align: left;
+  }
+  
+  .crisis-actions {
+    justify-content: flex-start;
+  }
+  
+  .crisis-footer {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .crisis-header {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .crisis-icon {
+    font-size: 1.25rem;
+  }
+  
+  .crisis-count {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .crisis-description {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .crisis-stock-item {
+    padding: 0.75rem;
+  }
+  
+  .crisis-footer {
+    padding: 0.75rem;
+  }
+}

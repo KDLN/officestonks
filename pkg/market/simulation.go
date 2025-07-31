@@ -251,9 +251,12 @@ func (s *MarketSimulator) updatePrices() {
 			info.TrendCounter--
 		}
 
+		// Calculate price zone volatility based on current price
+		priceZoneVolatility := s.getPriceZoneVolatility(info.BasePrice)
+		
 		// Calculate new price with sector correlation
 		// Individual stock factors (70% weight)
-		randomChange := (rand.Float64() - 0.5) * s.volatility
+		randomChange := (rand.Float64() - 0.5) * priceZoneVolatility
 		individualChange := randomChange + info.Trend
 		
 		// Validate individual change
@@ -744,5 +747,24 @@ func (s *MarketSimulator) ProcessTransaction(stockID int, quantity int, isBuy bo
 	}:
 	default:
 		// Channel is full, skip this update
+	}
+}
+
+// getPriceZoneVolatility returns volatility based on stock price range
+// Implements the price zone system from NEWS_UPDATE_PLAN.md
+func (s *MarketSimulator) getPriceZoneVolatility(price float64) float64 {
+	switch {
+	case price <= 1.0:
+		// Penny stocks: High volatility (10%)
+		return 0.10
+	case price <= 10.0:
+		// Low-cap: Medium volatility (7%)
+		return 0.07
+	case price <= 100.0:
+		// Mid-cap: Normal volatility (5%)
+		return s.volatility // Use base volatility (5%)
+	default:
+		// Large-cap: Low volatility (3%)
+		return 0.03
 	}
 }

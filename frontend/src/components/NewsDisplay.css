@@ -39,9 +39,90 @@
   margin-top: 0.75rem;
 }
 
+.news-filters {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+}
+
+.filter-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent-primary);
+}
+
+.filter-btn.active {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.news-items {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
 .news-item {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--border-light);
+  padding: 1rem;
+  border: 1px solid var(--border-light);
+  border-left: 4px solid var(--accent-primary);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  background: var(--bg-primary);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.news-item:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+.news-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.news-type-icon {
+  font-size: 1.2rem;
+}
+
+.news-stock-symbol {
+  background: var(--accent-primary);
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.news-crisis .news-stock-symbol {
+  background: #ff4444;
+}
+
+.news-bankruptcy .news-stock-symbol {
+  background: #cc0000;
+}
+
+.news-recovery .news-stock-symbol {
+  background: #00cc44;
+}
+
+.news-sector .news-stock-symbol {
+  background: #4488ff;
 }
 
 .news-item:last-child {
@@ -64,8 +145,15 @@
 
 .news-meta {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.news-time {
+  font-weight: 500;
 }
 
 .expiry-info {

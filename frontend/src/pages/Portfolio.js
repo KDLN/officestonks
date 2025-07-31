@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
+import PortfolioCrisisAlert from '../components/PortfolioCrisisAlert';
 import { formatCurrency, formatPercentage, formatDate } from '../utils';
 import './Dashboard.css';  // Import Dashboard styles for consistent UI
 import './Portfolio.css';
@@ -89,6 +90,9 @@ function Portfolio() {
       <div className="portfolio-container">
         <div className="portfolio-header">
           <h1>My Portfolio</h1>
+          
+          {/* Crisis Alerts */}
+          <PortfolioCrisisAlert portfolioItems={portfolio?.portfolio_items || []} />
           
           {/* Portfolio Summary */}
           <div className="portfolio-summary">

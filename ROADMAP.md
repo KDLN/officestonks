@@ -58,7 +58,7 @@ Office Stonks is a real-time multiplayer stock market simulation game that combi
 - [ ] Balance stock price ranges for gameplay
 
 #### Security & Performance
-- [ ] Implement trade frequency limits (e.g., 10 trades/minute)
+- [✅] Implement trade frequency limits (5-second cooldown + 20 trades/hour per user)
 - [✅] Add transaction amount validation (Input validation implemented)
 - [✅] Test JWT token expiration flow (JWT system functional)
 - [✅] Verify rate limiting effectiveness (100 req/min implemented)

@@ -7,6 +7,7 @@ import logger from '../services/logger';
 import Navigation from '../components/Navigation';
 import Chat from '../components/Chat';
 import NewsDisplay from '../components/NewsDisplay';
+import NewsTicker from '../components/NewsTicker';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import CrisisAlertManager from '../components/CrisisAlertManager';
@@ -257,6 +258,9 @@ const Dashboard = () => {
             💬 Chat {chatDrawerOpen ? '✕' : ''}
           </button>
         </div>
+        
+        {/* Breaking News Ticker */}
+        <NewsTicker />
         
         <div className="dashboard-main">
           {/* Left Column - News */}
