@@ -21,22 +21,133 @@
   gap: var(--spacing-lg);
 }
 
-/* 3-Column Layout */
+/* 2-Column Layout with Chat Drawer */
 .dashboard-main {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 360px 1fr;
   gap: var(--spacing-xl);
   align-items: start;
 }
 
-.dashboard-sidebar {
+.dashboard-left-column {
   position: sticky;
   top: var(--spacing-lg);
   height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
 }
 
 .dashboard-main-content {
   min-width: 0; /* Prevents overflow issues */
+}
+
+/* Chat Toggle Button */
+.chat-toggle-btn {
+  background: var(--accent-primary);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.chat-toggle-btn:hover {
+  background: #2980b9;
+  transform: translateY(-1px);
+}
+
+/* Chat Drawer */
+.chat-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 350px;
+  height: 100vh;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-drawer.open {
+  transform: translateX(0);
+}
+
+.chat-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.chat-drawer-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.drawer-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.drawer-close-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chat-drawer-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Chat Drawer Overlay */
+.chat-drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 999;
+  backdrop-filter: blur(2px);
+}
+
+/* VOURA Section Styling */
+.voura-section {
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-color);
+}
+
+.voura-content {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  font-style: italic;
 }
 
 .dashboard-header h1 {
@@ -240,33 +351,61 @@
   50% { background-color: rgba(231, 76, 60, 0.1); }
 }
 
-/* Tablet and Mobile Responsive Design */
-@media (max-width: 1024px) {
+/* Large Desktop */
+@media (max-width: 1400px) {
   .dashboard-main {
-    grid-template-columns: 280px 1fr;
-    gap: var(--spacing-lg);
+    grid-template-columns: 320px 1fr;
   }
 }
 
+/* Tablet */
+@media (max-width: 1024px) {
+  .dashboard-main {
+    grid-template-columns: 300px 1fr;
+    gap: var(--spacing-lg);
+  }
+  
+  .chat-drawer {
+    width: 320px;
+  }
+}
+
+/* Mobile - Single column stack */
 @media (max-width: 768px) {
   .dashboard-container {
     padding: var(--spacing-md) var(--spacing-sm);
   }
   
-  /* Stack layout on mobile */
   .dashboard-main {
     grid-template-columns: 1fr;
     gap: var(--spacing-lg);
   }
   
-  .dashboard-sidebar {
+  .dashboard-left-column {
     position: static;
-    order: 2; /* Move news below main content on mobile */
+    order: 2; /* Move left column below main content on mobile */
   }
   
   .dashboard-main-content {
     order: 1;
   }
+  
+  .chat-drawer {
+    width: 300px;
+  }
+  
+  .chat-toggle-btn {
+    font-size: 0.8rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 480px) {
+  .chat-drawer {
+    width: 280px;
+  }
+}
   
   .dashboard-header {
     flex-direction: column;

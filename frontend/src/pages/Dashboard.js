@@ -25,6 +25,17 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [chatDrawerOpen, setChatDrawerOpen] = useState(() => {
+    const saved = localStorage.getItem('chatDrawerOpen');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
+
+  // Save chat drawer state to localStorage
+  const toggleChatDrawer = () => {
+    const newState = !chatDrawerOpen;
+    setChatDrawerOpen(newState);
+    localStorage.setItem('chatDrawerOpen', JSON.stringify(newState));
+  };
 
   const fetchData = async () => {
     console.log('🎯 Dashboard fetchData started');
@@ -235,26 +246,44 @@ const Dashboard = () => {
       <div className="dashboard-container">
         <div className="dashboard-header">
           <h1>Dashboard</h1>
-          <div className="portfolio-value">
-            <h2>Total Portfolio Value</h2>
-            <div className="value">${(portfolio?.total_value || 0).toFixed(2)}</div>
-            <div className="portfolio-breakdown">
-              <div className="breakdown-item">
-                <span>Cash:</span>
-                <span>${(portfolio?.cash_balance || 0).toFixed(2)}</span>
-              </div>
-              <div className="breakdown-item">
-                <span>Stocks:</span>
-                <span>${(portfolio?.stock_value || 0).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
+          <button 
+            className="chat-toggle-btn"
+            onClick={toggleChatDrawer}
+            aria-label="Toggle Chat"
+          >
+            💬 Chat {chatDrawerOpen ? '✕' : ''}
+          </button>
         </div>
         
         <div className="dashboard-main">
-          {/* Left Sidebar - News */}
-          <aside className="dashboard-sidebar">
+          {/* Left Column - News + VOURA */}
+          <aside className="dashboard-left-column">
+            <div className="portfolio-value">
+              <h2>Total Portfolio Value</h2>
+              <div className="value">${(portfolio?.total_value || 0).toFixed(2)}</div>
+              <div className="portfolio-breakdown">
+                <div className="breakdown-item">
+                  <span>Cash:</span>
+                  <span>${(portfolio?.cash_balance || 0).toFixed(2)}</span>
+                </div>
+                <div className="breakdown-item">
+                  <span>Stocks:</span>
+                  <span>${(portfolio?.stock_value || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            
             <NewsDisplay />
+            
+            {/* VOURA Section - Placeholder for now */}
+            <div className="voura-section">
+              <div className="section-header">
+                <h2>VOURA</h2>
+              </div>
+              <div className="voura-content">
+                <p>Coming soon...</p>
+              </div>
+            </div>
           </aside>
           
           {/* Main Content - Portfolio and Stocks */}
@@ -392,9 +421,31 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Chat Component */}
-      <Chat />
-      
+      {/* Chat Drawer */}
+      <div className={`chat-drawer ${chatDrawerOpen ? 'open' : ''}`}>
+        <div className="chat-drawer-header">
+          <h3>💬 Chat</h3>
+          <button 
+            className="drawer-close-btn"
+            onClick={toggleChatDrawer}
+            aria-label="Close Chat"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="chat-drawer-content">
+          <Chat />
+        </div>
+      </div>
+
+      {/* Chat Drawer Overlay */}
+      {chatDrawerOpen && (
+        <div 
+          className="chat-drawer-overlay"
+          onClick={toggleChatDrawer}
+        />
+      )}
+
       {/* Crisis Alert Manager */}
       <CrisisAlertManager socket={socket} />
     </div>
