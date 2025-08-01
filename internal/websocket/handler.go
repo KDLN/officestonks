@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"officestonks/internal/auth"
@@ -11,8 +12,12 @@ import (
 
 // WebSocketHandler handles websocket connections
 type WebSocketHandler struct {
-	hub           *Hub
-	tokenValidator auth.TokenValidator
+	hub               *Hub
+	tokenValidator    auth.TokenValidator
+	monitoringService interface {
+		TrackWebSocketConnection(connectionID string, userID int, username, ipAddress string)
+		RemoveWebSocketConnection(connectionID string)
+	}
 }
 
 // Upgrader upgrades HTTP connections to WebSocket connections
@@ -31,10 +36,14 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewWebSocketHandler creates a new websocket handler
-func NewWebSocketHandler(hub *Hub, tokenValidator auth.TokenValidator) *WebSocketHandler {
+func NewWebSocketHandler(hub *Hub, tokenValidator auth.TokenValidator, monitoringService interface {
+	TrackWebSocketConnection(connectionID string, userID int, username, ipAddress string)
+	RemoveWebSocketConnection(connectionID string)
+}) *WebSocketHandler {
 	return &WebSocketHandler{
-		hub:           hub,
-		tokenValidator: tokenValidator,
+		hub:               hub,
+		tokenValidator:    tokenValidator,
+		monitoringService: monitoringService,
 	}
 }
 
@@ -89,6 +98,25 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 	// Create a new client
 	client := NewClient(h.hub, conn, userID)
+
+	// Track the connection in monitoring service
+	if h.monitoringService != nil {
+		clientIP := r.Header.Get("X-Forwarded-For")
+		if clientIP == "" {
+			clientIP = r.Header.Get("X-Real-IP")
+		}
+		if clientIP == "" {
+			clientIP = r.RemoteAddr
+		}
+		
+		// Generate a unique connection ID using timestamp
+		connectionID := strconv.Itoa(userID) + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
+		h.monitoringService.TrackWebSocketConnection(connectionID, userID, "", clientIP)
+		
+		// Set up cleanup when connection closes
+		client.connectionID = connectionID
+		client.monitoringService = h.monitoringService
+	}
 
 	// Register the client
 	h.hub.register <- client

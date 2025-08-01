@@ -122,11 +122,11 @@ func main() {
 	auditService := services.NewAuditService(auditRepo)
 
 	// Create websocket handler
-	wsHandler := websocket.NewWebSocketHandler(wsHub, authService)
+	wsHandler := websocket.NewWebSocketHandler(wsHub, authService, monitoringService)
 
 	// Create handlers
-	authHandler := handlers.NewAuthHandler(authService, auditService)
-	marketHandler := handlers.NewMarketHandler(marketService)
+	authHandler := handlers.NewAuthHandler(authService, auditService, monitoringService)
+	marketHandler := handlers.NewMarketHandler(marketService, monitoringService)
 	userHandler := handlers.NewUserHandler(userService)
 	chatHandler := handlers.NewChatHandler(chatService)
 	adminHandler := handlers.NewAdminHandler(userRepo, stockRepo, chatRepo, marketService)

@@ -40,8 +40,9 @@ type AuthRequest struct {
 
 // AuthResponse is sent after successful authentication
 type AuthResponse struct {
-	Token    string `json:"token"`
-	UserID   int    `json:"user_id"`
-	Username string `json:"username"`
-	IsAdmin  bool   `json:"is_admin"`
+	Token     string `json:"token"`
+	UserID    int    `json:"user_id"`
+	Username  string `json:"username"`
+	IsAdmin   bool   `json:"is_admin"`
+	SessionID int    `json:"session_id,omitempty"`
 }

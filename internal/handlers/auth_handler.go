@@ -31,15 +31,17 @@ func getClientIP(r *http.Request) string {
 
 // AuthHandler handles authentication requests
 type AuthHandler struct {
-	authService  *services.AuthService
-	auditService *services.AuditService
+	authService       *services.AuthService
+	auditService      *services.AuditService
+	monitoringService *services.MonitoringService
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(authService *services.AuthService, auditService *services.AuditService) *AuthHandler {
+func NewAuthHandler(authService *services.AuthService, auditService *services.AuditService, monitoringService *services.MonitoringService) *AuthHandler {
 	return &AuthHandler{
-		authService:  authService,
-		auditService: auditService,
+		authService:       authService,
+		auditService:      auditService,
+		monitoringService: monitoringService,
 	}
 }
 
@@ -104,8 +106,24 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get client IP and user agent
+	ip := getClientIP(r)
+	userAgent := r.Header.Get("User-Agent")
+
+	// Create session in monitoring service
+	if h.monitoringService != nil {
+		session, err := h.monitoringService.CreateUserSession(resp.UserID, resp.Username, ip, userAgent)
+		if err != nil {
+			log.Printf("Failed to create monitoring session: %v", err)
+			// Don't fail the login, just log the error
+		} else {
+			// Add session ID to response for tracking
+			resp.SessionID = session.ID
+		}
+	}
+
+	// Log to audit service
 	if h.auditService != nil {
-		ip := getClientIP(r)
 		_ = h.auditService.LogEvent(resp.UserID, "login", ip)
 	}
 

@@ -32,6 +32,11 @@ type Client struct {
 	send chan []byte
 	// User ID for authentication (would be extracted from token)
 	userID int
+	// Connection tracking
+	connectionID      string
+	monitoringService interface {
+		RemoveWebSocketConnection(connectionID string)
+	}
 }
 
 // NewClient creates a new websocket client
@@ -47,6 +52,10 @@ func NewClient(hub *Hub, conn *websocket.Conn, userID int) *Client {
 // readPump pumps messages from the websocket connection to the hub
 func (c *Client) readPump() {
 	defer func() {
+		// Remove from monitoring service
+		if c.monitoringService != nil && c.connectionID != "" {
+			c.monitoringService.RemoveWebSocketConnection(c.connectionID)
+		}
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()

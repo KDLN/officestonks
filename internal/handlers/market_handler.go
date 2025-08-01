@@ -13,13 +13,15 @@ import (
 
 // MarketHandler handles market-related requests
 type MarketHandler struct {
-	marketService *services.MarketService
+	marketService     *services.MarketService
+	monitoringService *services.MonitoringService
 }
 
 // NewMarketHandler creates a new market handler
-func NewMarketHandler(marketService *services.MarketService) *MarketHandler {
+func NewMarketHandler(marketService *services.MarketService, monitoringService *services.MonitoringService) *MarketHandler {
 	return &MarketHandler{
-		marketService: marketService,
+		marketService:     marketService,
+		monitoringService: monitoringService,
 	}
 }
 
@@ -148,6 +150,29 @@ func (h *MarketHandler) TradeStock(w http.ResponseWriter, r *http.Request) {
 	
 	var err error
 	
+	// Get stock info for logging
+	stock, _ := h.marketService.GetStockByID(req.StockID)
+	stockSymbol := "UNKNOWN"
+	stockPrice := 0.0
+	if stock != nil {
+		stockSymbol = stock.Symbol
+		stockPrice = stock.CurrentPrice
+	}
+	
+	// Get client IP
+	clientIP := r.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP = r.Header.Get("X-Real-IP")
+	}
+	if clientIP == "" {
+		clientIP = r.RemoteAddr
+	}
+	
+	// For now, we'll use empty values for username and sessionID
+	// These could be enhanced later with proper context passing
+	username := ""
+	sessionID := 0
+	
 	// Execute the trade
 	if req.Action == "buy" {
 		err = h.marketService.BuyStock(userID, req.StockID, req.Quantity)
@@ -156,6 +181,16 @@ func (h *MarketHandler) TradeStock(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "Invalid action, must be 'buy' or 'sell'", http.StatusBadRequest)
 		return
+	}
+	
+	// Log the trade activity
+	if h.monitoringService != nil {
+		success := err == nil
+		errorMsg := ""
+		if err != nil {
+			errorMsg = err.Error()
+		}
+		h.monitoringService.LogTrade(sessionID, userID, username, stockSymbol, req.Action, req.Quantity, stockPrice, clientIP, success, errorMsg)
 	}
 	
 	if err != nil {
