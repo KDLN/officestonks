@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { logout } from "../services/auth";
 import { checkAdminStatus } from "../services/admin";
 import { useChangelog } from "../contexts/ChangelogContext";
+import { useAuth } from "../contexts/AuthContext";
 import ThemeToggle from "./ThemeToggle";
 import "./Navigation.css";
 
@@ -10,6 +10,7 @@ const Navigation = () => {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const { openChangelog } = useChangelog();
+  const { signOut } = useAuth();
 
   useEffect(() => {
     // Check if the user is an admin
@@ -26,9 +27,19 @@ const Navigation = () => {
     checkAdmin();
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      // Clear any remaining localStorage items
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      // Navigate to login page
+      navigate("/login");
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force redirect even if signOut fails
+      navigate("/login");
+    }
   };
 
   return (
