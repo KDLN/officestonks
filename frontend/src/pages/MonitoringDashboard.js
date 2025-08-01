@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { checkAdminStatus } from '../services/admin';
 import './MonitoringDashboard.css';
 
 const MonitoringDashboard = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [dashboardData, setDashboardData] = useState(null);
   const [activeSessions, setActiveSessions] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -14,12 +16,23 @@ const MonitoringDashboard = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const intervalRef = useRef(null);
 
-  // Redirect if not admin
+  // Check admin status
   useEffect(() => {
-    if (user && !user.is_admin) {
-      window.location.href = '/dashboard';
-    }
-  }, [user]);
+    const verifyAdminStatus = async () => {
+      try {
+        const adminStatus = await checkAdminStatus();
+        setIsAdmin(adminStatus);
+        if (!adminStatus) {
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+        navigate('/dashboard');
+      }
+    };
+
+    verifyAdminStatus();
+  }, [navigate]);
 
   // Fetch dashboard data
   const fetchDashboardData = async () => {
@@ -121,7 +134,7 @@ const MonitoringDashboard = () => {
     return success ? '#28a745' : '#dc3545';
   };
 
-  if (!user?.is_admin) {
+  if (!isAdmin && !loading) {
     return <div className="monitoring-access-denied">Access denied. Admin privileges required.</div>;
   }
 
