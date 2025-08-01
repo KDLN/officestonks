@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -54,6 +55,15 @@ func NewWebSocketHandler(hub *Hub, tokenValidator auth.TokenValidator, monitorin
 
 // HandleConnection handles a new websocket connection
 func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// Log request details for debugging
+	log.Printf("WebSocket request received: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
+	
+	// Detect Railway deployment
+	isRailway := r.Header.Get("X-Railway-Edge") != "" || r.Header.Get("X-Forwarded-Host") != ""
+	if isRailway {
+		log.Printf("Railway deployment detected, applying Railway-specific WebSocket handling")
+	}
+	
 	// Set CORS headers for WebSocket handshake
 	origin := r.Header.Get("Origin")
 	if origin != "" {
@@ -65,9 +75,12 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
 	
-	// Add Railway-specific headers for WebSocket proxying
-	w.Header().Set("Connection", "Upgrade")
-	w.Header().Set("Upgrade", "websocket")
+	// Railway-specific headers - these MUST be set before any writes
+	if isRailway {
+		w.Header().Set("Connection", "Upgrade")
+		w.Header().Set("Upgrade", "websocket")
+		w.Header().Set("Sec-WebSocket-Accept", "")  // Let Gorilla handle this
+	}
 
 	// Log the origin for debugging
 	log.Printf("WebSocket connection attempted from origin: %s", origin)
@@ -93,13 +106,39 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Upgrade the HTTP connection to a WebSocket connection
-	conn, err := upgrader.Upgrade(w, r, nil)
+	// Railway-specific WebSocket upgrade handling
+	var conn *websocket.Conn
+	
+	if isRailway {
+		// For Railway, use a custom upgrader with different settings
+		railwayUpgrader := websocket.Upgrader{
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+			CheckOrigin: func(r *http.Request) bool {
+				return true // Railway already handles CORS
+			},
+			// Don't set Error handler for Railway - let it fail gracefully
+		}
+		
+		// Set additional Railway headers right before upgrade
+		w.Header().Set("X-Railway-WebSocket", "upgrade")
+		
+		conn, err = railwayUpgrader.Upgrade(w, r, nil)
+	} else {
+		// Use standard upgrader for non-Railway deployments
+		conn, err = upgrader.Upgrade(w, r, nil)
+	}
+	
 	if err != nil {
-		// Log the error details
-		log.Printf("WebSocket upgrade failed: %v", err)
+		// Log the error details with Railway context
+		log.Printf("WebSocket upgrade failed (Railway: %t): %v", isRailway, err)
 		log.Printf("Request headers: %v", r.Header)
-		// Don't call http.Error after upgrade failure - connection is already invalid
+		
+		// For Railway hijacker issues, try to provide helpful error response
+		if isRailway && (strings.Contains(err.Error(), "hijacker") || strings.Contains(err.Error(), "Hijacker")) {
+			log.Printf("Railway hijacker interface issue detected - this may be a Railway proxy limitation")
+			// Don't call http.Error as connection state is unknown
+		}
 		return
 	}
 
