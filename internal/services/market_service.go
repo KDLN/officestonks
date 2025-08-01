@@ -65,10 +65,14 @@ func NewMarketService(
 
 // InitializeSimulator loads stocks and starts the simulation
 func (s *MarketService) InitializeSimulator() error {
-	// Load all sectors from the database
+	// Try to load sectors from the database
 	sectors, err := s.sectorRepo.GetAllSectors()
 	if err != nil {
-		return fmt.Errorf("failed to load sectors: %w", err)
+		log.Printf("Warning: Failed to load sectors from database: %v", err)
+		log.Println("Using mock data for market simulation (development mode)")
+		
+		// Use mock sectors for development
+		sectors = s.createMockSectors()
 	}
 	
 	// Add sectors to the simulator
@@ -76,10 +80,14 @@ func (s *MarketService) InitializeSimulator() error {
 		s.simulator.AddSector(sector.ID, sector.Name, sector.VolatilityModifier)
 	}
 	
-	// Load all stocks from the database
+	// Try to load stocks from the database
 	stocks, err := s.stockRepo.LoadStocksForSimulation()
 	if err != nil {
-		return fmt.Errorf("failed to load stocks: %w", err)
+		log.Printf("Warning: Failed to load stocks from database: %v", err)
+		log.Println("Using mock data for market simulation (development mode)")
+		
+		// Use mock stocks for development
+		stocks = s.createMockStocks()
 	}
 	
 	// Add stocks to the simulator
@@ -90,10 +98,56 @@ func (s *MarketService) InitializeSimulator() error {
 	// Start the simulator
 	s.simulator.Start()
 	
-	// Start a goroutine to update stock prices in the database
+	// Start a goroutine to update stock prices in the database (if available)
 	go s.updateStockPrices()
 	
+	log.Printf("Market simulator initialized with %d sectors and %d stocks", len(sectors), len(stocks))
 	return nil
+}
+
+// createMockSectors creates mock sector data for development mode
+func (s *MarketService) createMockSectors() []*models.Sector {
+	return []*models.Sector{
+		{ID: 1, Name: "Technology", VolatilityModifier: 1.2},
+		{ID: 2, Name: "Healthcare", VolatilityModifier: 1.0},
+		{ID: 3, Name: "Finance", VolatilityModifier: 1.1},
+		{ID: 4, Name: "Energy", VolatilityModifier: 1.3},
+		{ID: 5, Name: "Consumer", VolatilityModifier: 0.9},
+	}
+}
+
+// createMockStocks creates mock stock data for development mode
+func (s *MarketService) createMockStocks() map[int]struct {
+	ID       int
+	Symbol   string
+	Name     string
+	Sector   string
+	SectorID int
+	Price    float64
+	Status   models.StockStatus
+} {
+	return map[int]struct {
+		ID       int
+		Symbol   string
+		Name     string
+		Sector   string
+		SectorID int
+		Price    float64
+		Status   models.StockStatus
+	}{
+		1:  {ID: 1, Symbol: "AAPL", Name: "Apple Inc.", Sector: "Technology", SectorID: 1, Price: 150.00, Status: models.StockActive},
+		2:  {ID: 2, Symbol: "GOOGL", Name: "Alphabet Inc.", Sector: "Technology", SectorID: 1, Price: 2800.00, Status: models.StockActive},
+		3:  {ID: 3, Symbol: "MSFT", Name: "Microsoft Corp.", Sector: "Technology", SectorID: 1, Price: 330.00, Status: models.StockActive},
+		4:  {ID: 4, Symbol: "TSLA", Name: "Tesla Inc.", Sector: "Technology", SectorID: 1, Price: 800.00, Status: models.StockActive},
+		5:  {ID: 5, Symbol: "JNJ", Name: "Johnson & Johnson", Sector: "Healthcare", SectorID: 2, Price: 170.00, Status: models.StockActive},
+		6:  {ID: 6, Symbol: "PFE", Name: "Pfizer Inc.", Sector: "Healthcare", SectorID: 2, Price: 45.00, Status: models.StockActive},
+		7:  {ID: 7, Symbol: "JPM", Name: "JPMorgan Chase", Sector: "Finance", SectorID: 3, Price: 155.00, Status: models.StockActive},
+		8:  {ID: 8, Symbol: "BAC", Name: "Bank of America", Sector: "Finance", SectorID: 3, Price: 42.00, Status: models.StockActive},
+		9:  {ID: 9, Symbol: "XOM", Name: "Exxon Mobil", Sector: "Energy", SectorID: 4, Price: 65.00, Status: models.StockActive},
+		10: {ID: 10, Symbol: "CVX", Name: "Chevron Corp.", Sector: "Energy", SectorID: 4, Price: 120.00, Status: models.StockActive},
+		11: {ID: 11, Symbol: "KO", Name: "Coca-Cola Co.", Sector: "Consumer", SectorID: 5, Price: 58.00, Status: models.StockActive},
+		12: {ID: 12, Symbol: "PEP", Name: "PepsiCo Inc.", Sector: "Consumer", SectorID: 5, Price: 165.00, Status: models.StockActive},
+	}
 }
 
 // updateStockPrices handles updates from the simulator
