@@ -205,7 +205,47 @@ func main() {
 	// SSE endpoint - must be registered BEFORE rate limiting to allow real-time updates
 	r.HandleFunc("/api/sse/stock-updates", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("SSE connection request from: %s", r.Header.Get("Origin"))
+		
+		// Add Railway-specific debug logging
+		log.Printf("SSE request headers: %+v", r.Header)
+		log.Printf("SSE request method: %s, URL: %s", r.Method, r.URL.String())
+		
 		sseHandler.HandleStockUpdates(w, r)
+	}).Methods("GET", "OPTIONS")
+	
+	// Alternative HTTP polling endpoint as fallback
+	r.HandleFunc("/api/stock-updates/poll", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Stock polling request from: %s", r.Header.Get("Origin"))
+		
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		
+		// Get current stock prices
+		stocks, err := marketService.GetAllStocks()
+		if err != nil {
+			http.Error(w, "Failed to get stocks", http.StatusInternalServerError)
+			return
+		}
+		
+		// Format as stock updates
+		updates := make([]map[string]interface{}, len(stocks))
+		for i, stock := range stocks {
+			updates[i] = map[string]interface{}{
+				"type":     "stock_update",
+				"stock_id": stock.ID,
+				"symbol":   stock.Symbol,
+				"price":    stock.CurrentPrice,
+			}
+		}
+		
+		response := map[string]interface{}{
+			"type":      "stock_updates",
+			"timestamp": time.Now().Unix(),
+			"updates":   updates,
+		}
+		
+		json.NewEncoder(w).Encode(response)
 	}).Methods("GET", "OPTIONS")
 
 	// Apply rate limiting after SSE endpoint registration

@@ -16,6 +16,10 @@ const isLocalhost = window.location.hostname === 'localhost' || window.location.
 // Get configuration from environment variables with fallbacks
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com';
 
+// Polling fallback variables
+let pollingInterval = null;
+let isPolling = false;
+
 // Get current connection state
 export const getSSEConnectionState = () => connectionState;
 
@@ -61,12 +65,24 @@ export const initSSE = async () => {
         console.error('SSE connection timeout');
         eventSource.close();
         connectionState = 'disconnected';
-        notifyListeners('connectionState', { 
-          state: 'disconnected', 
-          reason: 'connection_timeout',
-          description: 'Connection timed out'
-        });
-        scheduleReconnect();
+        
+        // If we've tried too many times, start polling fallback
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS - 1) {
+          console.log('SSE timeout after max attempts, starting polling fallback');
+          startPollingFallback();
+          notifyListeners('connectionState', { 
+            state: 'failed', 
+            reason: 'connection_timeout',
+            description: 'Connection timed out, using polling fallback'
+          });
+        } else {
+          notifyListeners('connectionState', { 
+            state: 'disconnected', 
+            reason: 'connection_timeout',
+            description: 'Connection timed out'
+          });
+          scheduleReconnect();
+        }
       }
     }, 10000); // 10 second timeout
     
@@ -122,10 +138,12 @@ export const initSSE = async () => {
           scheduleReconnect();
         } else {
           connectionState = 'failed';
+          console.log('SSE failed permanently, starting polling fallback');
+          startPollingFallback();
           notifyListeners('connectionState', { 
             state: 'failed', 
             reason: 'max_attempts',
-            description: 'Maximum reconnection attempts exceeded'
+            description: 'Maximum reconnection attempts exceeded, using polling fallback'
           });
         }
       }
@@ -204,6 +222,8 @@ export const closeSSE = () => {
     eventSource = null;
   }
   
+  stopPollingFallback();
+  
   connectionState = 'disconnected';
   listeners = {};
   reconnectAttempts = 0;
@@ -268,9 +288,64 @@ export const getSSEInstance = () => {
   return eventSource;
 };
 
+// Start polling fallback when SSE fails
+const startPollingFallback = () => {
+  if (isPolling) return;
+  
+  isPolling = true;
+  console.log('Starting HTTP polling fallback for stock updates');
+  
+  const pollStocks = async () => {
+    try {
+      let pollUrl;
+      if (isLocalhost) {
+        const protocol = window.location.protocol;
+        const host = window.location.hostname;
+        const port = process.env.REACT_APP_BACKEND_PORT || '8080';
+        pollUrl = `${protocol}//${host}:${port}/api/stock-updates/poll`;
+      } else {
+        pollUrl = `${BACKEND_URL}/api/stock-updates/poll`;
+      }
+      
+      const response = await fetch(pollUrl);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Process each stock update
+        if (data.updates && Array.isArray(data.updates)) {
+          data.updates.forEach(update => {
+            if (update.type === 'stock_update') {
+              notifyListeners('stockUpdate', update);
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Polling fallback error:', error);
+    }
+  };
+  
+  // Poll every 3 seconds (slightly slower than SSE's 2 seconds)
+  pollingInterval = setInterval(pollStocks, 3000);
+  
+  // Do an immediate poll
+  pollStocks();
+};
+
+// Stop polling fallback
+const stopPollingFallback = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+  isPolling = false;
+  console.log('Stopped HTTP polling fallback');
+};
+
 // Force reconnection (useful for debugging)
 export const forceSSEReconnect = () => {
   console.log('Forcing SSE reconnection...');
+  stopPollingFallback();
   closeSSE();
   setTimeout(() => initSSE(), 1000);
 };
