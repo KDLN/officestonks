@@ -398,3 +398,25 @@ export const runPortfolioTests = async () => {
     throw error;
   }
 };
+
+// Run SSE tests (admin only)
+export const runSSETests = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/sse`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to run SSE tests");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error running SSE tests:", error);
+    throw error;
+  }
+};

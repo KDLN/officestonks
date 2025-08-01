@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Navigation from '../components/Navigation';
-import { runCrisisTests, runPortfolioTests, getTestStatus } from '../services/admin';
+import { runCrisisTests, runPortfolioTests, runSSETests, getTestStatus } from '../services/admin';
 import './Tests.css';
 
 const Tests = () => {
@@ -524,6 +524,9 @@ const Tests = () => {
         case 'portfolio':
           results = await runPortfolioTests();
           break;
+        case 'sse':
+          results = await runSSETests();
+          break;
         case 'changelog':
           results = await testChangelogSystem();
           break;
@@ -591,6 +594,7 @@ const Tests = () => {
             >
               <option value="crisis">Crisis Mechanics Test Suite</option>
               <option value="portfolio">Portfolio & Trading Test Suite</option>
+              <option value="sse">SSE Real-time Updates Test Suite</option>
               <option value="changelog">Changelog System Test Suite</option>
               <option value="monitoring">Monitoring System Test Suite</option>
             </select>
@@ -729,6 +733,15 @@ const Tests = () => {
                     <li>Share Quantity Validation - Tests invalid quantity rejection</li>
                     <li>Transaction History Integrity - Verifies transaction recording</li>
                     <li>Concurrent Trading Simulation - Tests rapid trading scenarios</li>
+                  </ul>
+                </div>
+                <div className="suite-info">
+                  <h5>📡 SSE Real-time Updates Test Suite:</h5>
+                  <ul>
+                    <li>SSE Connection Test - Verifies market simulator update channel</li>
+                    <li>Market Simulator Status - Checks stock data and price validity</li>
+                    <li>SSE Message Format Test - Validates message structure and JSON</li>
+                    <li>Rate Limiting Bypass Test - Confirms SSE endpoint configuration</li>
                   </ul>
                 </div>
                 <div className="suite-info">
