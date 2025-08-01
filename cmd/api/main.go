@@ -137,6 +137,7 @@ func main() {
 	testHandler := handlers.NewTestHandler(marketService, userService, stockRepo, portfolioRepo, delistedStockRepo, portfolioLossRepo, newsRepo)
 	portfolioTestHandler := handlers.NewPortfolioTestHandler(marketService, userService, stockRepo, userRepo, portfolioRepo, transactionRepo)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+	monitoringTestHandler := handlers.NewMonitoringTestHandler(db)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -356,6 +357,7 @@ func main() {
 	adminRouter.HandleFunc("/monitoring/user-activity", monitoringHandler.GetUserActivity).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/monitoring/user-sessions", monitoringHandler.GetUserSessions).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/monitoring/activity-range", monitoringHandler.GetActivityByTimeRange).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/test", monitoringTestHandler.TestMonitoring).Methods("GET", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

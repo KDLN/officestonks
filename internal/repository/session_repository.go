@@ -2,6 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
 	"time"
 
 	"officestonks/internal/models"
@@ -19,9 +21,18 @@ func NewSessionRepo(db *sql.DB) *SessionRepo {
 
 // CreateSession creates a new user session
 func (r *SessionRepo) CreateSession(userID int, ipAddress, userAgent string) (*models.UserSession, error) {
+	log.Printf("SessionRepo: Creating session for user %d from IP %s", userID, ipAddress)
+	
+	// Check if database is available
+	if r.db == nil {
+		log.Printf("SessionRepo: Database connection is nil")
+		return nil, fmt.Errorf("database connection not available")
+	}
+	
 	query := `INSERT INTO user_sessions (user_id, ip_address, user_agent) VALUES (?, ?, ?)`
 	result, err := RetryExec(r.db, query, userID, ipAddress, userAgent)
 	if err != nil {
+		log.Printf("SessionRepo: Failed to insert session: %v", err)
 		return nil, err
 	}
 

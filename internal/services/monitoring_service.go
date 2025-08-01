@@ -59,12 +59,16 @@ func NewMonitoringService(sessionRepo models.SessionRepository, activityRepo mod
 
 // CreateUserSession creates a new user session and logs the login activity
 func (ms *MonitoringService) CreateUserSession(userID int, username, ipAddress, userAgent string) (*models.UserSession, error) {
+	log.Printf("MonitoringService: Creating session for user %d (%s) from IP %s", userID, username, ipAddress)
+	
 	session, err := ms.sessionRepo.CreateSession(userID, ipAddress, userAgent)
 	if err != nil {
+		log.Printf("MonitoringService: Failed to create session: %v", err)
 		ms.LogActivity(userID, username, "login", "Session creation failed", ipAddress, false, err.Error())
 		return nil, err
 	}
 	
+	log.Printf("MonitoringService: Session %d created successfully for user %d", session.ID, userID)
 	ms.LogActivity(userID, username, "login", fmt.Sprintf("Session %d created", session.ID), ipAddress, true, "")
 	return session, nil
 }
