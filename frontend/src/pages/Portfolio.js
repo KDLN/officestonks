@@ -36,6 +36,19 @@ function Portfolio() {
       });
     }, 500);
 
+    // Handle page visibility changes to pause/resume polling
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !isWebSocketConnected && !pollingInterval) {
+        console.log('📱 Page became visible - resuming polling');
+        startPolling();
+      } else if (document.visibilityState === 'hidden') {
+        console.log('📱 Page became hidden - pausing polling');
+        stopPolling();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Listen for connection state changes
     const handleConnectionState = (state) => {
       if (state.state === 'connected') {
@@ -47,7 +60,7 @@ function Portfolio() {
         setIsWebSocketConnected(false);
         // Start polling fallback after a short delay
         setTimeout(() => {
-          if (!isWebSocketConnected) {
+          if (!isWebSocketConnected && document.visibilityState === 'visible') {
             startPolling();
           }
         }, 3000);
@@ -166,6 +179,7 @@ function Portfolio() {
     return () => {
       clearTimeout(wsTimeout);
       removeWebSocketListener('*', handleStockUpdate);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopPolling();
     };
   }, []);
@@ -249,12 +263,13 @@ function Portfolio() {
 
   // Start polling as fallback when WebSocket fails
   const startPolling = () => {
-    console.log('🔄 Starting polling fallback for real-time updates (every 3 seconds)');
+    console.log('🔄 Starting polling fallback for real-time updates (every 10 seconds, only when visible)');
     const interval = setInterval(() => {
-      if (!isWebSocketConnected) {
+      // Only poll if the page is visible and WebSocket is not connected
+      if (!isWebSocketConnected && document.visibilityState === 'visible') {
         loadPortfolioData(false); // Don't show loading spinner for polling updates
       }
-    }, 3000); // Poll every 3 seconds
+    }, 10000); // Poll every 10 seconds to avoid rate limiting
     
     setPollingInterval(interval);
     return interval;
