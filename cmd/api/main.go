@@ -247,6 +247,23 @@ func main() {
 	// Public changelog routes
 	apiRouter.HandleFunc("/changelog", changelogHandler.GetPublicChangelog).Methods("GET", "OPTIONS")
 	apiRouter.HandleFunc("/changelog/{version}", changelogHandler.GetChangelogByVersion).Methods("GET", "OPTIONS")
+	
+	// Test route to verify changelog system
+	apiRouter.HandleFunc("/changelog/test", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"message": "Changelog test endpoint working",
+			"test_entries": []map[string]interface{}{
+				{
+					"version": "v1.2.0",
+					"title": "Crisis & News System",
+					"is_major": true,
+				},
+			},
+		})
+	}).Methods("GET", "OPTIONS")
 
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
