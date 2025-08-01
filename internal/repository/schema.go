@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS users (
   supabase_id VARCHAR(255) NULL UNIQUE,
   cash_balance DECIMAL(15,2) DEFAULT 10000.00,
   is_admin BOOLEAN DEFAULT FALSE,
+  last_login TIMESTAMP NULL,
+  login_count INT DEFAULT 0,
+  total_trades INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -149,6 +152,60 @@ CREATE TABLE IF NOT EXISTS news_items (
   expires_at TIMESTAMP NOT NULL,
   is_automated BOOLEAN DEFAULT TRUE,
   FOREIGN KEY (stock_id) REFERENCES stocks(id) ON DELETE SET NULL
+);
+
+-- User Sessions Table (for monitoring)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    user_agent TEXT,
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    logout_time TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    trades_count INT DEFAULT 0,
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_sessions_user_id (user_id),
+    INDEX idx_user_sessions_active (is_active),
+    INDEX idx_user_sessions_login_time (login_time)
+);
+
+-- User Activity Table (for monitoring)
+CREATE TABLE IF NOT EXISTS user_activity (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    session_id INT NULL,
+    action VARCHAR(100) NOT NULL,
+    details TEXT,
+    ip_address VARCHAR(45) NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    success BOOLEAN DEFAULT TRUE,
+    error_message TEXT,
+    response_time_ms INT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (session_id) REFERENCES user_sessions(id) ON DELETE SET NULL,
+    INDEX idx_user_activity_user_id (user_id),
+    INDEX idx_user_activity_username (username),
+    INDEX idx_user_activity_action (action),
+    INDEX idx_user_activity_timestamp (timestamp),
+    INDEX idx_user_activity_success (success)
+);
+
+-- System Metrics Table (for monitoring)
+CREATE TABLE IF NOT EXISTS system_metrics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    active_users INT DEFAULT 0,
+    total_sessions INT DEFAULT 0,
+    active_sessions INT DEFAULT 0,
+    trades_per_hour INT DEFAULT 0,
+    websocket_connections INT DEFAULT 0,
+    database_health ENUM('healthy', 'degraded', 'down') DEFAULT 'healthy',
+    error_rate DECIMAL(5,4) DEFAULT 0.0000,
+    avg_response_time_ms DECIMAL(8,2) DEFAULT 0.00,
+    INDEX idx_system_metrics_timestamp (timestamp)
 );
 `
 
@@ -477,25 +534,67 @@ func runMigrations() error {
 	if monitoringColumnCount < 3 {
 		log.Println("Adding monitoring columns to users table...")
 		
-		// Add last_login column
-		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP NULL")
+		// Check and add last_login column
+		var lastLoginExists bool
+		err = RetryQueryRow(DB, `
+			SELECT COUNT(*) > 0
+			FROM INFORMATION_SCHEMA.COLUMNS 
+			WHERE TABLE_SCHEMA = DATABASE() 
+			AND TABLE_NAME = 'users' 
+			AND COLUMN_NAME = 'last_login'
+		`).Scan(&lastLoginExists)
 		if err != nil {
-			log.Printf("Error adding last_login column: %v", err)
+			log.Printf("Error checking last_login column: %v", err)
 			return err
 		}
-
-		// Add login_count column
-		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_count INT DEFAULT 0")
-		if err != nil {
-			log.Printf("Error adding login_count column: %v", err)
-			return err
+		if !lastLoginExists {
+			_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN last_login TIMESTAMP NULL")
+			if err != nil {
+				log.Printf("Error adding last_login column: %v", err)
+				return err
+			}
 		}
 
-		// Add total_trades column
-		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_trades INT DEFAULT 0")
+		// Check and add login_count column
+		var loginCountExists bool
+		err = RetryQueryRow(DB, `
+			SELECT COUNT(*) > 0
+			FROM INFORMATION_SCHEMA.COLUMNS 
+			WHERE TABLE_SCHEMA = DATABASE() 
+			AND TABLE_NAME = 'users' 
+			AND COLUMN_NAME = 'login_count'
+		`).Scan(&loginCountExists)
 		if err != nil {
-			log.Printf("Error adding total_trades column: %v", err)
+			log.Printf("Error checking login_count column: %v", err)
 			return err
+		}
+		if !loginCountExists {
+			_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN login_count INT DEFAULT 0")
+			if err != nil {
+				log.Printf("Error adding login_count column: %v", err)
+				return err
+			}
+		}
+
+		// Check and add total_trades column
+		var totalTradesExists bool
+		err = RetryQueryRow(DB, `
+			SELECT COUNT(*) > 0
+			FROM INFORMATION_SCHEMA.COLUMNS 
+			WHERE TABLE_SCHEMA = DATABASE() 
+			AND TABLE_NAME = 'users' 
+			AND COLUMN_NAME = 'total_trades'
+		`).Scan(&totalTradesExists)
+		if err != nil {
+			log.Printf("Error checking total_trades column: %v", err)
+			return err
+		}
+		if !totalTradesExists {
+			_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN total_trades INT DEFAULT 0")
+			if err != nil {
+				log.Printf("Error adding total_trades column: %v", err)
+				return err
+			}
 		}
 
 		log.Println("Successfully added monitoring columns to users table")
