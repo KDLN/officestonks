@@ -1,6 +1,6 @@
 .transactions-page {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--bg-secondary);
 }
 
 .transactions-container {
@@ -19,7 +19,7 @@
 .transactions-header h1 {
   margin: 0;
   font-size: 2rem;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .filter-controls {
@@ -41,7 +41,7 @@
 
 .filter-group label {
   font-weight: 500;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .filter-group select {
@@ -52,7 +52,7 @@
 }
 
 .refresh-button {
-  background-color: #4a69bd;
+  background-color: var(--accent-primary);
   color: white;
   border: none;
   padding: 10px 20px;
@@ -65,7 +65,7 @@
 }
 
 .refresh-button:hover {
-  background-color: #1e3799;
+  background-color: var(--accent-primary);
 }
 
 .transactions-table {
@@ -78,7 +78,7 @@
 }
 
 .transactions-table th {
-  background-color: #1a1a2e;
+  background-color: var(--bg-secondary);
   color: white;
   padding: 15px;
   text-align: left;
@@ -95,7 +95,7 @@
 }
 
 .transactions-table tr:hover {
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
 }
 
 .transaction-type {
@@ -106,13 +106,13 @@
 }
 
 .buy {
-  background-color: #e6f7ff;
-  color: #1890ff;
+  background-color: rgba(52, 152, 219, 0.1);
+  color: var(--accent-primary);
 }
 
 .sell {
-  background-color: #fff2e8;
-  color: #fa541c;
+  background-color: rgba(243, 156, 18, 0.1);
+  color: var(--accent-warning);
 }
 
 .stock-symbol {
@@ -133,8 +133,8 @@
 }
 
 .error {
-  background-color: #fff0f0;
-  color: #d32f2f;
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--accent-danger);
   padding: 15px;
   margin: 20px 0;
   border-radius: 4px;
@@ -146,7 +146,7 @@
   justify-content: center;
   align-items: center;
   height: 200px;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -171,9 +171,9 @@
 }
 
 .pagination button.active {
-  background-color: #4a69bd;
+  background-color: var(--accent-primary);
   color: white;
-  border-color: #4a69bd;
+  border-color: var(--accent-primary);
 }
 
 /* Mobile Responsive Design */
@@ -246,7 +246,7 @@
   .transactions-table td::before {
     content: attr(data-label);
     font-weight: bold;
-    color: #666;
+    color: var(--text-muted);
   }
 
   .value {

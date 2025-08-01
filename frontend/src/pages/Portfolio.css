@@ -1,6 +1,6 @@
 .portfolio-page {
   min-height: 100vh;
-  background-color: #ecf0f1;
+  background-color: var(--bg-secondary);
 }
 
 .portfolio-container {
@@ -18,7 +18,7 @@
 }
 
 .portfolio-header h1 {
-  color: #2c3e50;
+  color: var(--nav-bg);
   font-size: 2rem;
   margin: 0 0 20px 0;
 }
@@ -30,7 +30,7 @@
 }
 
 .summary-card {
-  background-color: #f8f9fa;
+  background-color: var(--bg-tertiary);
   padding: 20px;
   border-radius: 8px;
   text-align: center;
@@ -39,14 +39,14 @@
 .summary-card h3 {
   margin: 0 0 10px 0;
   font-size: 14px;
-  color: #666;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .summary-card .value {
   font-size: 24px;
   font-weight: bold;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .summary-card .percentage {
@@ -56,12 +56,12 @@
 
 .value.positive,
 .percentage.positive {
-  color: #28a745;
+  color: var(--accent-success);
 }
 
 .value.negative,
 .percentage.negative {
-  color: #dc3545;
+  color: var(--accent-danger);
 }
 
 .portfolio-tabs {
@@ -76,7 +76,7 @@
   background: none;
   border: none;
   font-size: 16px;
-  color: #666;
+  color: var(--text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
@@ -84,12 +84,12 @@
 }
 
 .tab-button:hover {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .tab-button.active {
-  color: #007bff;
-  border-bottom-color: #007bff;
+  color: var(--accent-primary);
+  border-bottom-color: var(--accent-primary);
 }
 
 .portfolio-content {
@@ -109,12 +109,12 @@
 
 .stock-symbol {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .stock-name {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .gain-loss {
@@ -124,11 +124,11 @@
 }
 
 .gain-loss.positive {
-  color: #28a745;
+  color: var(--accent-success);
 }
 
 .gain-loss.negative {
-  color: #dc3545;
+  color: var(--accent-danger);
 }
 
 .gain-loss-icon {
@@ -146,19 +146,19 @@
 }
 
 .transaction-type.buy {
-  background-color: #d4edda;
-  color: #155724;
+  background-color: rgba(46, 204, 113, 0.1);
+  color: var(--accent-success);
 }
 
 .transaction-type.sell {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--accent-danger);
 }
 
 .empty-portfolio {
   text-align: center;
   padding: 30px;
-  color: #7f8c8d;
+  color: var(--text-muted);
 }
 
 .empty-portfolio p {
@@ -174,12 +174,12 @@
   align-items: center;
   min-height: 400px;
   font-size: 18px;
-  color: #7f8c8d;
+  color: var(--text-muted);
 }
 
 .error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--accent-danger);
   padding: 15px;
   border-radius: 4px;
   margin: 20px;
@@ -257,7 +257,7 @@
   .dashboard-table td::before {
     content: attr(data-label);
     font-weight: bold;
-    color: #666;
+    color: var(--text-muted);
     flex-shrink: 0;
     margin-right: 10px;
   }
@@ -284,7 +284,7 @@
   }
 
   .tab-button.active {
-    background-color: #f8f9fa;
+    background-color: var(--bg-tertiary);
   }
 
   .portfolio-content {

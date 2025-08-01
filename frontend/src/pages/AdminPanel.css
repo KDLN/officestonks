@@ -1,6 +1,6 @@
 .admin-panel-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
 }
 
 .admin-panel-container {
@@ -18,14 +18,14 @@
 .admin-panel-header h1 {
   font-size: 2.4rem;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .error-message {
   padding: 15px;
-  background-color: #ffebee;
+  background-color: rgba(231, 76, 60, 0.1);
   border-left: 5px solid #f44336;
-  color: #c62828;
+  color: var(--accent-danger);
   border-radius: 4px;
   margin-bottom: 20px;
   font-weight: 500;
@@ -33,9 +33,9 @@
 
 .status-message {
   padding: 15px;
-  background-color: #e8f5e9;
+  background-color: rgba(46, 204, 113, 0.1);
   border-left: 5px solid #4caf50;
-  color: #2e7d32;
+  color: var(--accent-success);
   border-radius: 4px;
   margin-bottom: 20px;
   font-weight: 500;
@@ -53,7 +53,7 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 20px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .action-buttons {
@@ -63,7 +63,7 @@
 }
 
 .action-button {
-  background-color: #2196f3;
+  background-color: var(--accent-primary);
   color: white;
   border: none;
   padding: 12px 20px;
@@ -75,7 +75,7 @@
 }
 
 .action-button:hover {
-  background-color: #1976d2;
+  background-color: var(--accent-primary);
 }
 
 .users-section {
@@ -89,7 +89,7 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 20px;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .users-table {
@@ -105,19 +105,19 @@
 }
 
 .users-table th {
-  background-color: #f7f7f7;
+  background-color: var(--bg-tertiary);
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .users-table tbody tr:hover {
-  background-color: #f5f5f5;
+  background-color: var(--bg-secondary);
 }
 
 .admin-badge {
   display: inline-block;
   padding: 4px 10px;
-  background-color: #2196f3;
+  background-color: var(--accent-primary);
   color: white;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -127,7 +127,7 @@
 .user-badge {
   display: inline-block;
   padding: 4px 10px;
-  background-color: #9e9e9e;
+  background-color: var(--text-muted);
   color: white;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -155,7 +155,7 @@
 }
 
 .delete-user-btn {
-  background-color: #f44336;
+  background-color: var(--accent-danger);
   color: white;
   border: none;
   padding: 8px 12px;
@@ -166,13 +166,13 @@
 }
 
 .delete-user-btn:hover {
-  background-color: #d32f2f;
+  background-color: var(--accent-danger);
 }
 
 .no-users {
   padding: 30px;
   text-align: center;
-  color: #757575;
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -182,7 +182,7 @@
   align-items: center;
   height: 100vh;
   font-size: 1.2rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .news-section {
@@ -217,7 +217,7 @@
 }
 
 .crisis-testing-section h2 {
-  color: #d32f2f;
+  color: var(--accent-danger);
   margin-bottom: 8px;
   font-size: 1.8rem;
   display: flex;
@@ -226,7 +226,7 @@
 }
 
 .section-description {
-  color: #666;
+  color: var(--text-muted);
   margin-bottom: 20px;
   font-style: italic;
 }
@@ -245,7 +245,7 @@
 
 .stock-input-group label {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   min-width: 80px;
 }
 
@@ -260,7 +260,7 @@
 
 .stock-input-group input:focus {
   outline: none;
-  border-color: #ff9800;
+  border-color: var(--accent-warning);
   box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.1);
 }
 
@@ -344,7 +344,7 @@
 }
 
 .simulator-status h3 {
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 16px;
   font-size: 1.4rem;
 }
@@ -358,11 +358,11 @@
 
 .status-info p {
   margin: 0;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .stocks-status h4 {
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -394,13 +394,13 @@
 
 .stock-symbol {
   font-weight: bold;
-  color: #2563eb;
+  color: var(--accent-primary);
   font-size: 16px;
 }
 
 .stock-id {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
   background: #e9ecef;
   padding: 2px 6px;
   border-radius: 3px;
@@ -415,23 +415,23 @@
 .stock-price {
   font-size: 18px;
   font-weight: bold;
-  color: #059669;
+  color: var(--accent-success);
 }
 
 .stock-trend {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .stock-sector {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-muted);
   font-style: italic;
 }
 
 .more-stocks {
   text-align: center;
-  color: #666;
+  color: var(--text-muted);
   font-style: italic;
   margin: 0;
 }

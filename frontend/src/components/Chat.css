@@ -4,7 +4,7 @@
   right: 20px;
   width: 320px;
   height: 400px;
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -19,8 +19,8 @@
 }
 
 .chat-header {
-  background-color: #2c3e50;
-  color: white;
+  background-color: var(--nav-bg);
+  color: var(--nav-text);
   padding: 10px;
   display: flex;
   justify-content: space-between;
@@ -36,7 +36,7 @@
 .chat-toggle-btn {
   background: none;
   border: none;
-  color: white;
+  color: var(--nav-text);
   cursor: pointer;
   font-size: 18px;
 }
@@ -59,14 +59,14 @@
 
 .message.own {
   align-self: flex-end;
-  background-color: #3498db;
-  color: white;
+  background-color: var(--accent-primary);
+  color: var(--nav-text);
 }
 
 .message.other {
   align-self: flex-start;
-  background-color: #f1f1f1;
-  color: #333;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .message-user {
@@ -94,12 +94,12 @@
 .chat-form {
   display: flex;
   padding: 10px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-color);
 }
 
 .chat-input {
   flex-grow: 1;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 20px;
   padding: 8px 12px;
   font-size: 14px;
@@ -107,12 +107,12 @@
 }
 
 .chat-input:focus {
-  border-color: #3498db;
+  border-color: var(--accent-primary);
 }
 
 .chat-send-btn {
-  background-color: #3498db;
-  color: white;
+  background-color: var(--accent-primary);
+  color: var(--nav-text);
   border: none;
   border-radius: 50%;
   width: 36px;
@@ -125,17 +125,17 @@
 }
 
 .chat-send-btn:hover {
-  background-color: #2980b9;
+  background-color: var(--accent-primary);
 }
 
 .chat-send-btn:disabled {
-  background-color: #95a5a6;
+  background-color: var(--text-muted);
   cursor: not-allowed;
 }
 
 .chat-status {
   text-align: center;
-  color: #7f8c8d;
+  color: var(--text-muted);
   font-size: 12px;
   padding: 4px;
 }
@@ -146,7 +146,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #95a5a6;
+  color: var(--text-muted);
   font-style: italic;
   text-align: center;
   padding: 20px;

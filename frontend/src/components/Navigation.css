@@ -60,7 +60,7 @@
 }
 
 .admin-link:hover {
-  background-color: #c0392b !important;
+  background-color: var(--accent-danger) !important;
   transform: translateY(-1px);
 }
 
@@ -181,7 +181,7 @@
 }
 
 .env-badge {
-  background-color: #ff6b35;
+  background-color: var(--accent-warning);
   color: white;
   font-size: 0.7rem;
   font-weight: bold;
