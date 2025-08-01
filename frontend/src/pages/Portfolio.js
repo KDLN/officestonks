@@ -16,6 +16,8 @@ function Portfolio() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('holdings');
   const [valueChanges, setValueChanges] = useState({}); // Track value changes for animations
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [pollingInterval, setPollingInterval] = useState(null);
 
   useEffect(() => {
     loadPortfolioData();
@@ -25,12 +27,42 @@ function Portfolio() {
       console.log('🔌 Initializing WebSocket for Portfolio real-time updates...');
       initWebSocket().catch(err => {
         console.error('❌ Failed to initialize WebSocket:', err);
+        // Start polling fallback after WebSocket fails
+        setTimeout(() => {
+          if (!isWebSocketConnected) {
+            startPolling();
+          }
+        }, 2000);
       });
     }, 500);
+
+    // Listen for connection state changes
+    const handleConnectionState = (state) => {
+      if (state.state === 'connected') {
+        console.log('✅ WebSocket connected - stopping polling fallback');
+        setIsWebSocketConnected(true);
+        stopPolling();
+      } else if (state.state === 'disconnected' || state.state === 'failed') {
+        console.log('❌ WebSocket disconnected - will start polling fallback');
+        setIsWebSocketConnected(false);
+        // Start polling fallback after a short delay
+        setTimeout(() => {
+          if (!isWebSocketConnected) {
+            startPolling();
+          }
+        }, 3000);
+      }
+    };
 
     // Listen for stock updates to update portfolio in real-time
     const handleStockUpdate = (message) => {
       console.log('Portfolio received stock update:', message);
+      
+      // Handle connection state messages
+      if (message.state) {
+        handleConnectionState(message);
+        return;
+      }
       
       // Process stock update message
       if (message.type === 'stock_update' || (message.id && message.current_price)) {
@@ -58,7 +90,7 @@ function Portfolio() {
             if (item.stock_id === stock_id) {
               const oldPrice = item.stock.current_price;
               if (oldPrice !== price) {
-                console.log(`Updating ${item.stock.symbol} price from $${oldPrice} to $${price}`);
+                console.log(`WebSocket update: ${item.stock.symbol} price from $${oldPrice} to $${price}`);
                 hasChanges = true;
                 
                 // Track the direction of change for this item
@@ -134,27 +166,106 @@ function Portfolio() {
     return () => {
       clearTimeout(wsTimeout);
       removeWebSocketListener('*', handleStockUpdate);
+      stopPolling();
     };
   }, []);
 
-  const loadPortfolioData = async () => {
+  const loadPortfolioData = async (showLoading = true) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (showLoading) {
+        setLoading(true);
+        setError(null);
+      }
 
       // Load portfolio and transactions in parallel
       const [portfolioData, transactionsData] = await Promise.all([
         getUserPortfolio(),
-        getTransactionHistory(50, 0)
+        showLoading ? getTransactionHistory(50, 0) : Promise.resolve(transactions)
       ]);
 
+      // Compare with previous portfolio for animations
+      if (!showLoading && portfolio) {
+        const oldTotalValue = portfolio.total_value || 0;
+        const newTotalValue = portfolioData.total_value || 0;
+        const oldStockValue = portfolio.stock_value || 0;
+        const newStockValue = portfolioData.stock_value || 0;
+
+        // Check if any individual stock prices changed
+        const stockChanges = {};
+        if (portfolio.portfolio_items && portfolioData.portfolio_items) {
+          portfolioData.portfolio_items.forEach(newItem => {
+            const oldItem = portfolio.portfolio_items.find(item => item.stock_id === newItem.stock_id);
+            if (oldItem && oldItem.stock.current_price !== newItem.stock.current_price) {
+              const direction = newItem.stock.current_price > oldItem.stock.current_price ? 'up' : 'down';
+              stockChanges[`stock_${newItem.stock_id}`] = direction;
+              console.log(`Polling update: ${newItem.stock.symbol} price from $${oldItem.stock.current_price} to $${newItem.stock.current_price}`);
+            }
+          });
+        }
+
+        // Set animations for value changes
+        if (newTotalValue !== oldTotalValue || newStockValue !== oldStockValue || Object.keys(stockChanges).length > 0) {
+          setValueChanges(prev => ({
+            ...prev,
+            ...stockChanges,
+            totalValue: newTotalValue > oldTotalValue ? 'up' : (newTotalValue < oldTotalValue ? 'down' : ''),
+            stockValue: newStockValue > oldStockValue ? 'up' : (newStockValue < oldStockValue ? 'down' : ''),
+            totalGainLoss: newTotalValue > oldTotalValue ? 'up' : (newTotalValue < oldTotalValue ? 'down' : '')
+          }));
+
+          // Clear animations after 2 seconds
+          setTimeout(() => {
+            setValueChanges(prev => {
+              const cleared = { ...prev };
+              cleared.totalValue = '';
+              cleared.stockValue = '';
+              cleared.totalGainLoss = '';
+              Object.keys(cleared).forEach(key => {
+                if (key.startsWith('stock_')) {
+                  cleared[key] = '';
+                }
+              });
+              return cleared;
+            });
+          }, 2000);
+        }
+      }
+
       setPortfolio(portfolioData);
-      setTransactions(transactionsData);
+      if (showLoading) {
+        setTransactions(transactionsData);
+      }
     } catch (err) {
       console.error('Error loading portfolio data:', err);
-      setError('Failed to load portfolio data. Please try again.');
+      if (showLoading) {
+        setError('Failed to load portfolio data. Please try again.');
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Start polling as fallback when WebSocket fails
+  const startPolling = () => {
+    console.log('🔄 Starting polling fallback for real-time updates (every 3 seconds)');
+    const interval = setInterval(() => {
+      if (!isWebSocketConnected) {
+        loadPortfolioData(false); // Don't show loading spinner for polling updates
+      }
+    }, 3000); // Poll every 3 seconds
+    
+    setPollingInterval(interval);
+    return interval;
+  };
+
+  // Stop polling when WebSocket connects
+  const stopPolling = () => {
+    if (pollingInterval) {
+      console.log('🛑 Stopping polling fallback - WebSocket connected');
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
     }
   };
 
