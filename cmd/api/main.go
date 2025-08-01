@@ -272,6 +272,59 @@ func main() {
 		})
 	}).Methods("GET", "OPTIONS")
 
+	// Database verification endpoint
+	apiRouter.HandleFunc("/debug/database", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		
+		result := map[string]interface{}{
+			"timestamp": time.Now(),
+			"database_connection": false,
+			"tables": []string{},
+			"monitoring_tables": map[string]bool{},
+		}
+		
+		if db != nil {
+			// Test connection
+			if err := db.Ping(); err == nil {
+				result["database_connection"] = true
+				
+				// Get all tables
+				rows, err := db.Query("SHOW TABLES")
+				if err == nil {
+					var tables []string
+					for rows.Next() {
+						var tableName string
+						if err := rows.Scan(&tableName); err == nil {
+							tables = append(tables, tableName)
+						}
+					}
+					rows.Close()
+					result["tables"] = tables
+					
+					// Check specific monitoring tables
+					monitoringTables := []string{"user_sessions", "user_activity", "system_metrics"}
+					for _, table := range monitoringTables {
+						exists := false
+						for _, existing := range tables {
+							if existing == table {
+								exists = true
+								break
+							}
+						}
+						result["monitoring_tables"].(map[string]bool)[table] = exists
+					}
+				}
+			} else {
+				result["connection_error"] = err.Error()
+			}
+		} else {
+			result["error"] = "Database connection is nil"
+		}
+		
+		json.NewEncoder(w).Encode(result)
+	}).Methods("GET", "OPTIONS")
+
 	// Protected routes
 	protectedRouter := apiRouter.PathPrefix("").Subrouter()
 	protectedRouter.Use(authMiddleware.Authenticate)
