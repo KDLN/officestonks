@@ -86,22 +86,23 @@ func (ms *MonitoringService) FindOrCreateUserSession(userID int, username, ipAdd
 		return nil, err
 	}
 	
-	// If this was a new session, log the login activity and audit event
+	// Always log audit event for security tracking (every login attempt)
+	if ms.auditRepo != nil {
+		err := ms.auditRepo.LogEvent(userID, "login", ipAddress)
+		if err != nil {
+			log.Printf("MonitoringService: Failed to log audit event: %v", err)
+		} else {
+			log.Printf("MonitoringService: Audit log recorded for user %d login", userID)
+		}
+	}
+	
+	// If this was a new session, log the login activity 
 	if session.LoginTime.After(time.Now().Add(-5*time.Second)) {
 		log.Printf("MonitoringService: New session %d created for user %d", session.ID, userID)
 		ms.LogActivity(userID, username, "login", fmt.Sprintf("Session %d created", session.ID), ipAddress, true, "")
-		
-		// Log to audit system for security tracking
-		if ms.auditRepo != nil {
-			err := ms.auditRepo.LogEvent(userID, "login", ipAddress)
-			if err != nil {
-				log.Printf("MonitoringService: Failed to log audit event: %v", err)
-			} else {
-				log.Printf("MonitoringService: Audit log recorded for user %d login", userID)
-			}
-		}
 	} else {
 		log.Printf("MonitoringService: Existing session %d updated for user %d", session.ID, userID)
+		ms.LogActivity(userID, username, "login", fmt.Sprintf("Session %d reused", session.ID), ipAddress, true, "")
 	}
 	
 	return session, nil
