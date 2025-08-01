@@ -62,14 +62,32 @@ export const initWebSocket = async () => {
 
   try {
     socket = new WebSocket(wsUrl);
-
+    
+    // Set a connection timeout for Railway proxy issues
+    const connectionTimeout = setTimeout(() => {
+      if (socket && socket.readyState === WebSocket.CONNECTING) {
+        console.error('WebSocket connection timeout - likely Railway proxy issue');
+        socket.close();
+        connectionState = 'disconnected';
+        notifyListeners('connectionState', { 
+          state: 'disconnected', 
+          reason: 'connection_timeout',
+          description: 'Connection timed out - likely proxy issue'
+        });
+        scheduleReconnect();
+      }
+    }, 10000); // 10 second timeout
+    
+    // Clear timeout when connection is established
     socket.onopen = () => {
+      clearTimeout(connectionTimeout);
       console.log('WebSocket connected successfully');
       reconnectAttempts = 0;
       connectionState = 'connected';
       notifyListeners('connection', { status: 'connected' });
       notifyListeners('connectionState', { state: 'connected' });
     };
+
 
     socket.onmessage = (event) => {
       try {
@@ -100,16 +118,50 @@ export const initWebSocket = async () => {
 
     socket.onclose = (event) => {
       console.log('WebSocket disconnected:', event.code, event.reason);
+      
+      // Log detailed error information for debugging
+      const errorInfo = {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Map error codes to human-readable messages
+      const errorMessages = {
+        1000: 'Normal closure',
+        1001: 'Going away',
+        1002: 'Protocol error',
+        1003: 'Unsupported data',
+        1004: 'Reserved',
+        1005: 'No status received',
+        1006: 'Abnormal closure - likely network or proxy issue',
+        1007: 'Invalid frame payload data',
+        1008: 'Policy violation',
+        1009: 'Message too big',
+        1010: 'Mandatory extension',
+        1011: 'Internal server error',
+        1015: 'TLS handshake failure'
+      };
+      
+      console.log(`WebSocket error details:`, {
+        ...errorInfo,
+        description: errorMessages[event.code] || `Unknown error code: ${event.code}`
+      });
+      
       connectionState = 'disconnected';
       notifyListeners('connection', { status: 'disconnected' });
-      notifyListeners('connectionState', { state: 'disconnected', code: event.code });
+      notifyListeners('connectionState', { state: 'disconnected', ...errorInfo });
       
-      // Attempt to reconnect if not a normal closure
-      if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      // More aggressive reconnection for 1006 errors (Railway proxy issues)
+      const shouldReconnect = event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS;
+      const isProxyError = event.code === 1006; // Railway proxy timeouts
+      
+      if (shouldReconnect || isProxyError) {
         scheduleReconnect();
       } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         connectionState = 'failed';
-        notifyListeners('connectionState', { state: 'failed', reason: 'max_attempts' });
+        notifyListeners('connectionState', { state: 'failed', reason: 'max_attempts', lastError: errorInfo });
       }
     };
   } catch (error) {
@@ -165,8 +217,23 @@ const scheduleReconnect = () => {
   
   console.log(`Scheduling reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
   
-  reconnectTimer = setTimeout(() => {
+  reconnectTimer = setTimeout(async () => {
     console.log('Attempting to reconnect WebSocket...');
+    
+    // For 1006 errors, try to refresh the token before reconnecting
+    try {
+      const newToken = await getAuthToken();
+      if (!newToken) {
+        console.error('No token available for WebSocket reconnection');
+        connectionState = 'failed';
+        notifyListeners('connectionState', { state: 'failed', reason: 'no_token_on_reconnect' });
+        return;
+      }
+      console.log('Token refreshed for WebSocket reconnection');
+    } catch (error) {
+      console.error('Failed to refresh token for WebSocket reconnection:', error);
+    }
+    
     initWebSocket();
   }, delay);
 };
