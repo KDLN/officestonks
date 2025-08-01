@@ -17,6 +17,7 @@ type MonitoringService struct {
 	sessionRepo  models.SessionRepository
 	activityRepo models.ActivityRepository
 	metricsRepo  models.MetricsRepository
+	auditRepo    models.AuditLogRepository // Add audit logging capability
 	
 	// In-memory tracking for real-time metrics
 	activeConnections sync.Map // map[string]*ConnectionInfo
@@ -43,11 +44,12 @@ type RequestMetrics struct {
 }
 
 // NewMonitoringService creates a new monitoring service
-func NewMonitoringService(sessionRepo models.SessionRepository, activityRepo models.ActivityRepository, metricsRepo models.MetricsRepository) *MonitoringService {
+func NewMonitoringService(sessionRepo models.SessionRepository, activityRepo models.ActivityRepository, metricsRepo models.MetricsRepository, auditRepo models.AuditLogRepository) *MonitoringService {
 	ms := &MonitoringService{
 		sessionRepo:    sessionRepo,
 		activityRepo:   activityRepo,
 		metricsRepo:    metricsRepo,
+		auditRepo:      auditRepo,
 		requestMetrics: &RequestMetrics{},
 	}
 	
@@ -84,10 +86,20 @@ func (ms *MonitoringService) FindOrCreateUserSession(userID int, username, ipAdd
 		return nil, err
 	}
 	
-	// If this was a new session, log the login activity
+	// If this was a new session, log the login activity and audit event
 	if session.LoginTime.After(time.Now().Add(-5*time.Second)) {
 		log.Printf("MonitoringService: New session %d created for user %d", session.ID, userID)
 		ms.LogActivity(userID, username, "login", fmt.Sprintf("Session %d created", session.ID), ipAddress, true, "")
+		
+		// Log to audit system for security tracking
+		if ms.auditRepo != nil {
+			err := ms.auditRepo.LogEvent(userID, "login", ipAddress)
+			if err != nil {
+				log.Printf("MonitoringService: Failed to log audit event: %v", err)
+			} else {
+				log.Printf("MonitoringService: Audit log recorded for user %d login", userID)
+			}
+		}
 	} else {
 		log.Printf("MonitoringService: Existing session %d updated for user %d", session.ID, userID)
 	}

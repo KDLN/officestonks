@@ -98,7 +98,7 @@ func main() {
 	newsService := services.NewNewsService(newsRepo)
 	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo, delistedStockRepo, portfolioLossRepo, newsService)
 	userService := services.NewUserService(userRepo, portfolioRepo)
-	monitoringService := services.NewMonitoringService(sessionRepo, activityRepo, metricsRepo)
+	monitoringService := services.NewMonitoringService(sessionRepo, activityRepo, metricsRepo, auditRepo)
 	log.Println("✅ Services created successfully")
 
 	// Create websocket hub and initiate market simulator
