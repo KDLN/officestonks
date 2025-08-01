@@ -410,6 +410,98 @@ func runMigrations() error {
 	} else {
 		log.Println("Crisis columns already exist, skipping migration")
 	}
+
+	// Check if username column exists in user_activity table
+	var usernameColumnExists bool
+	err = RetryQueryRow(DB, `
+		SELECT COUNT(*) > 0
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_SCHEMA = DATABASE() 
+		AND TABLE_NAME = 'user_activity' 
+		AND COLUMN_NAME = 'username'
+	`).Scan(&usernameColumnExists)
+	
+	if err != nil {
+		log.Printf("Error checking if username column exists in user_activity: %v", err)
+		return err
+	}
+	
+	if !usernameColumnExists {
+		log.Println("Adding username column to user_activity table...")
+		_, err = RetryExec(DB, "ALTER TABLE user_activity ADD COLUMN username VARCHAR(50) NOT NULL DEFAULT ''")
+		if err != nil {
+			log.Printf("Error adding username column to user_activity: %v", err)
+			return err
+		}
+
+		// Update existing records with usernames from users table
+		log.Println("Updating existing user_activity records with usernames...")
+		_, err = RetryExec(DB, `
+			UPDATE user_activity ua 
+			JOIN users u ON ua.user_id = u.id 
+			SET ua.username = u.username 
+			WHERE ua.username = '' OR ua.username IS NULL
+		`)
+		if err != nil {
+			log.Printf("Error updating existing user_activity records: %v", err)
+			return err
+		}
+
+		// Add index for username column
+		_, err = RetryExec(DB, "CREATE INDEX idx_user_activity_username ON user_activity(username)")
+		if err != nil {
+			log.Printf("Warning: Could not create index on username column: %v", err)
+			// Don't return error as this is not critical
+		}
+
+		log.Println("Successfully added username column to user_activity table")
+	} else {
+		log.Println("username column already exists in user_activity, skipping migration")
+	}
+
+	// Check if monitoring columns exist in users table
+	var monitoringColumnCount int
+	err = RetryQueryRow(DB, `
+		SELECT COUNT(*) 
+		FROM INFORMATION_SCHEMA.COLUMNS 
+		WHERE TABLE_SCHEMA = DATABASE() 
+		AND TABLE_NAME = 'users' 
+		AND COLUMN_NAME IN ('last_login', 'login_count', 'total_trades')
+	`).Scan(&monitoringColumnCount)
+	
+	if err != nil {
+		log.Printf("Error checking if monitoring columns exist in users table: %v", err)
+		return err
+	}
+	
+	if monitoringColumnCount < 3 {
+		log.Println("Adding monitoring columns to users table...")
+		
+		// Add last_login column
+		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP NULL")
+		if err != nil {
+			log.Printf("Error adding last_login column: %v", err)
+			return err
+		}
+
+		// Add login_count column
+		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_count INT DEFAULT 0")
+		if err != nil {
+			log.Printf("Error adding login_count column: %v", err)
+			return err
+		}
+
+		// Add total_trades column
+		_, err = RetryExec(DB, "ALTER TABLE users ADD COLUMN IF NOT EXISTS total_trades INT DEFAULT 0")
+		if err != nil {
+			log.Printf("Error adding total_trades column: %v", err)
+			return err
+		}
+
+		log.Println("Successfully added monitoring columns to users table")
+	} else {
+		log.Println("All monitoring columns already exist in users table, skipping migration")
+	}
 	
 	return nil
 }

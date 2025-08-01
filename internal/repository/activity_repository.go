@@ -20,10 +20,10 @@ func NewActivityRepo(db *sql.DB) *ActivityRepo {
 // LogActivity records a user activity event
 func (r *ActivityRepo) LogActivity(userID int, username, action, details, ipAddress string, success bool, errorMsg string) error {
 	query := `
-		INSERT INTO user_activity (user_id, action, details, ip_address, success, error_message) 
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO user_activity (user_id, username, action, details, ip_address, success, error_message) 
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := RetryExec(r.db, query, userID, action, details, ipAddress, success, errorMsg)
+	_, err := RetryExec(r.db, query, userID, username, action, details, ipAddress, success, errorMsg)
 	return err
 }
 
@@ -33,11 +33,10 @@ func (r *ActivityRepo) GetRecentActivity(limit int) ([]*models.UserActivity, err
 		limit = 50
 	}
 	query := `
-		SELECT a.id, a.user_id, u.username, a.action, a.details, a.ip_address, 
-		       a.timestamp, a.success, a.error_message
-		FROM user_activity a
-		JOIN users u ON a.user_id = u.id
-		ORDER BY a.timestamp DESC
+		SELECT id, user_id, username, action, details, ip_address, 
+		       timestamp, success, error_message
+		FROM user_activity
+		ORDER BY timestamp DESC
 		LIMIT ?
 	`
 	rows, err := RetryQuery(r.db, query, limit)
@@ -72,12 +71,11 @@ func (r *ActivityRepo) GetUserActivity(userID int, limit int) ([]*models.UserAct
 		limit = 20
 	}
 	query := `
-		SELECT a.id, a.user_id, u.username, a.action, a.details, a.ip_address,
-		       a.timestamp, a.success, a.error_message
-		FROM user_activity a
-		JOIN users u ON a.user_id = u.id
-		WHERE a.user_id = ?
-		ORDER BY a.timestamp DESC
+		SELECT id, user_id, username, action, details, ip_address,
+		       timestamp, success, error_message
+		FROM user_activity
+		WHERE user_id = ?
+		ORDER BY timestamp DESC
 		LIMIT ?
 	`
 	rows, err := RetryQuery(r.db, query, userID, limit)
@@ -109,12 +107,11 @@ func (r *ActivityRepo) GetUserActivity(userID int, limit int) ([]*models.UserAct
 // GetActivityByTimeRange returns activity within a time range
 func (r *ActivityRepo) GetActivityByTimeRange(startTime, endTime time.Time) ([]*models.UserActivity, error) {
 	query := `
-		SELECT a.id, a.user_id, u.username, a.action, a.details, a.ip_address,
-		       a.timestamp, a.success, a.error_message
-		FROM user_activity a
-		JOIN users u ON a.user_id = u.id
-		WHERE a.timestamp BETWEEN ? AND ?
-		ORDER BY a.timestamp DESC
+		SELECT id, user_id, username, action, details, ip_address,
+		       timestamp, success, error_message
+		FROM user_activity
+		WHERE timestamp BETWEEN ? AND ?
+		ORDER BY timestamp DESC
 		LIMIT 1000
 	`
 	rows, err := RetryQuery(r.db, query, startTime, endTime)

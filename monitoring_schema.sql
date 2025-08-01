@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 CREATE TABLE IF NOT EXISTS user_activity (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
+    username VARCHAR(50) NOT NULL,
     session_id INT NULL,
     action VARCHAR(100) NOT NULL,
     details TEXT,
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS user_activity (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (session_id) REFERENCES user_sessions(id) ON DELETE SET NULL,
     INDEX idx_user_activity_user_id (user_id),
+    INDEX idx_user_activity_username (username),
     INDEX idx_user_activity_action (action),
     INDEX idx_user_activity_timestamp (timestamp),
     INDEX idx_user_activity_success (success)
