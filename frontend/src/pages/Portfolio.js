@@ -128,12 +128,12 @@ function Portfolio() {
       }
     };
     
-    addWebSocketListener('stockUpdate', handleStockUpdate);
+    addWebSocketListener('*', handleStockUpdate);
     
     // Cleanup on unmount
     return () => {
       clearTimeout(wsTimeout);
-      removeWebSocketListener('stockUpdate', handleStockUpdate);
+      removeWebSocketListener('*', handleStockUpdate);
     };
   }, []);
 

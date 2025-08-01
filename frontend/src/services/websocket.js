@@ -281,12 +281,24 @@ export const removeWebSocketListener = (event, callback) => {
 
 // Notify all listeners for an event
 const notifyListeners = (event, data) => {
+  // Notify specific event listeners
   if (listeners[event]) {
     listeners[event].forEach(callback => {
       try {
         callback(data);
       } catch (error) {
         console.error(`Error in WebSocket listener for event ${event}:`, error);
+      }
+    });
+  }
+  
+  // Notify wildcard listeners (*)
+  if (listeners['*']) {
+    listeners['*'].forEach(callback => {
+      try {
+        callback(data);
+      } catch (error) {
+        console.error(`Error in WebSocket wildcard listener:`, error);
       }
     });
   }
