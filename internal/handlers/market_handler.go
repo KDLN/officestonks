@@ -168,10 +168,22 @@ func (h *MarketHandler) TradeStock(w http.ResponseWriter, r *http.Request) {
 		clientIP = r.RemoteAddr
 	}
 	
-	// For now, we'll use empty values for username and sessionID
-	// These could be enhanced later with proper context passing
+	// Get user information and active session for monitoring
 	username := ""
 	sessionID := 0
+	
+	// Find active session for this user and IP (contains username and session ID)
+	if h.monitoringService != nil {
+		if sessions, err := h.monitoringService.GetActiveSessions(); err == nil {
+			for _, session := range sessions {
+				if session.UserID == userID && session.IPAddress == clientIP {
+					sessionID = session.ID
+					username = session.Username
+					break
+				}
+			}
+		}
+	}
 	
 	// Execute the trade
 	if req.Action == "buy" {
