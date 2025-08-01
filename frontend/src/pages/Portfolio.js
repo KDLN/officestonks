@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
+import { initWebSocket, addWebSocketListener, removeWebSocketListener } from '../services/websocket';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PortfolioCrisisAlert from '../components/PortfolioCrisisAlert';
@@ -14,9 +15,126 @@ function Portfolio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('holdings');
+  const [valueChanges, setValueChanges] = useState({}); // Track value changes for animations
 
   useEffect(() => {
     loadPortfolioData();
+    
+    // Initialize WebSocket for real-time updates
+    const wsTimeout = setTimeout(() => {
+      console.log('🔌 Initializing WebSocket for Portfolio real-time updates...');
+      initWebSocket().catch(err => {
+        console.error('❌ Failed to initialize WebSocket:', err);
+      });
+    }, 500);
+
+    // Listen for stock updates to update portfolio in real-time
+    const handleStockUpdate = (message) => {
+      console.log('Portfolio received stock update:', message);
+      
+      // Process stock update message
+      if (message.type === 'stock_update' || (message.id && message.current_price)) {
+        const stock_id = message.stock_id || message.id;
+        const price = message.price || message.current_price;
+        
+        if (!stock_id || !price) {
+          console.log('Missing required fields in stock update:', message);
+          return;
+        }
+        
+        // Update portfolio with new stock prices
+        setPortfolio(prevPortfolio => {
+          if (!prevPortfolio || !prevPortfolio.portfolio_items) {
+            return prevPortfolio;
+          }
+          
+          const oldTotalValue = prevPortfolio.total_value || 0;
+          let hasChanges = false;
+          
+          // Update portfolio items if the stock is in portfolio
+          const updatedItems = prevPortfolio.portfolio_items.map(item => {
+            if (!item || !item.stock) return item;
+            
+            if (item.stock_id === stock_id) {
+              const oldPrice = item.stock.current_price;
+              if (oldPrice !== price) {
+                console.log(`Updating ${item.stock.symbol} price from $${oldPrice} to $${price}`);
+                hasChanges = true;
+                
+                // Track the direction of change for this item
+                setValueChanges(prev => ({
+                  ...prev,
+                  [`stock_${stock_id}`]: price > oldPrice ? 'up' : 'down'
+                }));
+                
+                return {
+                  ...item,
+                  stock: { ...item.stock, current_price: price }
+                };
+              }
+            }
+            return item;
+          });
+          
+          if (!hasChanges) return prevPortfolio;
+          
+          // Recalculate stock value
+          const newStockValue = updatedItems.reduce(
+            (total, item) => {
+              if (!item || !item.stock) return total;
+              return total + (item.quantity * item.stock.current_price);
+            },
+            0
+          );
+          
+          const newTotalValue = newStockValue + (prevPortfolio.cash_balance || 0);
+          
+          // Track total value and stock value change direction
+          const oldStockValue = prevPortfolio.stock_value || 0;
+          if (newTotalValue !== oldTotalValue || newStockValue !== oldStockValue) {
+            setValueChanges(prev => ({
+              ...prev,
+              totalValue: newTotalValue > oldTotalValue ? 'up' : 'down',
+              stockValue: newStockValue > oldStockValue ? 'up' : 'down',
+              totalGainLoss: newTotalValue > oldTotalValue ? 'up' : 'down'
+            }));
+            
+            // Clear animation classes after animation completes
+            setTimeout(() => {
+              setValueChanges(prev => {
+                const cleared = { ...prev };
+                // Clear total values
+                cleared.totalValue = '';
+                cleared.stockValue = '';
+                cleared.totalGainLoss = '';
+                // Clear individual stock animations
+                Object.keys(cleared).forEach(key => {
+                  if (key.startsWith('stock_')) {
+                    cleared[key] = '';
+                  }
+                });
+                return cleared;
+              });
+            }, 2000);
+          }
+          
+          return {
+            ...prevPortfolio,
+            portfolio_items: updatedItems,
+            stock_value: newStockValue,
+            total_value: newTotalValue
+          };
+        });
+      }
+    };
+    
+    addWebSocketListener('stockUpdate', handleStockUpdate);
+    
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(wsTimeout);
+      removeWebSocketListener('stockUpdate', handleStockUpdate);
+    };
   }, []);
 
   const loadPortfolioData = async () => {
@@ -96,7 +214,7 @@ function Portfolio() {
           
           {/* Portfolio Summary */}
           <div className="portfolio-summary">
-            <div className="summary-card">
+            <div className={`summary-card ${valueChanges.totalValue ? `value-${valueChanges.totalValue}` : ''}`}>
               <h3>Total Value</h3>
               <div className="value">{formatCurrency(portfolio?.total_value || 0)}</div>
             </div>
@@ -106,12 +224,12 @@ function Portfolio() {
               <div className="value">{formatCurrency(portfolio?.cash_balance || 0)}</div>
             </div>
             
-            <div className="summary-card">
+            <div className={`summary-card ${valueChanges.stockValue ? `value-${valueChanges.stockValue}` : ''}`}>
               <h3>Stock Value</h3>
               <div className="value">{formatCurrency(portfolio?.stock_value || 0)}</div>
             </div>
             
-            <div className="summary-card">
+            <div className={`summary-card ${valueChanges.totalGainLoss ? `value-${valueChanges.totalGainLoss}` : ''}`}>
               <h3>Total Gain/Loss</h3>
               <div className={`value ${totalGainLoss >= 0 ? 'positive' : 'negative'}`}>
                 {formatCurrency(totalGainLoss)}
@@ -165,8 +283,10 @@ function Portfolio() {
                       const gainLoss = marketValue - totalCost;
                       const gainLossPercentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
 
+                      const changeClass = valueChanges[`stock_${item.stock_id}`] ? `value-${valueChanges[`stock_${item.stock_id}`]}` : '';
+                      
                       return (
-                        <tr key={item.id}>
+                        <tr key={item.id} className={changeClass}>
                           <td>
                             <div className="stock-info">
                               <span className="stock-symbol">{item.stock.symbol}</span>
@@ -174,7 +294,7 @@ function Portfolio() {
                             </div>
                           </td>
                           <td>{item.quantity}</td>
-                          <td>{formatCurrency(item.stock.current_price)}</td>
+                          <td><strong>{formatCurrency(item.stock.current_price)}</strong></td>
                           <td><strong>{formatCurrency(marketValue)}</strong></td>
                           <td>{formatCurrency(avgCost)}</td>
                           <td>{formatCurrency(totalCost)}</td>
