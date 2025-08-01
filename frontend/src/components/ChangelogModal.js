@@ -91,8 +91,8 @@ const ChangelogModal = ({ manualTrigger, onManualClose }) => {
       // Check if user has seen this version
       const lastSeenVersion = localStorage.getItem('lastSeenChangelogVersion');
       
-      // Show modal if this is a new version or if no version is stored (force show v1.2.0)
-      if (lastSeenVersion !== latestVersion || latestVersion === 'v1.2.0') {
+      // Show modal if this is a new version or if no version is stored
+      if (lastSeenVersion !== latestVersion) {
         console.log(`📰 Showing changelog modal: latest=${latestVersion}, lastSeen=${lastSeenVersion}`);
         setChangelog(entries);
         setIsOpen(true);
