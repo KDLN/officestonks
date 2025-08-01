@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"officestonks/internal/models"
 	"officestonks/internal/services"
 )
 
@@ -32,6 +33,12 @@ func (h *AuditHandler) GetRecentEvents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch audit log", http.StatusInternalServerError)
 		return
 	}
+	
+	// Ensure we always return an array, never null
+	if events == nil {
+		events = []*models.AuditEvent{}
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(events)
 }
