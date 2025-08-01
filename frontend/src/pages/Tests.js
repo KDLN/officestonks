@@ -324,6 +324,171 @@ const Tests = () => {
       test5.details = { error: err.message };
     }
     
+    // Test 6: Trade Logging Test
+    const test6 = {
+      name: 'Trade Logging Integration',
+      description: 'Test if trades are properly logged with session tracking',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test6);
+    
+    try {
+      // Make a small test trade to generate activity
+      const tradeResponse = await fetch('/api/trading', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stock_id: 1,
+          action: 'buy',
+          quantity: 1
+        })
+      });
+      
+      // Check if trade was logged in activity
+      const activityResponse = await fetch('/api/admin/monitoring/activity?limit=5', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const activityData = await activityResponse.json();
+      
+      const hasTradeActivity = activityData.activities?.some(a => a.action === 'trade') || false;
+      
+      test6.status = hasTradeActivity ? 'passed' : 'warning';
+      test6.details = {
+        trade_attempted: tradeResponse.ok,
+        trade_status: tradeResponse.status,
+        has_trade_activity: hasTradeActivity,
+        recent_activities: activityData.activities?.slice(0, 3).map(a => a.action) || []
+      };
+    } catch (err) {
+      test6.status = 'failed';
+      test6.details = { error: err.message };
+    }
+    
+    // Test 7: Session Trade Counter
+    const test7 = {
+      name: 'Session Trade Counter',
+      description: 'Verify session trade counts are updating correctly',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test7);
+    
+    try {
+      const response = await fetch('/api/admin/monitoring/sessions', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        const activeSessions = data.sessions || [];
+        const sessionsWithTrades = activeSessions.filter(s => s.trades_count > 0);
+        
+        test7.status = sessionsWithTrades.length > 0 ? 'passed' : 'warning';
+        test7.details = {
+          total_sessions: activeSessions.length,
+          sessions_with_trades: sessionsWithTrades.length,
+          max_trades_in_session: Math.max(0, ...activeSessions.map(s => s.trades_count || 0)),
+          trade_counts: activeSessions.map(s => s.trades_count || 0)
+        };
+      } else {
+        test7.status = 'failed';
+        test7.details = { error: 'Failed to fetch sessions', response_status: response.status };
+      }
+    } catch (err) {
+      test7.status = 'failed';
+      test7.details = { error: err.message };
+    }
+    
+    // Test 8: Audit Log Integration
+    const test8 = {
+      name: 'Audit Log Integration',
+      description: 'Check if monitoring system feeds audit logs',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test8);
+    
+    try {
+      const response = await fetch('/api/admin/audit?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok && Array.isArray(data)) {
+        const loginEvents = data.filter(event => event.action === 'login');
+        
+        test8.status = data.length > 0 ? 'passed' : 'warning';
+        test8.details = {
+          total_audit_events: data.length,
+          login_events: loginEvents.length,
+          recent_actions: data.slice(0, 5).map(e => e.action),
+          has_monitoring_integration: loginEvents.length > 0
+        };
+      } else {
+        test8.status = 'failed';
+        test8.details = { error: 'Failed to fetch audit logs', response_status: response.status };
+      }
+    } catch (err) {
+      test8.status = 'failed';
+      test8.details = { error: err.message };
+    }
+    
+    // Test 9: User Activity Tracking
+    const test9 = {
+      name: 'User Activity Tracking',
+      description: 'Verify comprehensive user activity monitoring',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test9);
+    
+    try {
+      // Get current user's activities
+      const response = await fetch('/api/admin/monitoring/user-activity?user_id=27&limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        const activities = data.activities || [];
+        const actionTypes = [...new Set(activities.map(a => a.action))];
+        const hasApiRequests = activities.some(a => a.action === 'api_request');
+        const hasTrades = activities.some(a => a.action === 'trade');
+        
+        test9.status = activities.length > 0 ? 'passed' : 'warning';
+        test9.details = {
+          total_activities: activities.length,
+          unique_action_types: actionTypes.length,
+          action_types: actionTypes,
+          has_api_requests: hasApiRequests,
+          has_trades: hasTrades,
+          success_rate: activities.length > 0 ? `${((activities.filter(a => a.success).length / activities.length) * 100).toFixed(1)}%` : '0%'
+        };
+      } else {
+        test9.status = 'failed';
+        test9.details = { error: 'Failed to fetch user activities', response_status: response.status };
+      }
+    } catch (err) {
+      test9.status = 'failed';
+      test9.details = { error: err.message };
+    }
+    
     // Return results
     const passed = tests.filter(t => t.status === 'passed').length;
     const failed = tests.filter(t => t.status === 'failed').length;
