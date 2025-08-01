@@ -87,6 +87,9 @@ func main() {
 	auditRepo := repository.NewAuditRepo(db)
 	delistedStockRepo := repository.NewDelistedStockRepo(db)
 	portfolioLossRepo := repository.NewPortfolioLossRepo(db)
+	sessionRepo := repository.NewSessionRepo(db)
+	activityRepo := repository.NewActivityRepo(db)
+	metricsRepo := repository.NewMetricsRepo(db)
 	log.Println("✅ Repositories created successfully")
 
 	// Create services
@@ -95,6 +98,7 @@ func main() {
 	newsService := services.NewNewsService(newsRepo)
 	marketService := services.NewMarketService(stockRepo, userRepo, portfolioRepo, transactionRepo, sectorRepo, delistedStockRepo, portfolioLossRepo, newsService)
 	userService := services.NewUserService(userRepo, portfolioRepo)
+	monitoringService := services.NewMonitoringService(sessionRepo, activityRepo, metricsRepo)
 	log.Println("✅ Services created successfully")
 
 	// Create websocket hub and initiate market simulator
@@ -132,6 +136,7 @@ func main() {
 	gameConfigHandler := handlers.NewGameConfigHandler()
 	testHandler := handlers.NewTestHandler(marketService, userService, stockRepo, portfolioRepo, delistedStockRepo, portfolioLossRepo, newsRepo)
 	portfolioTestHandler := handlers.NewPortfolioTestHandler(marketService, userService, stockRepo, userRepo, portfolioRepo, transactionRepo)
+	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService)
@@ -195,6 +200,7 @@ func main() {
 	// IMPORTANT: Apply middleware at the top level
 	r.Use(corsMw)
 	r.Use(rateLimiter.RateLimit)
+	r.Use(monitoringService.CreateRequestTrackerMiddleware())
 
 	// Simple health check for Railway (no dependencies)
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -341,6 +347,15 @@ func main() {
 	adminRouter.HandleFunc("/tests/status", testHandler.GetTestStatus).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/tests/crisis", testHandler.RunCrisisTests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/portfolio", portfolioTestHandler.RunPortfolioTests).Methods("POST", "OPTIONS")
+
+	// Monitoring endpoints
+	adminRouter.HandleFunc("/monitoring/dashboard", monitoringHandler.GetMonitoringDashboard).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/metrics", monitoringHandler.GetSystemMetrics).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/sessions", monitoringHandler.GetActiveSessions).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/activity", monitoringHandler.GetRecentActivity).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/user-activity", monitoringHandler.GetUserActivity).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/user-sessions", monitoringHandler.GetUserSessions).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/monitoring/activity-range", monitoringHandler.GetActivityByTimeRange).Methods("GET", "OPTIONS")
 
 	// WebSocket route with explicit OPTIONS handling
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {

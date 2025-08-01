@@ -14,6 +14,7 @@ import AdminPanel from './pages/AdminPanel';
 import AuditLog from './pages/AuditLog';
 import Portfolio from './pages/Portfolio';
 import Tests from './pages/Tests';
+import MonitoringDashboard from './pages/MonitoringDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
 import ChangelogModal from './components/ChangelogModal';
@@ -61,6 +62,7 @@ const AppContent = () => {
             <Route path="/admin" element={<ProtectedRoute element={<AdminPanel />} />} />
             <Route path="/audit" element={<ProtectedRoute element={<AuditLog />} />} />
             <Route path="/tests" element={<ProtectedRoute element={<Tests />} />} />
+            <Route path="/monitoring" element={<ProtectedRoute element={<MonitoringDashboard />} />} />
 
             {/* Default redirect */}
             <Route path="*" element={<Navigate to="/login" />} />
