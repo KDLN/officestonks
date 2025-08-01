@@ -117,9 +117,13 @@ func (h *ChangelogHandler) GetPublicChangelog(w http.ResponseWriter, r *http.Req
 
 	// Use database service instead of file
 	allEntries, err := h.changelogService.GetVisibleEntries(limit*2, 0) // Get more entries to handle filtering
-	if err != nil {
-		log.Printf("Error fetching changelog from database: %v, falling back to hardcoded entries", err)
-		// Fallback to hardcoded entries when database is unavailable
+	if err != nil || len(allEntries) == 0 {
+		if err != nil {
+			log.Printf("Error fetching changelog from database: %v, falling back to hardcoded entries", err)
+		} else {
+			log.Printf("No changelog entries found in database, using hardcoded entries")
+		}
+		// Fallback to hardcoded entries when database is unavailable or empty
 		allEntries = []*models.ChangelogEntry{
 			{
 				ID:          3,
