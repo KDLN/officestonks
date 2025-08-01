@@ -40,7 +40,7 @@
 .retry-button {
   margin-top: 10px;
   padding: 6px 16px;
-  background-color: #fff;
+  background-color: var(--bg-primary);
   border: 1px solid currentColor;
   border-radius: 4px;
   color: inherit;

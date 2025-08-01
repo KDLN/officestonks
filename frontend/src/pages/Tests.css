@@ -38,7 +38,7 @@
 }
 
 .test-controls {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 30px;
@@ -66,7 +66,7 @@
   border: 2px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
-  background: white;
+  background: var(--bg-primary);
   min-width: 250px;
   cursor: pointer;
   transition: border-color 0.2s;
@@ -130,7 +130,7 @@
 }
 
 .test-status-card {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   padding: 24px;
   margin-bottom: 30px;
@@ -166,7 +166,7 @@
 }
 
 .test-results {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -324,7 +324,7 @@
 }
 
 .empty-state {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   padding: 40px;
   text-align: center;
@@ -379,7 +379,7 @@
 }
 
 .suite-info {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 6px;
   padding: 16px;
   border: 1px solid #e0e0e0;

@@ -15,7 +15,7 @@
 
 /* Modal Content */
 .modal-content {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   max-width: 500px;
@@ -136,7 +136,7 @@
 }
 
 .confirmation-message {
-  background-color: #fffbeb;
+  background-color: var(--bg-tertiary);
   border: 1px solid #f59e0b;
   border-radius: 8px;
   padding: 16px;

@@ -42,7 +42,7 @@
 }
 
 .admin-actions {
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 30px;
@@ -79,7 +79,7 @@
 }
 
 .users-section {
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -186,7 +186,7 @@
 }
 
 .news-section {
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 8px;
   padding: 20px;
   margin: 20px 0;
@@ -208,7 +208,7 @@
 
 /* Crisis Testing Section */
 .crisis-testing-section {
-  background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 30px;
@@ -338,7 +338,7 @@
 .simulator-status {
   margin-top: 24px;
   padding: 20px;
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   border: 1px solid #ddd;
 }

@@ -1,6 +1,6 @@
 /* Admin Announcement Section Styles */
 .announcement-section {
-  background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 30px;
@@ -40,7 +40,7 @@
   border: 2px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
-  background: white;
+  background: var(--bg-primary);
   min-width: 200px;
   cursor: pointer;
   transition: border-color 0.2s;

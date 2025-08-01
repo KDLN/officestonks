@@ -3,7 +3,7 @@
   top: 20px;
   right: 20px;
   width: 350px;
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   z-index: 10000;
@@ -22,22 +22,22 @@
 /* Crisis Alert Types */
 .crisis-alert-crisis {
   border-color: #ff4444;
-  background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+  background: var(--bg-primary);
 }
 
 .crisis-alert-bankruptcy {
   border-color: #8b0000;
-  background: linear-gradient(135deg, #fff0f0 0%, #ffffff 100%);
+  background: var(--bg-primary);
 }
 
 .crisis-alert-recovery {
   border-color: #00aa44;
-  background: linear-gradient(135deg, #f0fff4 0%, #ffffff 100%);
+  background: var(--bg-primary);
 }
 
 .crisis-alert-sector {
   border-color: #ff8800;
-  background: linear-gradient(135deg, #fff8f0 0%, #ffffff 100%);
+  background: var(--bg-primary);
 }
 
 /* Header */
