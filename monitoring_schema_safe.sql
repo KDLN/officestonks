@@ -1,3 +1,6 @@
+-- Safe Monitoring Schema for Office Stonks
+-- This version handles cases where tables/columns might already exist
+
 -- User session tracking table
 CREATE TABLE IF NOT EXISTS user_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -79,15 +82,75 @@ CREATE TABLE IF NOT EXISTS websocket_connections (
     INDEX idx_websocket_active (is_active)
 );
 
--- Add session tracking columns to existing users table
-ALTER TABLE users 
-ADD COLUMN IF NOT EXISTS last_login TIMESTAMP NULL,
-ADD COLUMN IF NOT EXISTS login_count INT DEFAULT 0,
-ADD COLUMN IF NOT EXISTS total_trades INT DEFAULT 0;
+-- Safely add columns to existing users table if they don't exist
+-- Note: You may need to run these one at a time if your MySQL version doesn't support multiple ALTERs
 
--- Add performance tracking to transactions table
-ALTER TABLE transactions 
-ADD COLUMN IF NOT EXISTS processing_time_ms INT DEFAULT 0;
+-- Check and add last_login column
+SET @dbname = DATABASE();
+SET @tablename = 'users';
+SET @columnname = 'last_login';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA=@dbname
+      AND TABLE_NAME=@tablename
+      AND COLUMN_NAME=@columnname
+  ) > 0,
+  'SELECT 1;',
+  'ALTER TABLE users ADD COLUMN last_login TIMESTAMP NULL;'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- Check and add login_count column
+SET @columnname = 'login_count';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA=@dbname
+      AND TABLE_NAME=@tablename
+      AND COLUMN_NAME=@columnname
+  ) > 0,
+  'SELECT 1;',
+  'ALTER TABLE users ADD COLUMN login_count INT DEFAULT 0;'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- Check and add total_trades column
+SET @columnname = 'total_trades';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA=@dbname
+      AND TABLE_NAME=@tablename
+      AND COLUMN_NAME=@columnname
+  ) > 0,
+  'SELECT 1;',
+  'ALTER TABLE users ADD COLUMN total_trades INT DEFAULT 0;'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+-- Safely add processing_time_ms to transactions table
+SET @tablename = 'transactions';
+SET @columnname = 'processing_time_ms';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA=@dbname
+      AND TABLE_NAME=@tablename
+      AND COLUMN_NAME=@columnname
+  ) > 0,
+  'SELECT 1;',
+  'ALTER TABLE transactions ADD COLUMN processing_time_ms INT DEFAULT 0;'
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
 
 -- Create views for common monitoring queries
 CREATE OR REPLACE VIEW active_user_summary AS
@@ -120,15 +183,42 @@ WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
 GROUP BY DATE_FORMAT(timestamp, '%Y-%m-%d %H:00:00')
 ORDER BY hour DESC;
 
--- Indexes for performance
--- Note: MySQL doesn't support IF NOT EXISTS for CREATE INDEX
--- These will fail gracefully if indexes already exist
+-- Create indexes safely (will fail gracefully if they already exist)
+-- We'll use a stored procedure to check if indexes exist first
 
--- For audit_logs (may already exist)
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+DELIMITER $$
 
--- For transactions (may already exist)
-CREATE INDEX idx_transactions_created_at ON transactions(created_at);
+CREATE PROCEDURE create_index_if_not_exists(
+    IN idx_name VARCHAR(255),
+    IN tbl_name VARCHAR(255),
+    IN col_name VARCHAR(255)
+)
+BEGIN
+    DECLARE index_exists INT DEFAULT 0;
+    
+    SELECT COUNT(*) INTO index_exists
+    FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = tbl_name
+        AND INDEX_NAME = idx_name;
+    
+    IF index_exists = 0 THEN
+        SET @sql = CONCAT('CREATE INDEX ', idx_name, ' ON ', tbl_name, '(', col_name, ')');
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
 
--- For chat_messages (may already exist)
-CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
+DELIMITER ;
+
+-- Now create indexes using the procedure
+CALL create_index_if_not_exists('idx_audit_logs_created_at', 'audit_logs', 'created_at');
+CALL create_index_if_not_exists('idx_transactions_created_at', 'transactions', 'created_at');
+CALL create_index_if_not_exists('idx_chat_messages_created_at', 'chat_messages', 'created_at');
+
+-- Clean up the stored procedure
+DROP PROCEDURE IF EXISTS create_index_if_not_exists;
+
+-- Success message
+SELECT 'Monitoring schema has been successfully applied!' AS message;
