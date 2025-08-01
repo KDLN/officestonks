@@ -115,21 +115,19 @@ func (h *ChangelogHandler) GetPublicChangelog(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	// Read from file instead of database
-	allEntries, err := h.readChangelogFile()
+	// Use database service instead of file
+	allEntries, err := h.changelogService.GetVisibleEntries(limit*2, 0) // Get more entries to handle filtering
 	if err != nil {
+		log.Printf("Error fetching changelog from database: %v", err)
 		http.Error(w, "Failed to fetch changelog entries", http.StatusInternalServerError)
 		return
 	}
 
-	// Filter visible entries
+	// Filter by major releases if requested
 	var visibleEntries []*models.ChangelogEntry
 	for _, entry := range allEntries {
-		if entry.IsVisible {
-			// If majorOnly is requested, filter by major releases
-			if !majorOnly || entry.IsMajor {
-				visibleEntries = append(visibleEntries, entry)
-			}
+		if !majorOnly || entry.IsMajor {
+			visibleEntries = append(visibleEntries, entry)
 		}
 	}
 
