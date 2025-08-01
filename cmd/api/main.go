@@ -138,6 +138,7 @@ func main() {
 	portfolioTestHandler := handlers.NewPortfolioTestHandler(marketService, userService, stockRepo, userRepo, portfolioRepo, transactionRepo)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
 	monitoringTestHandler := handlers.NewMonitoringTestHandler(db)
+	sseHandler := handlers.NewSSEHandler(marketService)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService, monitoringService)
@@ -198,8 +199,16 @@ func main() {
 		})
 	}
 
-	// IMPORTANT: Apply middleware at the top level
+	// Apply CORS middleware first (needed for all routes)
 	r.Use(corsMw)
+
+	// SSE endpoint - must be registered BEFORE rate limiting to allow real-time updates
+	r.HandleFunc("/api/sse/stock-updates", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("SSE connection request from: %s", r.Header.Get("Origin"))
+		sseHandler.HandleStockUpdates(w, r)
+	}).Methods("GET", "OPTIONS")
+
+	// Apply rate limiting after SSE endpoint registration
 	r.Use(rateLimiter.RateLimit)
 	r.Use(monitoringService.CreateRequestTrackerMiddleware())
 
