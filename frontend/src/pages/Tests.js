@@ -177,6 +177,9 @@ const Tests = () => {
 
   const formatDuration = (duration) => {
     // Convert Go duration string to human readable
+    if (!duration) {
+      return 'N/A';
+    }
     if (duration.includes('ms')) {
       return duration;
     } else if (duration.includes('s')) {
