@@ -133,6 +133,215 @@ const Tests = () => {
     };
   };
 
+  // Test monitoring system
+  const testMonitoringSystem = async () => {
+    const tests = [];
+    const token = localStorage.getItem('token');
+    
+    // Test 1: Check monitoring tables exist
+    const test1 = {
+      name: 'Monitoring Tables Check',
+      description: 'Verify monitoring database tables exist',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test1);
+    
+    try {
+      const response = await fetch('/api/admin/monitoring/test', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.checks) {
+        const tablesExist = data.checks.filter(c => c.name.includes('table exists')).every(c => c.status);
+        test1.status = tablesExist ? 'passed' : 'failed';
+        test1.details = {
+          user_sessions_exists: data.checks.find(c => c.name === 'user_sessions table exists')?.status || false,
+          user_activity_exists: data.checks.find(c => c.name === 'user_activity table exists')?.status || false,
+          user_columns_exist: data.checks.find(c => c.name === 'users table has monitoring columns')?.status || false,
+          can_insert_sessions: data.checks.find(c => c.name === 'can insert into user_sessions')?.status || false,
+        };
+      } else {
+        test1.status = 'failed';
+        test1.details = { error: 'Failed to fetch monitoring status', response_status: response.status };
+      }
+    } catch (err) {
+      test1.status = 'failed';
+      test1.details = { error: err.message };
+    }
+    
+    // Test 2: Check active sessions
+    const test2 = {
+      name: 'Active Sessions Check',
+      description: 'Verify active sessions are being tracked',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test2);
+    
+    try {
+      const response = await fetch('/api/admin/monitoring/sessions', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        const sessionCount = data.count || 0;
+        test2.status = sessionCount > 0 ? 'passed' : 'warning';
+        test2.details = {
+          active_sessions: sessionCount,
+          sessions: data.sessions?.slice(0, 3).map(s => ({
+            username: s.username,
+            ip_address: s.ip_address,
+            login_time: s.login_time,
+          })) || [],
+        };
+      } else {
+        test2.status = 'failed';
+        test2.details = { error: 'Failed to fetch sessions', response_status: response.status };
+      }
+    } catch (err) {
+      test2.status = 'failed';
+      test2.details = { error: err.message };
+    }
+    
+    // Test 3: Check user activity logging
+    const test3 = {
+      name: 'Activity Logging Check',
+      description: 'Verify user activities are being logged',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test3);
+    
+    try {
+      const response = await fetch('/api/admin/monitoring/activity?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        const activityCount = data.count || 0;
+        test3.status = activityCount > 0 ? 'passed' : 'warning';
+        test3.details = {
+          activity_count: activityCount,
+          recent_activities: data.activities?.slice(0, 5).map(a => ({
+            action: a.action,
+            username: a.username,
+            timestamp: a.timestamp,
+            success: a.success,
+          })) || [],
+        };
+      } else {
+        test3.status = 'failed';
+        test3.details = { error: 'Failed to fetch activities', response_status: response.status };
+      }
+    } catch (err) {
+      test3.status = 'failed';
+      test3.details = { error: err.message };
+    }
+    
+    // Test 4: Check system metrics
+    const test4 = {
+      name: 'System Metrics Check',
+      description: 'Verify system metrics are being collected',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test4);
+    
+    try {
+      const response = await fetch('/api/admin/monitoring/metrics', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok && data) {
+        test4.status = 'passed';
+        test4.details = {
+          active_users: data.active_users || 0,
+          active_sessions: data.active_sessions || 0,
+          trades_per_hour: data.trades_per_hour || 0,
+          websocket_connections: data.websocket_connections || 0,
+          database_health: data.database_health || 'unknown',
+          error_rate: `${(data.error_rate || 0).toFixed(2)}%`,
+        };
+      } else {
+        test4.status = 'failed';
+        test4.details = { error: 'Failed to fetch metrics', response_status: response.status };
+      }
+    } catch (err) {
+      test4.status = 'failed';
+      test4.details = { error: err.message };
+    }
+    
+    // Test 5: Check monitoring dashboard endpoint
+    const test5 = {
+      name: 'Dashboard Endpoint Check',
+      description: 'Verify monitoring dashboard endpoint is accessible',
+      status: 'running',
+      details: {}
+    };
+    tests.push(test5);
+    
+    try {
+      const response = await fetch('/api/admin/monitoring/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.system_metrics) {
+        test5.status = 'passed';
+        test5.details = {
+          has_system_metrics: !!data.system_metrics,
+          has_active_sessions: !!data.active_sessions,
+          has_recent_activity: !!data.recent_activity,
+          has_hourly_stats: !!data.hourly_stats,
+          has_health_status: !!data.health_status,
+        };
+      } else {
+        test5.status = 'failed';
+        test5.details = { error: 'Failed to fetch dashboard data', response_status: response.status };
+      }
+    } catch (err) {
+      test5.status = 'failed';
+      test5.details = { error: err.message };
+    }
+    
+    // Return results
+    const passed = tests.filter(t => t.status === 'passed').length;
+    const failed = tests.filter(t => t.status === 'failed').length;
+    const warnings = tests.filter(t => t.status === 'warning').length;
+    
+    return { 
+      suite: 'Monitoring System Tests',
+      description: 'Comprehensive monitoring system validation',
+      duration: 0,
+      total: tests.length,
+      passed,
+      failed,
+      warnings,
+      success: failed === 0,
+      tests
+    };
+  };
+
   const runTests = async () => {
     if (isRunning) return;
     
@@ -152,6 +361,9 @@ const Tests = () => {
           break;
         case 'changelog':
           results = await testChangelogSystem();
+          break;
+        case 'monitoring':
+          results = await testMonitoringSystem();
           break;
         default:
           throw new Error('Unknown test type');
@@ -215,6 +427,7 @@ const Tests = () => {
               <option value="crisis">Crisis Mechanics Test Suite</option>
               <option value="portfolio">Portfolio & Trading Test Suite</option>
               <option value="changelog">Changelog System Test Suite</option>
+              <option value="monitoring">Monitoring System Test Suite</option>
             </select>
           </div>
 
