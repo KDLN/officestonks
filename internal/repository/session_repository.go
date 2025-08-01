@@ -60,6 +60,42 @@ func (r *SessionRepo) CreateSession(userID int, ipAddress, userAgent string) (*m
 	}, nil
 }
 
+// FindOrCreateActiveSession finds an active session for a user or creates a new one
+func (r *SessionRepo) FindOrCreateActiveSession(userID int, ipAddress, userAgent string) (*models.UserSession, error) {
+	// First, try to find an existing active session for this user and IP
+	query := `
+		SELECT id, user_id, ip_address, user_agent, login_time, logout_time, 
+		       is_active, trades_count, last_activity
+		FROM user_sessions 
+		WHERE user_id = ? AND ip_address = ? AND is_active = TRUE
+		ORDER BY last_activity DESC 
+		LIMIT 1
+	`
+	row := r.db.QueryRow(query, userID, ipAddress)
+	
+	var s models.UserSession
+	var logoutTime sql.NullTime
+	err := row.Scan(&s.ID, &s.UserID, &s.IPAddress, &s.UserAgent, &s.LoginTime, 
+		&logoutTime, &s.IsActive, &s.TradesCount, &s.LastActivity)
+	
+	if err == nil {
+		// Found existing session, update its activity
+		r.UpdateSessionActivity(s.ID)
+		log.Printf("SessionRepo: Found existing session %d for user %d", s.ID, userID)
+		return &s, nil
+	}
+	
+	if err != sql.ErrNoRows {
+		// Real error, not just "no rows found"
+		log.Printf("SessionRepo: Error finding session: %v", err)
+		return nil, err
+	}
+	
+	// No active session found, create a new one
+	log.Printf("SessionRepo: No active session found, creating new session for user %d", userID)
+	return r.CreateSession(userID, ipAddress, userAgent)
+}
+
 // UpdateSessionActivity updates the last activity time for a session
 func (r *SessionRepo) UpdateSessionActivity(sessionID int) error {
 	query := `UPDATE user_sessions SET last_activity = CURRENT_TIMESTAMP WHERE id = ? AND is_active = TRUE`

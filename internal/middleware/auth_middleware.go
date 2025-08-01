@@ -118,18 +118,29 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 		log.Printf("Auth middleware: Valid token for user ID %d", userID)
 
-		// Log API activity if monitoring service is available
+		// Handle session management and activity logging
 		if m.monitoringService != nil {
-			// Get user details for logging
+			// Get user details for session management
 			user, err := m.authService.GetUserByID(userID)
 			if err == nil && user != nil {
-				// Get client IP
+				// Get client IP and user agent
 				clientIP := getClientIP(r)
+				userAgent := r.Header.Get("User-Agent")
 				
-				// Log the API request activity
-				action := "api_request"
-				details := r.Method + " " + r.URL.Path
-				m.monitoringService.LogActivity(userID, user.Username, action, details, clientIP, true, "")
+				// Find or create user session
+				session, err := m.monitoringService.FindOrCreateUserSession(userID, user.Username, clientIP, userAgent)
+				if err != nil {
+					log.Printf("Auth middleware: Failed to find/create session: %v", err)
+				} else {
+					log.Printf("Auth middleware: Session %d active for user %s", session.ID, user.Username)
+				}
+				
+				// Log the API request activity (but not for monitoring endpoints to avoid spam)
+				if !strings.Contains(r.URL.Path, "/monitoring/") {
+					action := "api_request"
+					details := r.Method + " " + r.URL.Path
+					m.monitoringService.LogActivity(userID, user.Username, action, details, clientIP, true, "")
+				}
 			}
 		}
 

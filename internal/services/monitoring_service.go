@@ -73,6 +73,28 @@ func (ms *MonitoringService) CreateUserSession(userID int, username, ipAddress, 
 	return session, nil
 }
 
+// FindOrCreateUserSession finds an existing active session or creates a new one
+func (ms *MonitoringService) FindOrCreateUserSession(userID int, username, ipAddress, userAgent string) (*models.UserSession, error) {
+	log.Printf("MonitoringService: Finding or creating session for user %d (%s) from IP %s", userID, username, ipAddress)
+	
+	session, err := ms.sessionRepo.FindOrCreateActiveSession(userID, ipAddress, userAgent)
+	if err != nil {
+		log.Printf("MonitoringService: Failed to find/create session: %v", err)
+		ms.LogActivity(userID, username, "session_error", "Session find/create failed", ipAddress, false, err.Error())
+		return nil, err
+	}
+	
+	// If this was a new session, log the login activity
+	if session.LoginTime.After(time.Now().Add(-5*time.Second)) {
+		log.Printf("MonitoringService: New session %d created for user %d", session.ID, userID)
+		ms.LogActivity(userID, username, "login", fmt.Sprintf("Session %d created", session.ID), ipAddress, true, "")
+	} else {
+		log.Printf("MonitoringService: Existing session %d updated for user %d", session.ID, userID)
+	}
+	
+	return session, nil
+}
+
 // EndUserSession ends a user session and logs the logout activity
 func (ms *MonitoringService) EndUserSession(sessionID int, userID int, username, ipAddress string) error {
 	err := ms.sessionRepo.EndSession(sessionID)

@@ -45,6 +45,7 @@ type UserActivity struct {
 // SessionRepository defines methods for session data access
 type SessionRepository interface {
 	CreateSession(userID int, ipAddress, userAgent string) (*UserSession, error)
+	FindOrCreateActiveSession(userID int, ipAddress, userAgent string) (*UserSession, error)
 	UpdateSessionActivity(sessionID int) error
 	EndSession(sessionID int) error
 	GetActiveSessions() ([]*UserSession, error)
