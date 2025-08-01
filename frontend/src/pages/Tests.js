@@ -74,8 +74,8 @@ const Tests = () => {
       const v120 = data.entries?.find(e => e.version === 'v1.2.0');
       
       if (v120) {
-        const hasBreakingNews = v120.changes?.some(c => c.includes('Breaking News'));
-        const hasCrisisMechanics = v120.changes?.some(c => c.includes('Crisis Mechanics'));
+        const hasBreakingNews = v120.changes?.some(c => c && typeof c === 'string' && c.includes('Breaking News'));
+        const hasCrisisMechanics = v120.changes?.some(c => c && typeof c === 'string' && c.includes('Crisis Mechanics'));
         
         test2.status = (hasBreakingNews && hasCrisisMechanics) ? 'passed' : 'partial';
         test2.details = {
