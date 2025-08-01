@@ -307,7 +307,7 @@
 
 .test-details-section h4 {
   margin-bottom: 8px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 1rem;
 }
 
@@ -356,7 +356,7 @@
 
 .test-info h4 {
   margin-bottom: 12px;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 1.1rem;
 }
 

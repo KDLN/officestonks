@@ -94,7 +94,7 @@
 
 .changelog-version {
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 1rem;
 }
 

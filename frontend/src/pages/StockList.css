@@ -12,7 +12,7 @@
 .stock-list-container h1 {
   text-align: center;
   margin-bottom: 30px;
-  color: var(--nav-bg);
+  color: var(--text-primary);
 }
 
 .stock-list-controls {

@@ -109,7 +109,7 @@
 .user-portfolio-summary h2,
 .trade-form-container h2 {
   margin-top: 0;
-  color: var(--nav-bg);
+  color: var(--text-primary);
   border-bottom: 1px solid #eee;
   padding-bottom: 10px;
   margin-bottom: 20px;
