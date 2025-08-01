@@ -33,6 +33,11 @@ var upgrader = websocket.Upgrader{
 		// Always return true to accept all origins
 		return true
 	},
+	// Add error handling for Railway proxy issues
+	Error: func(w http.ResponseWriter, r *http.Request, status int, reason error) {
+		log.Printf("WebSocket upgrade error: status=%d, reason=%v", status, reason)
+		http.Error(w, reason.Error(), status)
+	},
 }
 
 // NewWebSocketHandler creates a new websocket handler
@@ -59,6 +64,10 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
+	
+	// Add Railway-specific headers for WebSocket proxying
+	w.Header().Set("Connection", "Upgrade")
+	w.Header().Set("Upgrade", "websocket")
 
 	// Log the origin for debugging
 	log.Printf("WebSocket connection attempted from origin: %s", origin)
@@ -90,7 +99,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		// Log the error details
 		log.Printf("WebSocket upgrade failed: %v", err)
 		log.Printf("Request headers: %v", r.Header)
-		http.Error(w, "Could not upgrade connection", http.StatusInternalServerError)
+		// Don't call http.Error after upgrade failure - connection is already invalid
 		return
 	}
 
