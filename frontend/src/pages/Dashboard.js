@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, getWebSocketInstance } from '../services/websocket';
+import { initSSE, addSSEListener, removeSSEListener, isSSEConnected } from '../services/sse';
 import { safeGetItem, safeSetItem } from '../utils';
 import logger from '../services/logger';
 import Navigation from '../components/Navigation';
@@ -104,10 +105,10 @@ const Dashboard = () => {
     console.log('🚀 Dashboard component mounted');
     fetchData();
 
-    // Initialize WebSocket connection with delay to ensure auth is ready
+    // Initialize WebSocket connection for chat (with delay to ensure auth is ready)
     console.log('⏳ Setting up WebSocket initialization timer...');
     const wsTimeout = setTimeout(() => {
-      console.log('🔌 Initializing WebSocket connection...');
+      console.log('🔌 Initializing WebSocket connection for chat...');
       initWebSocket().then(() => {
         console.log('✅ WebSocket initialized successfully');
         // Set the socket instance for the CrisisAlertManager
@@ -118,92 +119,104 @@ const Dashboard = () => {
       });
     }, 500);
 
-    // Listen for stock updates to refresh data
-    addWebSocketListener('*', (message) => {
-      // Log the message for debugging
-      console.log('Received message on dashboard:', message);
+    // Initialize SSE connection for stock updates
+    console.log('⏳ Setting up SSE initialization timer...');
+    const sseTimeout = setTimeout(() => {
+      console.log('📡 Initializing SSE connection for stock updates...');
+      initSSE().then(() => {
+        console.log('✅ SSE initialized successfully');
+      }).catch(err => {
+        console.error('❌ Failed to initialize SSE:', err);
+        // Don't block the UI, just log the error
+      });
+    }, 750);
 
-      // Process stock update message
-      if (message.type === 'stock_update' || (message.id && message.current_price)) {
-        // Extract stock_id and price - handle different message formats
-        const stock_id = message.stock_id || message.id;
-        const price = message.price || message.current_price;
+    // Listen for stock updates via SSE
+    const handleStockUpdate = (message) => {
+      console.log('Received SSE stock update on dashboard:', message);
 
-        if (!stock_id || !price) {
-          console.log('Missing required fields in message:', message);
-          return;
+      // Extract stock_id and price from SSE message
+      const stock_id = message.stock_id;
+      const price = message.price;
+
+      if (!stock_id || !price) {
+        console.log('Missing required fields in SSE message:', message);
+        return;
+      }
+
+      // Update portfolio stocks if affected
+      setPortfolio(prevPortfolio => {
+        // If portfolio is null or undefined, use the default empty portfolio
+        const portfolio = prevPortfolio || DEFAULT_PORTFOLIO;
+        if (!portfolio.portfolio_items) {
+          return portfolio;
         }
 
-        // Update portfolio stocks if affected
-        setPortfolio(prevPortfolio => {
-          // If portfolio is null or undefined, use the default empty portfolio
-          const portfolio = prevPortfolio || DEFAULT_PORTFOLIO;
-          if (!portfolio.portfolio_items) {
-            return portfolio;
+        // Update portfolio items if the stock is in portfolio
+        const updatedItems = portfolio.portfolio_items.map(item => {
+          if (!item || !item.stock) return item;
+
+          if (item.stock_id === stock_id) {
+            const oldValue = item.quantity * (item.stock.current_price || 0);
+            const newValue = item.quantity * price;
+            const updatedStock = { ...item.stock, current_price: price };
+
+            return {
+              ...item,
+              stock: updatedStock,
+              valueChange: oldValue < newValue ? 'up' : 'down'
+            };
           }
-
-          // Update portfolio items if the stock is in portfolio
-          const updatedItems = portfolio.portfolio_items.map(item => {
-            if (!item || !item.stock) return item;
-
-            if (item.stock_id === stock_id) {
-              const oldValue = item.quantity * (item.stock.current_price || 0);
-              const newValue = item.quantity * price;
-              const updatedStock = { ...item.stock, current_price: price };
-
-              return {
-                ...item,
-                stock: updatedStock,
-                valueChange: oldValue < newValue ? 'up' : 'down'
-              };
-            }
-            return item;
-          });
-
-          // Recalculate stock value with null safety
-          const newStockValue = updatedItems.reduce(
-            (total, item) => {
-              if (!item || !item.stock) return total;
-              return total + (item.quantity * (item.stock.current_price || 0));
-            },
-            0
-          );
-
-          return {
-            ...portfolio,
-            portfolio_items: updatedItems,
-            stock_value: newStockValue,
-            total_value: (portfolio.cash_balance || 0) + newStockValue
-          };
+          return item;
         });
 
-        // Update top stocks if affected
-        setTopStocks(prevTopStocks => {
-          if (!prevTopStocks || !Array.isArray(prevTopStocks)) {
-            return prevTopStocks || [];
+        // Recalculate stock value with null safety
+        const newStockValue = updatedItems.reduce(
+          (total, item) => {
+            if (!item || !item.stock) return total;
+            return total + (item.quantity * (item.stock.current_price || 0));
+          },
+          0
+        );
+
+        return {
+          ...portfolio,
+          portfolio_items: updatedItems,
+          stock_value: newStockValue,
+          total_value: (portfolio.cash_balance || 0) + newStockValue
+        };
+      });
+
+      // Update top stocks if affected
+      setTopStocks(prevTopStocks => {
+        if (!prevTopStocks || !Array.isArray(prevTopStocks)) {
+          return prevTopStocks || [];
+        }
+
+        return prevTopStocks.map(stock => {
+          if (!stock) return stock;
+
+          if (stock.id === stock_id) {
+            return {
+              ...stock,
+              current_price: price,
+              priceChange: (stock.current_price || 0) < price ? 'up' : 'down'
+            };
           }
-
-          return prevTopStocks.map(stock => {
-            if (!stock) return stock;
-
-            if (stock.id === stock_id) {
-              return {
-                ...stock,
-                current_price: price,
-                priceChange: (stock.current_price || 0) < price ? 'up' : 'down'
-              };
-            }
-            return stock;
-          });
+          return stock;
         });
-      }
-    });
+      });
+    };
+
+    // Add SSE listener for stock updates
+    addSSEListener('stockUpdate', handleStockUpdate);
 
     // Clean up on unmount
     return () => {
       clearTimeout(wsTimeout);
-      // Don't close WebSocket on component unmount as it's shared
-      // closeWebSocket();
+      clearTimeout(sseTimeout);
+      removeSSEListener('stockUpdate', handleStockUpdate);
+      // Don't close WebSocket or SSE on component unmount as they're shared
     };
   }, []);
 

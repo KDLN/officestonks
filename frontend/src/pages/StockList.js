@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
+import { initSSE, addSSEListener, removeSSEListener } from '../services/sse';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
@@ -32,11 +33,19 @@ const StockList = () => {
   useEffect(() => {
     fetchStocks();
 
-    // Initialize WebSocket connection
+    // Initialize WebSocket connection for chat (keeping existing functionality)
     initWebSocket();
 
-    // Listen for stock price updates
-    addWebSocketListener('stock_update', (message) => {
+    // Initialize SSE connection for stock updates
+    const sseTimeout = setTimeout(() => {
+      console.log('📡 Initializing SSE for StockList updates...');
+      initSSE().catch(err => {
+        console.error('❌ Failed to initialize SSE:', err);
+      });
+    }, 750);
+
+    // Listen for SSE stock price updates
+    const handleStockUpdate = (message) => {
       setStocks(prevStocks => 
         prevStocks.map(stock => 
           stock.id === message.stock_id 
@@ -48,11 +57,15 @@ const StockList = () => {
             : stock
         )
       );
-    });
+    };
+
+    addSSEListener('stockUpdate', handleStockUpdate);
 
     // Cleanup on unmount
     return () => {
-      closeWebSocket();
+      clearTimeout(sseTimeout);
+      removeSSEListener('stockUpdate', handleStockUpdate);
+      // Don't close WebSocket or SSE on component unmount as they're shared
     };
   }, []);
 

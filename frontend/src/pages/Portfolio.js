@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
 import { initWebSocket, addWebSocketListener, removeWebSocketListener } from '../services/websocket';
+import { initSSE, addSSEListener, removeSSEListener, isSSEConnected } from '../services/sse';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PortfolioCrisisAlert from '../components/PortfolioCrisisAlert';
@@ -22,23 +23,31 @@ function Portfolio() {
   useEffect(() => {
     loadPortfolioData();
     
-    // Initialize WebSocket for real-time updates
+    // Initialize WebSocket for chat and notifications (keeping existing functionality)
     const wsTimeout = setTimeout(() => {
-      console.log('🔌 Initializing WebSocket for Portfolio real-time updates...');
+      console.log('🔌 Initializing WebSocket for Portfolio chat/notifications...');
       initWebSocket().catch(err => {
         console.error('❌ Failed to initialize WebSocket:', err);
-        // Start polling fallback after WebSocket fails
+      });
+    }, 500);
+
+    // Initialize SSE for stock price updates
+    const sseTimeout = setTimeout(() => {
+      console.log('📡 Initializing SSE for Portfolio stock updates...');
+      initSSE().catch(err => {
+        console.error('❌ Failed to initialize SSE:', err);
+        // Start polling fallback after SSE fails
         setTimeout(() => {
-          if (!isWebSocketConnected) {
+          if (!isSSEConnected()) {
             startPolling();
           }
         }, 2000);
       });
-    }, 500);
+    }, 750);
 
     // Handle page visibility changes to pause/resume polling
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !isWebSocketConnected && !pollingInterval) {
+      if (document.visibilityState === 'visible' && !isSSEConnected() && !pollingInterval) {
         console.log('📱 Page became visible - resuming polling');
         startPolling();
       } else if (document.visibilityState === 'hidden') {
@@ -49,136 +58,131 @@ function Portfolio() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Listen for connection state changes
-    const handleConnectionState = (state) => {
+    // Listen for SSE connection state changes
+    const handleSSEConnectionState = (state) => {
       if (state.state === 'connected') {
-        console.log('✅ WebSocket connected - stopping polling fallback');
-        setIsWebSocketConnected(true);
+        console.log('✅ SSE connected - stopping polling fallback');
+        setIsWebSocketConnected(true); // Reusing this state for SSE connection
         stopPolling();
       } else if (state.state === 'disconnected' || state.state === 'failed') {
-        console.log('❌ WebSocket disconnected - will start polling fallback');
+        console.log('❌ SSE disconnected - will start polling fallback');
         setIsWebSocketConnected(false);
         // Start polling fallback after a short delay
         setTimeout(() => {
-          if (!isWebSocketConnected && document.visibilityState === 'visible') {
+          if (!isSSEConnected() && document.visibilityState === 'visible') {
             startPolling();
           }
         }, 3000);
       }
     };
 
-    // Listen for stock updates to update portfolio in real-time
+    // Listen for SSE stock updates to update portfolio in real-time
     const handleStockUpdate = (message) => {
-      console.log('Portfolio received stock update:', message);
+      console.log('Portfolio received SSE stock update:', message);
       
-      // Handle connection state messages
-      if (message.state) {
-        handleConnectionState(message);
+      const stock_id = message.stock_id;
+      const price = message.price;
+      
+      if (!stock_id || !price) {
+        console.log('Missing required fields in SSE stock update:', message);
         return;
       }
       
-      // Process stock update message
-      if (message.type === 'stock_update' || (message.id && message.current_price)) {
-        const stock_id = message.stock_id || message.id;
-        const price = message.price || message.current_price;
-        
-        if (!stock_id || !price) {
-          console.log('Missing required fields in stock update:', message);
-          return;
+      // Update portfolio with new stock prices
+      setPortfolio(prevPortfolio => {
+        if (!prevPortfolio || !prevPortfolio.portfolio_items) {
+          return prevPortfolio;
         }
         
-        // Update portfolio with new stock prices
-        setPortfolio(prevPortfolio => {
-          if (!prevPortfolio || !prevPortfolio.portfolio_items) {
-            return prevPortfolio;
-          }
+        const oldTotalValue = prevPortfolio.total_value || 0;
+        let hasChanges = false;
+        
+        // Update portfolio items if the stock is in portfolio
+        const updatedItems = prevPortfolio.portfolio_items.map(item => {
+          if (!item || !item.stock) return item;
           
-          const oldTotalValue = prevPortfolio.total_value || 0;
-          let hasChanges = false;
-          
-          // Update portfolio items if the stock is in portfolio
-          const updatedItems = prevPortfolio.portfolio_items.map(item => {
-            if (!item || !item.stock) return item;
-            
-            if (item.stock_id === stock_id) {
-              const oldPrice = item.stock.current_price;
-              if (oldPrice !== price) {
-                console.log(`WebSocket update: ${item.stock.symbol} price from $${oldPrice} to $${price}`);
-                hasChanges = true;
-                
-                // Track the direction of change for this item
-                setValueChanges(prev => ({
-                  ...prev,
-                  [`stock_${stock_id}`]: price > oldPrice ? 'up' : 'down'
-                }));
-                
-                return {
-                  ...item,
-                  stock: { ...item.stock, current_price: price }
-                };
-              }
+          if (item.stock_id === stock_id) {
+            const oldPrice = item.stock.current_price;
+            if (oldPrice !== price) {
+              console.log(`SSE update: ${item.stock.symbol} price from $${oldPrice} to $${price}`);
+              hasChanges = true;
+              
+              // Track the direction of change for this item
+              setValueChanges(prev => ({
+                ...prev,
+                [`stock_${stock_id}`]: price > oldPrice ? 'up' : 'down'
+              }));
+              
+              return {
+                ...item,
+                stock: { ...item.stock, current_price: price }
+              };
             }
-            return item;
-          });
-          
-          if (!hasChanges) return prevPortfolio;
-          
-          // Recalculate stock value
-          const newStockValue = updatedItems.reduce(
-            (total, item) => {
-              if (!item || !item.stock) return total;
-              return total + (item.quantity * item.stock.current_price);
-            },
-            0
-          );
-          
-          const newTotalValue = newStockValue + (prevPortfolio.cash_balance || 0);
-          
-          // Track total value and stock value change direction
-          const oldStockValue = prevPortfolio.stock_value || 0;
-          if (newTotalValue !== oldTotalValue || newStockValue !== oldStockValue) {
-            setValueChanges(prev => ({
-              ...prev,
-              totalValue: newTotalValue > oldTotalValue ? 'up' : 'down',
-              stockValue: newStockValue > oldStockValue ? 'up' : 'down',
-              totalGainLoss: newTotalValue > oldTotalValue ? 'up' : 'down'
-            }));
-            
-            // Clear animation classes after animation completes
-            setTimeout(() => {
-              setValueChanges(prev => {
-                const cleared = { ...prev };
-                // Clear total values
-                cleared.totalValue = '';
-                cleared.stockValue = '';
-                cleared.totalGainLoss = '';
-                // Clear individual stock animations
-                Object.keys(cleared).forEach(key => {
-                  if (key.startsWith('stock_')) {
-                    cleared[key] = '';
-                  }
-                });
-                return cleared;
-              });
-            }, 2000);
           }
-          
-          return {
-            ...prevPortfolio,
-            portfolio_items: updatedItems,
-            stock_value: newStockValue,
-            total_value: newTotalValue
-          };
+          return item;
         });
-      }
+        
+        if (!hasChanges) return prevPortfolio;
+        
+        // Recalculate stock value
+        const newStockValue = updatedItems.reduce(
+          (total, item) => {
+            if (!item || !item.stock) return total;
+            return total + (item.quantity * item.stock.current_price);
+          },
+          0
+        );
+        
+        const newTotalValue = newStockValue + (prevPortfolio.cash_balance || 0);
+        
+        // Track total value and stock value change direction
+        const oldStockValue = prevPortfolio.stock_value || 0;
+        if (newTotalValue !== oldTotalValue || newStockValue !== oldStockValue) {
+          setValueChanges(prev => ({
+            ...prev,
+            totalValue: newTotalValue > oldTotalValue ? 'up' : 'down',
+            stockValue: newStockValue > oldStockValue ? 'up' : 'down',
+            totalGainLoss: newTotalValue > oldTotalValue ? 'up' : 'down'
+          }));
+          
+          // Clear animation classes after animation completes
+          setTimeout(() => {
+            setValueChanges(prev => {
+              const cleared = { ...prev };
+              // Clear total values
+              cleared.totalValue = '';
+              cleared.stockValue = '';
+              cleared.totalGainLoss = '';
+              // Clear individual stock animations
+              Object.keys(cleared).forEach(key => {
+                if (key.startsWith('stock_')) {
+                  cleared[key] = '';
+                }
+              });
+              return cleared;
+            });
+          }, 2000);
+        }
+        
+        return {
+          ...prevPortfolio,
+          portfolio_items: updatedItems,
+          stock_value: newStockValue,
+          total_value: newTotalValue
+        };
+      });
     };
     
-    addWebSocketListener('*', handleStockUpdate);
+    // Add SSE listeners
+    addSSEListener('stockUpdate', handleStockUpdate);
+    addSSEListener('connectionState', handleSSEConnectionState);
     
     // Cleanup on unmount
     return () => {
       clearTimeout(wsTimeout);
-      removeWebSocketListener('*', handleStockUpdate);
+      clearTimeout(sseTimeout);
+      removeSSEListener('stockUpdate', handleStockUpdate);
+      removeSSEListener('connectionState', handleSSEConnectionState);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopPolling();
     };
