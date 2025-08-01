@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"officestonks/internal/models"
+	"officestonks/internal/repository"
 )
 
 // MonitoringService provides comprehensive system monitoring capabilities
@@ -271,7 +272,7 @@ func (ms *MonitoringService) cleanupExpiredSessions() {
 }
 
 func (ms *MonitoringService) recordSystemMetrics() {
-	if metricsRepo, ok := ms.metricsRepo.(*MetricsRepo); ok {
+	if metricsRepo, ok := ms.metricsRepo.(*repository.MetricsRepo); ok {
 		err := metricsRepo.RecordSystemMetrics()
 		if err != nil {
 			log.Printf("Failed to record system metrics: %v", err)
