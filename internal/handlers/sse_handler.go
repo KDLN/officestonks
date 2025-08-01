@@ -41,12 +41,24 @@ type StockUpdateMessage struct {
 
 // HandleStockUpdates handles SSE connections for stock price updates
 func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) {
-	// Set SSE headers
+	// Log connection attempt with more details
+	origin := r.Header.Get("Origin")
+	userAgent := r.Header.Get("User-Agent")
+	log.Printf("SSE connection attempt - Origin: %s, User-Agent: %s", origin, userAgent)
+	
+	// Set SSE headers with Railway-specific settings
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
+	
+	// Flush headers immediately to help with Railway proxy
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
 
 	// Create a channel for this client
 	clientChan := make(chan []byte, 10) // Buffer to prevent blocking
@@ -59,7 +71,7 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 
 	log.Printf("SSE client connected. Total clients: %d", clientCount)
 
-	// Send initial connection confirmation
+	// Send initial connection confirmation immediately
 	initialMsg := map[string]interface{}{
 		"type":      "connection",
 		"status":    "connected",
@@ -71,6 +83,9 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
+		log.Printf("SSE initial message sent to client")
+	} else {
+		log.Printf("SSE error marshaling initial message: %v", err)
 	}
 
 	// Send current stock prices immediately
@@ -181,6 +196,14 @@ func (h *SSEHandler) listenForStockUpdates() {
 func (h *SSEHandler) broadcastToClients(data []byte) {
 	h.clientsMutex.Lock()
 	defer h.clientsMutex.Unlock()
+
+	clientCount := len(h.clients)
+	if clientCount == 0 {
+		// No need to log every time if no clients
+		return
+	}
+
+	log.Printf("SSE broadcasting to %d clients: %s", clientCount, string(data))
 
 	// Track clients to remove if they're disconnected
 	var disconnectedClients []chan []byte
