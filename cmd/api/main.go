@@ -140,7 +140,7 @@ func main() {
 	monitoringTestHandler := handlers.NewMonitoringTestHandler(db)
 
 	// Create middleware
-	authMiddleware := middleware.NewAuthMiddleware(authService)
+	authMiddleware := middleware.NewAuthMiddleware(authService, monitoringService)
 
 	// Create rate limiter (100 requests per minute per IP)
 	rateLimiter := middleware.NewRateLimiter(100, time.Minute)

@@ -18,13 +18,15 @@ const UserIDKey ContextKey = "userID"
 
 // AuthMiddleware handles authentication for protected routes
 type AuthMiddleware struct {
-	authService *services.AuthService
+	authService       *services.AuthService
+	monitoringService *services.MonitoringService
 }
 
 // NewAuthMiddleware creates a new authentication middleware
-func NewAuthMiddleware(authService *services.AuthService) *AuthMiddleware {
+func NewAuthMiddleware(authService *services.AuthService, monitoringService *services.MonitoringService) *AuthMiddleware {
 	return &AuthMiddleware{
-		authService: authService,
+		authService:       authService,
+		monitoringService: monitoringService,
 	}
 }
 
@@ -116,6 +118,21 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 		log.Printf("Auth middleware: Valid token for user ID %d", userID)
 
+		// Log API activity if monitoring service is available
+		if m.monitoringService != nil {
+			// Get user details for logging
+			user, err := m.authService.GetUserByID(userID)
+			if err == nil && user != nil {
+				// Get client IP
+				clientIP := getClientIP(r)
+				
+				// Log the API request activity
+				action := "api_request"
+				details := r.Method + " " + r.URL.Path
+				m.monitoringService.LogActivity(userID, user.Username, action, details, clientIP, true, "")
+			}
+		}
+
 		// Add the user ID to the request context using both keys for compatibility
 		ctx1 := context.WithValue(r.Context(), UserIDKey, userID)
 		ctx2 := context.WithValue(ctx1, "userID", userID) // Also add as string
@@ -138,4 +155,27 @@ func GetUserID(r *http.Request) (int, bool) {
 	// Fallback to string key
 	userID, ok := r.Context().Value("userID").(int)
 	return userID, ok
+}
+
+// getClientIP extracts the client IP address from the request
+func getClientIP(r *http.Request) string {
+	// Check X-Real-IP header (for Railway/proxies)
+	if ip := r.Header.Get("X-Real-IP"); ip != "" {
+		return ip
+	}
+	
+	// Check X-Forwarded-For header
+	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
+		// X-Forwarded-For can contain multiple IPs, take the first one
+		if idx := strings.Index(ip, ","); idx != -1 {
+			return strings.TrimSpace(ip[:idx])
+		}
+		return ip
+	}
+	
+	// Fall back to RemoteAddr
+	if idx := strings.LastIndex(r.RemoteAddr, ":"); idx != -1 {
+		return r.RemoteAddr[:idx]
+	}
+	return r.RemoteAddr
 }
