@@ -135,6 +135,18 @@ function Portfolio() {
         
         const newTotalValue = newStockValue + (prevPortfolio.cash_balance || 0);
         
+        // Calculate new gains/losses for comparison
+        const newPortfolioTemp = {
+          ...prevPortfolio,
+          portfolio_items: updatedItems,
+          stock_value: newStockValue,
+          total_value: newTotalValue
+        };
+        
+        // Calculate old and new gains/losses
+        const oldGainLoss = calculateTotalGainLossForPortfolio(prevPortfolio);
+        const newGainLoss = calculateTotalGainLossForPortfolio(newPortfolioTemp);
+        
         // Track total value and stock value change direction
         const oldStockValue = prevPortfolio.stock_value || 0;
         if (newTotalValue !== oldTotalValue || newStockValue !== oldStockValue) {
@@ -142,7 +154,7 @@ function Portfolio() {
             ...prev,
             totalValue: newTotalValue > oldTotalValue ? 'up' : 'down',
             stockValue: newStockValue > oldStockValue ? 'up' : 'down',
-            totalGainLoss: newTotalValue > oldTotalValue ? 'up' : 'down'
+            totalGainLoss: newGainLoss.amount > oldGainLoss.amount ? 'up' : 'down'
           }));
           
           // Clear animation classes after animation completes
@@ -288,7 +300,7 @@ function Portfolio() {
     }
   };
 
-  const calculateTotalGainLoss = () => {
+  const calculateTotalGainLoss = React.useCallback(() => {
     if (!portfolio || !portfolio.portfolio_items) return { amount: 0, percentage: 0 };
     
     let totalCost = 0;
@@ -307,8 +319,50 @@ function Portfolio() {
     const percentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
     
     return { amount: gainLoss, percentage };
+  }, [portfolio]);
+
+  // Helper function to calculate gains/losses for any portfolio object (used for real-time comparisons)
+  const calculateTotalGainLossForPortfolio = (portfolioData) => {
+    if (!portfolioData || !portfolioData.portfolio_items || portfolioData.portfolio_items.length === 0) {
+      return { amount: 0, percentage: 0 };
+    }
+
+    let totalCost = 0;
+    let totalValue = 0;
+
+    portfolioData.portfolio_items.forEach(item => {
+      if (!item || !item.stock || !item.quantity) return;
+
+      const currentPrice = item.stock.current_price || 0;
+      const currentValue = item.quantity * currentPrice;
+      
+      // Calculate average cost from transactions
+      const itemTransactions = transactions.filter(t => t.stock_id === item.stock_id);
+      const totalQuantityBought = itemTransactions
+        .filter(t => t.action === 'buy')
+        .reduce((sum, t) => sum + t.quantity, 0);
+      const totalCostBought = itemTransactions
+        .filter(t => t.action === 'buy')
+        .reduce((sum, t) => sum + (t.quantity * t.price), 0);
+      
+      const avgCost = totalQuantityBought > 0 ? totalCostBought / totalQuantityBought : currentPrice;
+      const cost = item.quantity * avgCost;
+      
+      totalCost += cost;
+      totalValue += currentValue;
+    });
+    
+    const gainLoss = totalValue - totalCost;
+    const percentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
+    
+    return { amount: gainLoss, percentage };
   };
 
+
+  // Recalculate gains/losses whenever portfolio changes (for real-time updates)
+  const { amount: totalGainLoss, percentage: totalGainLossPercentage } = React.useMemo(() => {
+    return calculateTotalGainLoss();
+  }, [portfolio, calculateTotalGainLoss]);
 
   if (loading) {
     return (
@@ -329,8 +383,6 @@ function Portfolio() {
       </div>
     );
   }
-
-  const { amount: totalGainLoss, percentage: totalGainLossPercentage } = calculateTotalGainLoss();
 
   return (
     <div className="portfolio-page">
