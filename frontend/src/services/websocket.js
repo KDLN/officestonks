@@ -49,6 +49,19 @@ export const getConnectionState = () => connectionState;
 
 // Initialize WebSocket connection
 export const initWebSocket = async () => {
+  // Check if we're on Railway - WebSocket is not supported due to hijacker interface limitation
+  if (window.location.hostname.includes('railway.app') || window.location.hostname.includes('officestonks.com')) {
+    console.log('🚫 Railway deployment detected - WebSocket not supported due to proxy limitations');
+    console.log('💡 Chat functionality will use alternative methods');
+    connectionState = 'failed';
+    notifyListeners('connectionState', { 
+      state: 'failed', 
+      reason: 'railway_limitation',
+      description: 'WebSocket not supported on Railway due to proxy limitations'
+    });
+    return;
+  }
+
   // Don't attempt if already connecting or connected
   if (connectionState === 'connecting' || (socket && socket.readyState === WebSocket.OPEN)) {
     console.log('WebSocket already connecting or connected');

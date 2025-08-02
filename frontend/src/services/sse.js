@@ -138,21 +138,36 @@ export const initSSE = async () => {
     // Handle successful connection
     eventSource.onopen = () => {
       clearTimeout(connectionTimeout);
-      console.log('SSE connected successfully');
+      console.log('✅ SSE connected successfully');
       reconnectAttempts = 0;
       connectionState = 'connected';
       notifyListeners('connection', { status: 'connected' });
       notifyListeners('connectionState', { state: 'connected' });
     };
+    
+    // Railway workaround: Sometimes onopen doesn't fire, but onmessage does
+    // We'll track the first message as a connection indicator
+    let hasReceivedFirstMessage = false;
 
     // Handle messages
     eventSource.onmessage = (event) => {
       try {
+        // Railway workaround: First message indicates successful connection
+        if (!hasReceivedFirstMessage && connectionState === 'connecting') {
+          clearTimeout(connectionTimeout);
+          console.log('✅ SSE connected successfully (via first message)');
+          hasReceivedFirstMessage = true;
+          reconnectAttempts = 0;
+          connectionState = 'connected';
+          notifyListeners('connection', { status: 'connected' });
+          notifyListeners('connectionState', { state: 'connected' });
+        }
+        
         const data = JSON.parse(event.data);
         
         // Sanitize data to prevent infinity/NaN issues
         const sanitizedData = sanitizeSSEData(data);
-        console.log('SSE message received:', sanitizedData);
+        console.log('📡 SSE message received:', sanitizedData);
         
         // Handle different message types
         if (sanitizedData.type === 'stock_update') {
