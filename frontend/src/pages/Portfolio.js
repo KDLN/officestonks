@@ -301,14 +301,25 @@ function Portfolio() {
   };
 
   const calculateTotalGainLoss = React.useCallback(() => {
-    if (!portfolio || !portfolio.portfolio_items) return { amount: 0, percentage: 0 };
+    if (!portfolio || !portfolio.portfolio_items || !transactions) return { amount: 0, percentage: 0 };
     
     let totalCost = 0;
     let totalValue = 0;
     
     portfolio.portfolio_items.forEach(item => {
       const currentValue = item.quantity * item.stock.current_price;
-      const avgCost = item.average_cost || item.stock.current_price;
+      
+      // Calculate average cost from transaction history
+      const itemTransactions = transactions.filter(t => t.stock_id === item.stock_id);
+      const buyTransactions = itemTransactions.filter(t => t.transaction_type === 'buy');
+      
+      let avgCost = item.stock.current_price; // fallback
+      if (buyTransactions.length > 0) {
+        const totalQuantityBought = buyTransactions.reduce((sum, t) => sum + t.quantity, 0);
+        const totalCostBought = buyTransactions.reduce((sum, t) => sum + (t.quantity * t.price), 0);
+        avgCost = totalQuantityBought > 0 ? totalCostBought / totalQuantityBought : item.stock.current_price;
+      }
+      
       const cost = item.quantity * avgCost;
       
       totalCost += cost;
@@ -319,11 +330,11 @@ function Portfolio() {
     const percentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
     
     return { amount: gainLoss, percentage };
-  }, [portfolio]);
+  }, [portfolio, transactions]);
 
   // Helper function to calculate gains/losses for any portfolio object (used for real-time comparisons)
   const calculateTotalGainLossForPortfolio = (portfolioData) => {
-    if (!portfolioData || !portfolioData.portfolio_items || portfolioData.portfolio_items.length === 0) {
+    if (!portfolioData || !portfolioData.portfolio_items || portfolioData.portfolio_items.length === 0 || !transactions) {
       return { amount: 0, percentage: 0 };
     }
 
@@ -336,16 +347,17 @@ function Portfolio() {
       const currentPrice = item.stock.current_price || 0;
       const currentValue = item.quantity * currentPrice;
       
-      // Calculate average cost from transactions
+      // Calculate average cost from transaction history
       const itemTransactions = transactions.filter(t => t.stock_id === item.stock_id);
-      const totalQuantityBought = itemTransactions
-        .filter(t => t.action === 'buy')
-        .reduce((sum, t) => sum + t.quantity, 0);
-      const totalCostBought = itemTransactions
-        .filter(t => t.action === 'buy')
-        .reduce((sum, t) => sum + (t.quantity * t.price), 0);
+      const buyTransactions = itemTransactions.filter(t => t.transaction_type === 'buy');
       
-      const avgCost = totalQuantityBought > 0 ? totalCostBought / totalQuantityBought : currentPrice;
+      let avgCost = currentPrice; // fallback
+      if (buyTransactions.length > 0) {
+        const totalQuantityBought = buyTransactions.reduce((sum, t) => sum + t.quantity, 0);
+        const totalCostBought = buyTransactions.reduce((sum, t) => sum + (t.quantity * t.price), 0);
+        avgCost = totalQuantityBought > 0 ? totalCostBought / totalQuantityBought : currentPrice;
+      }
+      
       const cost = item.quantity * avgCost;
       
       totalCost += cost;
@@ -460,7 +472,18 @@ function Portfolio() {
                   <tbody>
                     {portfolio.portfolio_items.map((item) => {
                       const marketValue = item.quantity * item.stock.current_price;
-                      const avgCost = item.average_cost || item.stock.current_price;
+                      
+                      // Calculate average cost from transaction history
+                      const itemTransactions = transactions.filter(t => t.stock_id === item.stock_id);
+                      const buyTransactions = itemTransactions.filter(t => t.transaction_type === 'buy');
+                      
+                      let avgCost = item.stock.current_price; // fallback
+                      if (buyTransactions.length > 0) {
+                        const totalQuantityBought = buyTransactions.reduce((sum, t) => sum + t.quantity, 0);
+                        const totalCostBought = buyTransactions.reduce((sum, t) => sum + (t.quantity * t.price), 0);
+                        avgCost = totalQuantityBought > 0 ? totalCostBought / totalQuantityBought : item.stock.current_price;
+                      }
+                      
                       const totalCost = item.quantity * avgCost;
                       const gainLoss = marketValue - totalCost;
                       const gainLossPercentage = totalCost > 0 ? (gainLoss / totalCost) * 100 : 0;
