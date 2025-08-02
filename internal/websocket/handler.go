@@ -57,13 +57,13 @@ func NewWebSocketHandler(hub *Hub, tokenValidator auth.TokenValidator, monitorin
 func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	// Log request details for debugging
 	log.Printf("WebSocket request received: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
-	
+
 	// Detect Railway deployment
 	isRailway := r.Header.Get("X-Railway-Edge") != "" || r.Header.Get("X-Forwarded-Host") != ""
 	if isRailway {
 		log.Printf("Railway deployment detected, applying Railway-specific WebSocket handling")
 	}
-	
+
 	// Set CORS headers for WebSocket handshake
 	origin := r.Header.Get("Origin")
 	if origin != "" {
@@ -74,12 +74,12 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin")
-	
+
 	// Railway-specific headers - these MUST be set before any writes
 	if isRailway {
 		w.Header().Set("Connection", "Upgrade")
 		w.Header().Set("Upgrade", "websocket")
-		w.Header().Set("Sec-WebSocket-Accept", "")  // Let Gorilla handle this
+		w.Header().Set("Sec-WebSocket-Accept", "") // Let Gorilla handle this
 	}
 
 	// Log the origin for debugging
@@ -91,8 +91,15 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Extract token from query parameter
+	// Extract token from query parameter or Authorization header
 	token := r.URL.Query().Get("token")
+	if token == "" {
+		authHeader := r.Header.Get("Authorization")
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			token = strings.TrimPrefix(authHeader, "Bearer ")
+		}
+	}
+
 	if token == "" {
 		http.Error(w, "Missing authentication token", http.StatusUnauthorized)
 		return
@@ -108,7 +115,7 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 
 	// Railway-specific WebSocket upgrade handling
 	var conn *websocket.Conn
-	
+
 	if isRailway {
 		// For Railway, use a custom upgrader with different settings
 		railwayUpgrader := websocket.Upgrader{
@@ -119,21 +126,21 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 			},
 			// Don't set Error handler for Railway - let it fail gracefully
 		}
-		
+
 		// Set additional Railway headers right before upgrade
 		w.Header().Set("X-Railway-WebSocket", "upgrade")
-		
+
 		conn, err = railwayUpgrader.Upgrade(w, r, nil)
 	} else {
 		// Use standard upgrader for non-Railway deployments
 		conn, err = upgrader.Upgrade(w, r, nil)
 	}
-	
+
 	if err != nil {
 		// Log the error details with Railway context
 		log.Printf("WebSocket upgrade failed (Railway: %t): %v", isRailway, err)
 		log.Printf("Request headers: %v", r.Header)
-		
+
 		// For Railway hijacker issues, try to provide helpful error response
 		if isRailway && (strings.Contains(err.Error(), "hijacker") || strings.Contains(err.Error(), "Hijacker")) {
 			log.Printf("Railway hijacker interface issue detected - this may be a Railway proxy limitation")
@@ -156,11 +163,11 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		if clientIP == "" {
 			clientIP = r.RemoteAddr
 		}
-		
+
 		// Generate a unique connection ID using timestamp
 		connectionID := strconv.Itoa(userID) + "-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 		h.monitoringService.TrackWebSocketConnection(connectionID, userID, "", clientIP)
-		
+
 		// Set up cleanup when connection closes
 		client.connectionID = connectionID
 		client.monitoringService = h.monitoringService
@@ -192,6 +199,6 @@ func (h *WebSocketHandler) sendInitialData(client *Client) {
 		Type:    "connected",
 		Message: "Connected to Office Stonks real-time updates. User ID: " + strconv.Itoa(client.userID),
 	}
-	
+
 	client.Send(initialData)
 }

@@ -8,13 +8,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.log('Expected: REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
+// Create Supabase client with fallback values for testing environments
+export const supabase = createClient(
+  supabaseUrl || 'https://localhost.supabase.co', 
+  supabaseAnonKey || 'test-anon-key', 
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
   }
-})
+)
 
 // Auth event listener for debugging
 supabase.auth.onAuthStateChange((event, session) => {
