@@ -161,6 +161,8 @@ func main() {
 			// Define allowed origins (now including direct frontend URL without proxy)
 			allowedOrigins := []string{
 				"https://officestonks-frontend-production.up.railway.app",
+				"https://beta.officestonks.com",
+				"https://officestonks.com",
 				"http://localhost:3000",
 				"http://localhost:3001",
 			}

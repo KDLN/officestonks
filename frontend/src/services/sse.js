@@ -84,6 +84,20 @@ export const initSSE = async () => {
   console.log('🔗 Attempting SSE connection to:', sseUrl);
   console.log('🌐 Current location:', window.location.href);
   console.log('🔧 Is localhost:', isLocalhost);
+  
+  // Test basic connectivity first
+  try {
+    console.log('🔍 Testing basic connectivity to backend...');
+    fetch(`${BACKEND_URL}/health`, { method: 'GET' })
+      .then(response => {
+        console.log(`✅ Backend health check: ${response.status} ${response.statusText}`);
+      })
+      .catch(error => {
+        console.log(`❌ Backend health check failed:`, error);
+      });
+  } catch (error) {
+    console.log(`❌ Backend connectivity test error:`, error);
+  }
 
   try {
     // Create EventSource instance
