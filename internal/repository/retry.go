@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -34,7 +35,7 @@ func RetryQueryWithOptions(db *sql.DB, options RetryOptions, query string, args 
 
 	for attempt := 0; attempt <= options.MaxRetries; attempt++ {
 		if attempt > 0 {
-			log.Printf("Retrying database query (attempt %d/%d) after error: %v", 
+			log.Printf("Retrying database query (attempt %d/%d) after error: %v",
 				attempt, options.MaxRetries, err)
 			time.Sleep(wait)
 			// Exponential backoff with cap
@@ -71,7 +72,7 @@ func RetryExecWithOptions(db *sql.DB, options RetryOptions, query string, args .
 
 	for attempt := 0; attempt <= options.MaxRetries; attempt++ {
 		if attempt > 0 {
-			log.Printf("Retrying database exec (attempt %d/%d) after error: %v", 
+			log.Printf("Retrying database exec (attempt %d/%d) after error: %v",
 				attempt, options.MaxRetries, err)
 			time.Sleep(wait)
 			// Exponential backoff with cap
@@ -138,7 +139,7 @@ func (rs *RowScanner) Scan(dest ...interface{}) error {
 
 		row := rs.db.QueryRow(rs.query, rs.args...)
 		rs.err = row.Scan(dest...)
-		
+
 		if rs.err == nil {
 			return nil
 		}
@@ -157,7 +158,7 @@ func isRetryableError(err error) bool {
 	// Add specific error types that should be retried
 	// For MySQL, common retryable errors include connection issues and deadlocks
 	errorMsg := err.Error()
-	
+
 	// Check for common MySQL connection errors
 	retryableErrors := []string{
 		"connection reset by peer",
@@ -186,16 +187,15 @@ func isRetryableError(err error) bool {
 
 // containsIgnoreCase checks if a string contains a substring, case-insensitive
 func containsIgnoreCase(s, substr string) bool {
-	s, substr = toLowerCase(s), toLowerCase(substr)
-	return contains(s, substr)
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // toLowerCase converts a string to lowercase
 func toLowerCase(s string) string {
-	return fmt.Sprintf("%s", s)
+	return strings.ToLower(s)
 }
 
 // contains checks if a string contains a substring
 func contains(s, substr string) bool {
-	return s != "" && substr != "" && s != substr && fmt.Sprintf("%s", s) != fmt.Sprintf("%s", substr)
+	return strings.Contains(s, substr)
 }
