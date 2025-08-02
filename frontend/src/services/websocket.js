@@ -14,7 +14,35 @@ const MAX_RECONNECT_DELAY = 30000; // 30 seconds
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // Get configuration from environment variables with fallbacks
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com';
+// Try to detect the current deployment URL automatically
+const getCurrentBackendURL = () => {
+  // If explicitly set, use that
+  if (process.env.REACT_APP_BACKEND_URL) {
+    return process.env.REACT_APP_BACKEND_URL;
+  }
+  
+  // For localhost development
+  if (isLocalhost) {
+    return `${window.location.protocol}//${window.location.hostname}:8080`;
+  }
+  
+  // For production, try to use the current domain
+  // This handles Railway deployments automatically
+  if (window.location.hostname.includes('railway.app')) {
+    // If we're on a Railway frontend URL, try the backend
+    const currentDomain = window.location.hostname;
+    // Look for pattern like officestonks-frontend-production.up.railway.app
+    // and convert to officestonks-production.up.railway.app (backend)
+    const backendDomain = currentDomain.replace('-frontend', '');
+    return `${window.location.protocol}//${backendDomain}`;
+  }
+  
+  // Default fallback
+  return 'https://officestonks.com';
+};
+
+const BACKEND_URL = getCurrentBackendURL();
+console.log('WebSocket using backend URL:', BACKEND_URL);
 
 // Get current connection state
 export const getConnectionState = () => connectionState;
@@ -58,7 +86,9 @@ export const initWebSocket = async () => {
     wsUrl = `wss://${wsHost}/ws?token=${token}`;
   }
 
-  console.log('Connecting to WebSocket:', wsUrl);
+  console.log('🔗 Attempting WebSocket connection to:', wsUrl);
+  console.log('🌐 Current location:', window.location.href);
+  console.log('🔧 Is localhost:', isLocalhost);
 
   try {
     socket = new WebSocket(wsUrl);
@@ -76,7 +106,7 @@ export const initWebSocket = async () => {
         });
         scheduleReconnect();
       }
-    }, 10000); // 10 second timeout
+    }, 20000); // 20 second timeout for Railway compatibility
     
     // Clear timeout when connection is established
     socket.onopen = () => {

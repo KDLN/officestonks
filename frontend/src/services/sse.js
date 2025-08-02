@@ -14,7 +14,35 @@ const MAX_RECONNECT_DELAY = 30000; // 30 seconds
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 // Get configuration from environment variables with fallbacks
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://officestonks.com';
+// Try to detect the current deployment URL automatically
+const getCurrentBackendURL = () => {
+  // If explicitly set, use that
+  if (process.env.REACT_APP_BACKEND_URL) {
+    return process.env.REACT_APP_BACKEND_URL;
+  }
+  
+  // For localhost development
+  if (isLocalhost) {
+    return `${window.location.protocol}//${window.location.hostname}:8080`;
+  }
+  
+  // For production, try to use the current domain
+  // This handles Railway deployments automatically
+  if (window.location.hostname.includes('railway.app')) {
+    // If we're on a Railway frontend URL, try the backend
+    const currentDomain = window.location.hostname;
+    // Look for pattern like officestonks-frontend-production.up.railway.app
+    // and convert to officestonks-production.up.railway.app (backend)
+    const backendDomain = currentDomain.replace('-frontend', '');
+    return `${window.location.protocol}//${backendDomain}`;
+  }
+  
+  // Default fallback
+  return 'https://officestonks.com';
+};
+
+const BACKEND_URL = getCurrentBackendURL();
+console.log('SSE using backend URL:', BACKEND_URL);
 
 // Polling fallback variables
 let pollingInterval = null;
@@ -53,7 +81,9 @@ export const initSSE = async () => {
     sseUrl = `${BACKEND_URL}/api/sse/stock-updates`;
   }
 
-  console.log('Connecting to SSE:', sseUrl);
+  console.log('🔗 Attempting SSE connection to:', sseUrl);
+  console.log('🌐 Current location:', window.location.href);
+  console.log('🔧 Is localhost:', isLocalhost);
 
   try {
     // Create EventSource instance
@@ -68,23 +98,28 @@ export const initSSE = async () => {
         
         // If we've tried too many times, start polling fallback
         if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS - 1) {
-          console.log('SSE timeout after max attempts, starting polling fallback');
+          console.log('❌ SSE timeout after max attempts, starting polling fallback');
+          console.log('🔄 Attempted URL was:', sseUrl);
           startPollingFallback();
           notifyListeners('connectionState', { 
             state: 'failed', 
             reason: 'connection_timeout',
-            description: 'Connection timed out, using polling fallback'
+            description: 'Connection timed out, using polling fallback',
+            attempted_url: sseUrl
           });
         } else {
+          console.log('⏳ SSE connection timeout, will retry...');
+          console.log('🔄 Attempted URL was:', sseUrl);
           notifyListeners('connectionState', { 
             state: 'disconnected', 
             reason: 'connection_timeout',
-            description: 'Connection timed out'
+            description: 'Connection timed out',
+            attempted_url: sseUrl
           });
           scheduleReconnect();
         }
       }
-    }, 10000); // 10 second timeout
+    }, 20000); // 20 second timeout for Railway compatibility
     
     // Handle successful connection
     eventSource.onopen = () => {
