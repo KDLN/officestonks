@@ -101,7 +101,14 @@ export const initSSE = async () => {
 
   try {
     // Create EventSource instance
+    console.log('🔧 SSE: Creating EventSource instance...');
     eventSource = new EventSource(sseUrl);
+    
+    // Debug EventSource state
+    console.log('🔧 SSE: EventSource created, readyState:', eventSource.readyState);
+    console.log('🔧 SSE: EventSource.CONNECTING =', EventSource.CONNECTING);
+    console.log('🔧 SSE: EventSource.OPEN =', EventSource.OPEN);
+    console.log('🔧 SSE: EventSource.CLOSED =', EventSource.CLOSED);
     
     // Set a connection timeout
     const connectionTimeout = setTimeout(() => {
@@ -138,7 +145,7 @@ export const initSSE = async () => {
     // Handle successful connection
     eventSource.onopen = () => {
       clearTimeout(connectionTimeout);
-      console.log('✅ SSE connected successfully');
+      console.log('✅ SSE onopen event fired - connection successful');
       reconnectAttempts = 0;
       connectionState = 'connected';
       notifyListeners('connection', { status: 'connected' });
@@ -151,7 +158,9 @@ export const initSSE = async () => {
 
     // Handle messages
     let messageCount = 0;
+    console.log('🔧 SSE: Setting up onmessage handler...');
     eventSource.onmessage = (event) => {
+      console.log('🎯 SSE: onmessage event fired! Raw event:', event);
       try {
         messageCount++;
         
@@ -200,7 +209,8 @@ export const initSSE = async () => {
 
     // Handle errors
     eventSource.onerror = (error) => {
-      console.error('SSE error:', error);
+      console.error('❌ SSE onerror event fired:', error);
+      console.log('🔍 SSE: EventSource readyState on error:', eventSource.readyState);
       
       // Check if the connection is still open
       if (eventSource.readyState === EventSource.CLOSED) {
