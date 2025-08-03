@@ -251,6 +251,55 @@ func main() {
 		log.Printf("✅ SSE test message sent")
 	}).Methods("GET", "OPTIONS")
 	
+	// Working SSE endpoint - copy of test endpoint that actually sends stock updates
+	r.HandleFunc("/api/sse/working", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("🚀 Working SSE endpoint called from: %s", r.Header.Get("Origin"))
+		
+		// Use exact same headers as working test endpoint
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache, no-store")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("X-Accel-Buffering", "no")
+		
+		// Send immediate connection message
+		fmt.Fprintf(w, "data: {\"type\": \"connection\", \"status\": \"connected\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		
+		// Send current stock prices
+		stocks, err := marketService.GetAllStocks()
+		if err == nil {
+			for _, stock := range stocks {
+				fmt.Fprintf(w, "data: {\"type\": \"stock_update\", \"stock_id\": %d, \"symbol\": \"%s\", \"price\": %.2f}\r\n\r\n", 
+					stock.ID, stock.Symbol, stock.CurrentPrice)
+			}
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		}
+		
+		log.Printf("✅ Working SSE initial data sent")
+		
+		// Keep connection alive and send updates
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case <-ticker.C:
+				// Send heartbeat
+				fmt.Fprintf(w, "data: {\"type\": \"heartbeat\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
+			case <-r.Context().Done():
+				return
+			}
+		}
+	}).Methods("GET", "OPTIONS")
+	
 	// Alternative HTTP polling endpoint as fallback
 	r.HandleFunc("/api/stock-updates/poll", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Stock polling request from: %s", r.Header.Get("Origin"))

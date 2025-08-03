@@ -201,6 +201,38 @@ const SSEDebug = () => {
     }, 15000);
   };
 
+  const testWorkingSSEEndpoint = () => {
+    console.log('🚀 Testing working SSE endpoint directly...');
+    const workingES = new EventSource('https://beta.officestonks.com/api/sse/working');
+    
+    workingES.onopen = () => {
+      console.log('✅ Working SSE: onopen fired!');
+      addMessage('WORKING_SSE_TEST', 'Working SSE onopen fired', { success: true });
+    };
+    
+    workingES.onmessage = (event) => {
+      console.log('🎯 Working SSE: onmessage fired!', event);
+      const data = JSON.parse(event.data);
+      addMessage('WORKING_SSE_TEST', `Working SSE: ${data.type}`, data);
+      
+      if (data.type === 'stock_update') {
+        setStockUpdates(prev => [data, ...prev.slice(0, 19)]);
+      }
+    };
+    
+    workingES.onerror = (error) => {
+      console.log('❌ Working SSE: onerror fired!', error);
+      addMessage('WORKING_SSE_TEST', 'Working SSE error', error);
+    };
+    
+    // Auto-close after 30 seconds
+    setTimeout(() => {
+      workingES.close();
+      console.log('🔄 Working SSE: Closed after 30s test');
+      addMessage('WORKING_SSE_TEST', 'Working SSE test completed', { closed: true });
+    }, 30000);
+  };
+
   const handleClearMessages = () => {
     setMessages([]);
     setStockUpdates([]);
@@ -305,6 +337,20 @@ const SSEDebug = () => {
           }}
         >
           🎯 Test Main SSE
+        </button>
+        
+        <button 
+          onClick={testWorkingSSEEndpoint}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: '#10b981', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          🚀 Test Working SSE
         </button>
         
         <button 
