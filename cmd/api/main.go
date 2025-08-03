@@ -241,8 +241,8 @@ func main() {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("X-Accel-Buffering", "no")
 		
-		// Send immediate test message
-		fmt.Fprintf(w, "data: {\"type\": \"test\", \"message\": \"SSE test successful\", \"timestamp\": %d}\\n\\n", time.Now().Unix())
+		// Send immediate test message with Railway-compatible format
+		fmt.Fprintf(w, "data: {\"type\": \"test\", \"message\": \"SSE test successful\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}

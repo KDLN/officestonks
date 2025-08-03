@@ -85,9 +85,8 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 		"client_id": fmt.Sprintf("client_%d", time.Now().UnixNano()),
 	}
 	if data, err := json.Marshal(initialMsg); err == nil {
-		// Send multiple formats to ensure Railway proxy compatibility
-		fmt.Fprintf(w, "data: %s\n\n", data)
-		fmt.Fprintf(w, ": SSE heartbeat\n\n") // Comment line for keep-alive
+		// Railway-compatible SSE format - ensure proper line endings and spacing
+		fmt.Fprintf(w, "data: %s\r\n\r\n", data) // Use \r\n for better Railway compatibility
 		
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
@@ -121,8 +120,8 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 	for {
 		select {
 		case data := <-clientChan:
-			// Send data to client
-			fmt.Fprintf(w, "data: %s\n\n", data)
+			// Send data to client with Railway-compatible format
+			fmt.Fprintf(w, "data: %s\r\n\r\n", data)
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
@@ -134,7 +133,7 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 				"timestamp": time.Now().Unix(),
 			}
 			if data, err := json.Marshal(heartbeat); err == nil {
-				fmt.Fprintf(w, "data: %s\n\n", data)
+				fmt.Fprintf(w, "data: %s\r\n\r\n", data) // Railway-compatible format
 				if f, ok := w.(http.Flusher); ok {
 					f.Flush()
 				}
@@ -167,7 +166,7 @@ func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 		}
 
 		if data, err := json.Marshal(message); err == nil {
-			fmt.Fprintf(w, "data: %s\n\n", data)
+			fmt.Fprintf(w, "data: %s\r\n\r\n", data) // Railway-compatible format
 			stockCount++
 		} else {
 			log.Printf("⚠️ SSE Handler: Error marshaling stock %s: %v", stock.Symbol, err)
