@@ -213,7 +213,8 @@ func main() {
 		log.Printf("🔍 SSE request details - Method: %s, URL: %s, User-Agent: %s", 
 			r.Method, r.URL.String(), r.Header.Get("User-Agent"))
 		
-		// Add Railway-specific headers BEFORE calling handler
+		// Add Railway-specific headers BEFORE calling handler - match test endpoint exactly
+		w.Header().Set("Content-Type", "text/event-stream")   // CRITICAL: Set SSE content type first
 		w.Header().Set("X-Accel-Buffering", "no")           // Disable nginx buffering
 		w.Header().Set("Cache-Control", "no-cache, no-store") // Prevent caching
 		w.Header().Set("Connection", "keep-alive")            // Keep connection alive

@@ -169,6 +169,38 @@ const SSEDebug = () => {
     poll();
   };
 
+  const testMainSSEEndpoint = () => {
+    console.log('🧪 Testing main SSE endpoint directly...');
+    const mainES = new EventSource('https://beta.officestonks.com/api/sse/stock-updates');
+    
+    mainES.onopen = () => {
+      console.log('✅ Main SSE: onopen fired!');
+      addMessage('MAIN_SSE_TEST', 'Main SSE onopen fired', { success: true });
+    };
+    
+    mainES.onmessage = (event) => {
+      console.log('🎯 Main SSE: onmessage fired!', event);
+      addMessage('MAIN_SSE_TEST', 'Main SSE message received', { data: event.data });
+      if (event.data.includes('stock_update')) {
+        mainES.close();
+      }
+    };
+    
+    mainES.onerror = (error) => {
+      console.log('❌ Main SSE: onerror fired!', error);
+      addMessage('MAIN_SSE_TEST', 'Main SSE error', error);
+    };
+    
+    // Timeout test
+    setTimeout(() => {
+      if (mainES.readyState === EventSource.CONNECTING) {
+        console.log('⏰ Main SSE: Still connecting after 15s, closing...');
+        addMessage('MAIN_SSE_TEST', 'Main SSE timeout', { readyState: mainES.readyState });
+        mainES.close();
+      }
+    }, 15000);
+  };
+
   const handleClearMessages = () => {
     setMessages([]);
     setStockUpdates([]);
@@ -259,6 +291,20 @@ const SSEDebug = () => {
           }}
         >
           📊 Test Polling
+        </button>
+        
+        <button 
+          onClick={testMainSSEEndpoint}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: '#8b5cf6', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          🎯 Test Main SSE
         </button>
         
         <button 
