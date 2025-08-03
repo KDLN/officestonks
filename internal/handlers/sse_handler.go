@@ -13,9 +13,10 @@ import (
 
 // SSEHandler handles Server-Sent Events for real-time stock updates
 type SSEHandler struct {
-	marketService *services.MarketService
-	clients       map[chan []byte]bool
-	clientsMutex  sync.Mutex
+	marketService       *services.MarketService
+	clients             map[chan []byte]bool
+	clientsMutex        sync.Mutex
+	noClientLogCounter  int
 }
 
 // NewSSEHandler creates a new SSE handler
@@ -165,10 +166,21 @@ func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 func (h *SSEHandler) listenForStockUpdates() {
 	stockUpdates := h.marketService.GetSimulatorUpdates()
 	
+	log.Printf("📡 SSEHandler: Starting to listen for stock updates from market simulator")
+	updatesReceived := 0
+	lastLogTime := time.Now()
+	
 	for update := range stockUpdates {
+		updatesReceived++
+		
+		// Log first few updates to verify flow
+		if updatesReceived <= 5 {
+			log.Printf("📈 SSEHandler: Received update #%d - %s: $%.2f", updatesReceived, update.Symbol, update.Price)
+		}
+		
 		// Validate price to prevent infinity/NaN issues
 		if !isValidPrice(update.Price) {
-			log.Printf("SSE: Skipping invalid price for stock %s: %f", update.Symbol, update.Price)
+			log.Printf("⚠️ SSEHandler: Skipping invalid price for stock %s: %f", update.Symbol, update.Price)
 			continue
 		}
 
@@ -183,13 +195,26 @@ func (h *SSEHandler) listenForStockUpdates() {
 		// Marshal to JSON
 		data, err := json.Marshal(message)
 		if err != nil {
-			log.Printf("Error marshaling SSE message: %v", err)
+			log.Printf("❌ SSEHandler: Error marshaling SSE message: %v", err)
 			continue
 		}
 
 		// Broadcast to all connected clients
 		h.broadcastToClients(data)
+		
+		// Log progress every 60 seconds
+		if time.Since(lastLogTime) >= 60*time.Second {
+			h.clientsMutex.Lock()
+			clientCount := len(h.clients)
+			h.clientsMutex.Unlock()
+			
+			log.Printf("📊 SSEHandler: Processed %d updates in last 60s, broadcasting to %d clients", updatesReceived, clientCount)
+			updatesReceived = 0
+			lastLogTime = time.Now()
+		}
 	}
+	
+	log.Printf("🛑 SSEHandler: Stock update listener stopped")
 }
 
 // broadcastToClients sends data to all connected SSE clients
@@ -199,19 +224,23 @@ func (h *SSEHandler) broadcastToClients(data []byte) {
 
 	clientCount := len(h.clients)
 	if clientCount == 0 {
-		// No need to log every time if no clients
+		// Log occasionally if no clients to help debug
+		if h.noClientLogCounter%100 == 0 { // Every 100 updates
+			log.Printf("📭 SSEHandler: No clients connected, skipping broadcast")
+		}
+		h.noClientLogCounter++
 		return
 	}
 
-	log.Printf("SSE broadcasting to %d clients: %s", clientCount, string(data))
-
 	// Track clients to remove if they're disconnected
 	var disconnectedClients []chan []byte
+	successfulSends := 0
 
 	for clientChan := range h.clients {
 		select {
 		case clientChan <- data:
 			// Successfully sent
+			successfulSends++
 		default:
 			// Client channel is full or closed, mark for removal
 			disconnectedClients = append(disconnectedClients, clientChan)
@@ -225,7 +254,7 @@ func (h *SSEHandler) broadcastToClients(data []byte) {
 	}
 
 	if len(disconnectedClients) > 0 {
-		log.Printf("Removed %d disconnected SSE clients. Active clients: %d", 
+		log.Printf("🔌 SSEHandler: Removed %d disconnected clients. Active clients: %d", 
 			len(disconnectedClients), len(h.clients))
 	}
 }

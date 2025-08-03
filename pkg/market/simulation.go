@@ -156,6 +156,9 @@ func (s *MarketSimulator) Start() {
 	// Initialize random seed
 	rand.Seed(time.Now().UnixNano())
 	
+	log.Printf("🚀 MarketSimulator: Starting market simulation with %d stocks", len(s.stocksInfo))
+	log.Printf("📊 MarketSimulator: Update interval: %v, Volatility: %.2f%%", s.updateInterval, s.volatility*100)
+	
 	// Start the simulation loop in a goroutine
 	go s.simulationLoop()
 }
@@ -170,22 +173,46 @@ func (s *MarketSimulator) simulationLoop() {
 	ticker := time.NewTicker(s.updateInterval)
 	defer ticker.Stop()
 	
+	log.Printf("📈 MarketSimulator: Simulation loop started with %v interval", s.updateInterval)
+	updateCount := 0
+	lastLogTime := time.Now()
+	
 	for {
 		select {
 		case <-ticker.C:
 			// Only update prices if not paused
 			s.mu.RLock()
 			paused := s.isPaused
+			stockCount := len(s.stocksInfo)
 			s.mu.RUnlock()
 			
 			if !paused {
+				updateCount++
 				s.updatePrices()
+				
+				// Log progress every 30 seconds
+				if time.Since(lastLogTime) >= 30*time.Second {
+					log.Printf("📊 MarketSimulator: Generated %d updates for %d stocks in last 30s", updateCount, stockCount)
+					updateCount = 0
+					lastLogTime = time.Now()
+				}
+			} else {
+				// Log pause status occasionally
+				if updateCount == 0 || updateCount%15 == 0 { // Every 30 seconds when paused
+					log.Printf("⏸️ MarketSimulator: Simulation paused, skipping price updates")
+				}
 			}
 		case pauseState := <-s.pauseChan:
 			s.mu.Lock()
 			s.isPaused = pauseState
 			s.mu.Unlock()
+			if pauseState {
+				log.Printf("⏸️ MarketSimulator: Simulation paused")
+			} else {
+				log.Printf("▶️ MarketSimulator: Simulation resumed")
+			}
 		case <-s.stopChan:
+			log.Printf("🛑 MarketSimulator: Simulation stopped")
 			close(s.updateChan)
 			return
 		}
@@ -349,14 +376,18 @@ func (s *MarketSimulator) updatePrices() {
 		}
 
 		// Send the update
-		select {
-		case s.updateChan <- StockUpdate{
+		update := StockUpdate{
 			StockID: id,
 			Symbol:  info.Symbol,
 			Price:   newPrice,
-		}:
+		}
+		
+		select {
+		case s.updateChan <- update:
+			// Successfully sent update
 		default:
 			// Channel is full, skip this update
+			log.Printf("⚠️ MarketSimulator: Update channel full, skipping update for %s", info.Symbol)
 		}
 	}
 }

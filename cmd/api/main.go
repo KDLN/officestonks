@@ -108,12 +108,13 @@ func main() {
 	log.Println("✅ WebSocket hub started")
 
 	// Initialize the market simulator after setting up the hub
-	log.Println("Initializing market simulator...")
+	log.Println("🎯 Initializing market simulator...")
 	if err := marketService.InitializeSimulator(); err != nil {
 		log.Printf("❌ Failed to initialize market simulator: %v", err)
-		log.Printf("Server will continue but market simulation will not work")
+		log.Printf("⚠️ Server will continue but market simulation will not work")
 	} else {
 		log.Println("✅ Market simulator initialized successfully")
+		log.Println("📊 Market simulator should now be generating stock updates every 2 seconds")
 	}
 
 	// Create chat service with the websocket hub
@@ -138,7 +139,9 @@ func main() {
 	portfolioTestHandler := handlers.NewPortfolioTestHandler(marketService, userService, stockRepo, userRepo, portfolioRepo, transactionRepo)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
 	monitoringTestHandler := handlers.NewMonitoringTestHandler(db)
+	log.Println("🔗 Creating SSE handler for real-time stock updates...")
 	sseHandler := handlers.NewSSEHandler(marketService)
+	log.Println("✅ SSE handler created and listening for stock updates")
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(authService, monitoringService)

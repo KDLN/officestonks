@@ -150,8 +150,11 @@ export const initSSE = async () => {
     let hasReceivedFirstMessage = false;
 
     // Handle messages
+    let messageCount = 0;
     eventSource.onmessage = (event) => {
       try {
+        messageCount++;
+        
         // Railway workaround: First message indicates successful connection
         if (!hasReceivedFirstMessage && connectionState === 'connecting') {
           clearTimeout(connectionTimeout);
@@ -167,21 +170,30 @@ export const initSSE = async () => {
         
         // Sanitize data to prevent infinity/NaN issues
         const sanitizedData = sanitizeSSEData(data);
-        console.log('📡 SSE message received:', sanitizedData);
+        
+        // Enhanced logging for first few messages and stock updates
+        if (messageCount <= 10 || sanitizedData.type === 'stock_update') {
+          console.log(`📡 SSE message #${messageCount} received:`, sanitizedData);
+        }
         
         // Handle different message types
         if (sanitizedData.type === 'stock_update') {
+          console.log(`📈 SSE stock update: ${sanitizedData.symbol} = $${sanitizedData.price}`);
           notifyListeners('stockUpdate', sanitizedData);
         } else if (sanitizedData.type === 'connection') {
+          console.log('🔗 SSE connection message:', sanitizedData);
           notifyListeners('connection', sanitizedData);
         } else if (sanitizedData.type === 'heartbeat') {
-          // Just log heartbeats, don't notify listeners
-          console.log('SSE heartbeat received');
+          // Log heartbeats occasionally
+          if (messageCount % 10 === 0) {
+            console.log(`💓 SSE heartbeat received (message #${messageCount})`);
+          }
         } else {
+          console.log('📝 SSE generic message:', sanitizedData);
           notifyListeners('message', sanitizedData);
         }
       } catch (error) {
-        console.error('Error parsing SSE message:', error, 'Raw data:', event.data);
+        console.error('❌ Error parsing SSE message:', error, 'Raw data:', event.data);
         // Don't crash, just skip the message
       }
     };

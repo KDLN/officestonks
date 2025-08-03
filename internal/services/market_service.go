@@ -154,10 +154,21 @@ func (s *MarketService) createMockStocks() map[int]struct {
 func (s *MarketService) updateStockPrices() {
 	updateChan := s.simulator.GetUpdateChannel()
 	
+	log.Printf("📡 MarketService: Starting to listen for stock updates from simulator")
+	updatesProcessed := 0
+	lastLogTime := time.Now()
+	
 	for update := range updateChan {
+		updatesProcessed++
+		
+		// Log first few updates to verify flow
+		if updatesProcessed <= 5 {
+			log.Printf("📈 MarketService: Received update #%d - %s: $%.2f", updatesProcessed, update.Symbol, update.Price)
+		}
+		
 		// Validate price before updating database
 		if math.IsInf(update.Price, 0) || math.IsNaN(update.Price) || update.Price <= 0 {
-			log.Printf("Skipping database update for stock %s: invalid price %f", update.Symbol, update.Price)
+			log.Printf("⚠️ MarketService: Skipping database update for stock %s: invalid price %f", update.Symbol, update.Price)
 			continue
 		}
 		
@@ -171,10 +182,19 @@ func (s *MarketService) updateStockPrices() {
 		
 		// Update the stock price in the database
 		if err := s.stockRepo.UpdateStockPrice(update.StockID, price); err != nil {
-			log.Printf("Error updating stock price for %s: %v", update.Symbol, err)
+			log.Printf("❌ MarketService: Error updating stock price for %s: %v", update.Symbol, err)
 			continue
 		}
+		
+		// Log progress every 60 seconds
+		if time.Since(lastLogTime) >= 60*time.Second {
+			log.Printf("📊 MarketService: Processed %d stock updates in last 60s", updatesProcessed)
+			updatesProcessed = 0
+			lastLogTime = time.Now()
+		}
 	}
+	
+	log.Printf("🛑 MarketService: Stock update listener stopped")
 }
 
 // GetAllStocks returns all available stocks
