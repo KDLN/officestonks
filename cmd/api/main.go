@@ -209,13 +209,45 @@ func main() {
 
 	// SSE endpoint - must be registered BEFORE rate limiting to allow real-time updates
 	r.HandleFunc("/api/sse/stock-updates", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("SSE connection request from: %s", r.Header.Get("Origin"))
+		log.Printf("🔗 SSE connection request from: %s", r.Header.Get("Origin"))
+		log.Printf("🔍 SSE request details - Method: %s, URL: %s, User-Agent: %s", 
+			r.Method, r.URL.String(), r.Header.Get("User-Agent"))
 		
-		// Add Railway-specific debug logging
-		log.Printf("SSE request headers: %+v", r.Header)
-		log.Printf("SSE request method: %s, URL: %s", r.Method, r.URL.String())
+		// Add Railway-specific headers BEFORE calling handler
+		w.Header().Set("X-Accel-Buffering", "no")           // Disable nginx buffering
+		w.Header().Set("Cache-Control", "no-cache, no-store") // Prevent caching
+		w.Header().Set("Connection", "keep-alive")            // Keep connection alive
+		w.Header().Set("Access-Control-Allow-Origin", "*")    // Allow all origins
 		
+		// Handle OPTIONS requests for CORS preflight
+		if r.Method == "OPTIONS" {
+			log.Printf("✅ SSE OPTIONS preflight handled")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		log.Printf("📡 Passing SSE request to handler...")
 		sseHandler.HandleStockUpdates(w, r)
+	}).Methods("GET", "OPTIONS")
+	
+	// SSE test endpoint to verify Railway compatibility
+	r.HandleFunc("/api/sse/test", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("🧪 SSE test endpoint called from: %s", r.Header.Get("Origin"))
+		
+		// Set SSE headers
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache, no-store")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("X-Accel-Buffering", "no")
+		
+		// Send immediate test message
+		fmt.Fprintf(w, "data: {\"type\": \"test\", \"message\": \"SSE test successful\", \"timestamp\": %d}\\n\\n", time.Now().Unix())
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		
+		log.Printf("✅ SSE test message sent")
 	}).Methods("GET", "OPTIONS")
 	
 	// Alternative HTTP polling endpoint as fallback

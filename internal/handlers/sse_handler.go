@@ -45,16 +45,19 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 	// Log connection attempt with more details
 	origin := r.Header.Get("Origin")
 	userAgent := r.Header.Get("User-Agent")
-	log.Printf("SSE connection attempt - Origin: %s, User-Agent: %s", origin, userAgent)
+	remoteAddr := r.RemoteAddr
+	log.Printf("🌟 SSE Handler: Connection attempt - Origin: %s, RemoteAddr: %s", origin, remoteAddr)
+	log.Printf("🔍 SSE Handler: User-Agent: %s", userAgent)
 	
-	// Set SSE headers with Railway-specific settings
+	// Set SSE headers with Railway-specific settings (some may be duplicated from main.go but that's safe)
 	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control")
+	w.Header().Set("Access-Control-Allow-Headers", "Cache-Control, Accept, Accept-Encoding")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
+	w.Header().Set("Pragma", "no-cache")      // HTTP/1.0 cache control
 	
 	// Flush headers immediately to help with Railway proxy
 	if f, ok := w.(http.Flusher); ok {
