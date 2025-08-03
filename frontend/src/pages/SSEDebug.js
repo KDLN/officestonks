@@ -114,6 +114,61 @@ const SSEDebug = () => {
     forceSSEReconnect();
   };
 
+  const testRawEventSource = () => {
+    console.log('🧪 Testing raw EventSource directly...');
+    const testES = new EventSource('https://beta.officestonks.com/api/sse/test');
+    
+    testES.onopen = () => {
+      console.log('✅ Raw EventSource: onopen fired!');
+      addMessage('RAW_TEST', 'Raw EventSource onopen fired', { success: true });
+    };
+    
+    testES.onmessage = (event) => {
+      console.log('🎯 Raw EventSource: onmessage fired!', event);
+      addMessage('RAW_TEST', 'Raw EventSource message received', { data: event.data });
+      testES.close();
+    };
+    
+    testES.onerror = (error) => {
+      console.log('❌ Raw EventSource: onerror fired!', error);
+      addMessage('RAW_TEST', 'Raw EventSource error', error);
+    };
+    
+    // Timeout test
+    setTimeout(() => {
+      if (testES.readyState === EventSource.CONNECTING) {
+        console.log('⏰ Raw EventSource: Still connecting after 10s, closing...');
+        addMessage('RAW_TEST', 'Raw EventSource timeout', { readyState: testES.readyState });
+        testES.close();
+      }
+    }, 10000);
+  };
+
+  const testFetchPolling = () => {
+    console.log('🔄 Testing fetch polling as alternative...');
+    let pollCount = 0;
+    
+    const poll = async () => {
+      try {
+        pollCount++;
+        const response = await fetch('https://beta.officestonks.com/api/stock-updates/poll');
+        const data = await response.json();
+        
+        console.log(`📊 Fetch poll #${pollCount}:`, data);
+        addMessage('FETCH_POLL', `Poll #${pollCount} - ${data.updates?.length || 0} updates`, data);
+        
+        if (pollCount < 5) {
+          setTimeout(poll, 2000); // Poll every 2 seconds
+        }
+      } catch (error) {
+        console.error('❌ Fetch poll error:', error);
+        addMessage('FETCH_POLL', `Poll #${pollCount} failed`, error);
+      }
+    };
+    
+    poll();
+  };
+
   const handleClearMessages = () => {
     setMessages([]);
     setStockUpdates([]);
@@ -176,6 +231,34 @@ const SSEDebug = () => {
           }}
         >
           🔄 Reconnect
+        </button>
+        
+        <button 
+          onClick={testRawEventSource}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: '#10b981', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          🧪 Test Raw SSE
+        </button>
+        
+        <button 
+          onClick={testFetchPolling}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: '#f59e0b', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          📊 Test Polling
         </button>
         
         <button 
