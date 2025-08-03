@@ -75,27 +75,16 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 
 	log.Printf("SSE client connected. Total clients: %d", clientCount)
 
-	// Send initial connection confirmation immediately - CRITICAL for Railway proxy
+	// Send immediate connection confirmation - use same format as working test endpoint
 	log.Printf("🚀 SSE Handler: Sending immediate connection confirmation...")
-	initialMsg := map[string]interface{}{
-		"type":      "connection",
-		"status":    "connected",
-		"timestamp": time.Now().Unix(),
-		"message":   "SSE connection established",
-		"client_id": fmt.Sprintf("client_%d", time.Now().UnixNano()),
+	
+	// Simple format that matches our working test endpoint
+	fmt.Fprintf(w, "data: {\"type\": \"connection\", \"status\": \"connected\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
+	
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
 	}
-	if data, err := json.Marshal(initialMsg); err == nil {
-		// Railway-compatible SSE format - ensure proper line endings and spacing
-		fmt.Fprintf(w, "data: %s\r\n\r\n", data) // Use \r\n for better Railway compatibility
-		
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
-		}
-		log.Printf("✅ SSE Handler: Initial message sent to client successfully")
-	} else {
-		log.Printf("❌ SSE Handler: Error marshaling initial message: %v", err)
-		return // Exit if we can't send initial message
-	}
+	log.Printf("✅ SSE Handler: Initial message sent to client successfully")
 
 	// Send current stock prices immediately
 	h.sendCurrentStockPrices(w)
@@ -127,16 +116,10 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 			}
 
 		case <-heartbeatTicker.C:
-			// Send heartbeat to keep connection alive
-			heartbeat := map[string]interface{}{
-				"type":      "heartbeat",
-				"timestamp": time.Now().Unix(),
-			}
-			if data, err := json.Marshal(heartbeat); err == nil {
-				fmt.Fprintf(w, "data: %s\r\n\r\n", data) // Railway-compatible format
-				if f, ok := w.(http.Flusher); ok {
-					f.Flush()
-				}
+			// Send heartbeat to keep connection alive - simple format
+			fmt.Fprintf(w, "data: {\"type\": \"heartbeat\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
 			}
 
 		case <-r.Context().Done():
@@ -158,19 +141,10 @@ func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 
 	stockCount := 0
 	for _, stock := range stocks {
-		message := StockUpdateMessage{
-			Type:    "stock_update",
-			StockID: stock.ID,
-			Symbol:  stock.Symbol,
-			Price:   stock.CurrentPrice,
-		}
-
-		if data, err := json.Marshal(message); err == nil {
-			fmt.Fprintf(w, "data: %s\r\n\r\n", data) // Railway-compatible format
-			stockCount++
-		} else {
-			log.Printf("⚠️ SSE Handler: Error marshaling stock %s: %v", stock.Symbol, err)
-		}
+		// Simple format matching our working test endpoint style
+		fmt.Fprintf(w, "data: {\"type\": \"stock_update\", \"stock_id\": %d, \"symbol\": \"%s\", \"price\": %.2f}\r\n\r\n", 
+			stock.ID, stock.Symbol, stock.CurrentPrice)
+		stockCount++
 	}
 
 	if f, ok := w.(http.Flusher); ok {
