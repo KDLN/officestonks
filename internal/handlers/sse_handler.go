@@ -75,21 +75,27 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 
 	log.Printf("SSE client connected. Total clients: %d", clientCount)
 
-	// Send initial connection confirmation immediately
+	// Send initial connection confirmation immediately - CRITICAL for Railway proxy
+	log.Printf("🚀 SSE Handler: Sending immediate connection confirmation...")
 	initialMsg := map[string]interface{}{
 		"type":      "connection",
 		"status":    "connected",
 		"timestamp": time.Now().Unix(),
 		"message":   "SSE connection established",
+		"client_id": fmt.Sprintf("client_%d", time.Now().UnixNano()),
 	}
 	if data, err := json.Marshal(initialMsg); err == nil {
+		// Send multiple formats to ensure Railway proxy compatibility
 		fmt.Fprintf(w, "data: %s\n\n", data)
+		fmt.Fprintf(w, ": SSE heartbeat\n\n") // Comment line for keep-alive
+		
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
-		log.Printf("SSE initial message sent to client")
+		log.Printf("✅ SSE Handler: Initial message sent to client successfully")
 	} else {
-		log.Printf("SSE error marshaling initial message: %v", err)
+		log.Printf("❌ SSE Handler: Error marshaling initial message: %v", err)
+		return // Exit if we can't send initial message
 	}
 
 	// Send current stock prices immediately
@@ -105,9 +111,11 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 		log.Printf("SSE client disconnected. Total clients: %d", clientCount)
 	}()
 
-	// Set up a ticker to send periodic heartbeats
-	heartbeatTicker := time.NewTicker(30 * time.Second)
+	// Set up a ticker to send periodic heartbeats (Railway-friendly interval)
+	heartbeatTicker := time.NewTicker(15 * time.Second) // More frequent for Railway proxy
 	defer heartbeatTicker.Stop()
+	
+	log.Printf("🔄 SSE Handler: Starting heartbeat timer (15s intervals)")
 
 	// Listen for messages and client disconnection
 	for {
@@ -141,12 +149,15 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 
 // sendCurrentStockPrices sends all current stock prices to a newly connected client
 func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
+	log.Printf("📊 SSE Handler: Sending current stock prices to client...")
+	
 	stocks, err := h.marketService.GetAllStocks()
 	if err != nil {
-		log.Printf("Error fetching stocks for SSE initial data: %v", err)
+		log.Printf("❌ SSE Handler: Error fetching stocks for initial data: %v", err)
 		return
 	}
 
+	stockCount := 0
 	for _, stock := range stocks {
 		message := StockUpdateMessage{
 			Type:    "stock_update",
@@ -157,12 +168,17 @@ func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 
 		if data, err := json.Marshal(message); err == nil {
 			fmt.Fprintf(w, "data: %s\n\n", data)
+			stockCount++
+		} else {
+			log.Printf("⚠️ SSE Handler: Error marshaling stock %s: %v", stock.Symbol, err)
 		}
 	}
 
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
+	
+	log.Printf("✅ SSE Handler: Sent %d stock prices to client", stockCount)
 }
 
 // listenForStockUpdates listens for stock updates from the market service and broadcasts to all SSE clients
