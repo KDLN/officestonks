@@ -1956,16 +1956,28 @@ const Tests = () => {
   };
 
   const formatDuration = (duration) => {
-    // Convert Go duration string to human readable
-    if (!duration) {
+    // Handle both integer milliseconds and Go duration strings
+    if (!duration && duration !== 0) {
       return 'N/A';
     }
-    if (duration.includes('ms')) {
-      return duration;
-    } else if (duration.includes('s')) {
-      return duration;
+    
+    // If it's a number (milliseconds), format it appropriately
+    if (typeof duration === 'number') {
+      if (duration < 1000) {
+        return `${duration}ms`;
+      } else {
+        return `${(duration / 1000).toFixed(2)}s`;
+      }
     }
-    return duration;
+    
+    // If it's a string (legacy Go duration format), return as-is
+    if (typeof duration === 'string') {
+      if (duration.includes('ms') || duration.includes('s')) {
+        return duration;
+      }
+    }
+    
+    return String(duration);
   };
 
   return (
