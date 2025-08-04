@@ -551,3 +551,25 @@ export const runSSETests = async () => {
     throw error;
   }
 };
+
+// Run stock management tests (admin only) - for debugging 500 errors
+export const runStockManagementTests = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/stock-management`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to run stock management tests");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error running stock management tests:", error);
+    throw error;
+  }
+};

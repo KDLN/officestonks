@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navigation from '../components/Navigation';
-import { runCrisisTests, runPortfolioTests, runSSETests, getTestStatus } from '../services/admin';
+import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, getTestStatus } from '../services/admin';
 import { initSSE, addSSEListener, removeSSEListener, isSSEConnected, getSSEConnectionState, forceSSEReconnect } from '../services/sse';
 import { initWebSocket, getWebSocketInstance } from '../services/websocket';
 import './Tests.css';
@@ -1909,6 +1909,9 @@ const Tests = () => {
         case 'sse':
           results = await runSSETests();
           break;
+        case 'stock-management':
+          results = await runStockManagementTests();
+          break;
         case 'sse-comprehensive':
           results = await runComprehensiveSSETests();
           break;
@@ -1999,6 +2002,7 @@ const Tests = () => {
               <option value="crisis">🚨 Crisis Mechanics Test Suite</option>
               <option value="portfolio">💼 Portfolio & Trading Test Suite</option>
               <option value="sse">📡 Basic SSE Test Suite</option>
+              <option value="stock-management">🔧 Stock Management Debug Suite</option>
               <option value="changelog">📰 Changelog System Test Suite</option>
               <option value="monitoring">📊 Monitoring System Test Suite</option>
             </select>
@@ -2589,6 +2593,17 @@ const Tests = () => {
                     <li>Market Simulator Status - Checks stock data and price validity</li>
                     <li>SSE Message Format Test - Validates message structure and JSON</li>
                     <li>Rate Limiting Bypass Test - Confirms SSE endpoint configuration</li>
+                  </ul>
+                </div>
+                <div className="suite-info">
+                  <h5>🔧 Stock Management Debug Suite:</h5>
+                  <ul>
+                    <li>Database Schema Check - Verifies stock table structure</li>
+                    <li>Basic Stock Retrieval - Tests GetAllStocks functionality</li>
+                    <li>Stock Creation - Tests CreateStock operation</li>
+                    <li>Stock Update - Tests UpdateStockDetails (currently failing with 500)</li>
+                    <li>IPO Launch - Tests LaunchIPO functionality</li>
+                    <li>Stock Deletion - Tests ForceDelisting operation</li>
                   </ul>
                 </div>
                 <div className="suite-info">
