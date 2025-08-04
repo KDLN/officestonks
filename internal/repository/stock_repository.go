@@ -71,7 +71,7 @@ func (r *StockRepo) GetStockByID(id int) (*models.Stock, error) {
 	var statusStr string
 
 	query := `
-		SELECT id, symbol, name, sector, current_price, status, last_updated
+		SELECT id, symbol, name, sector, sector_id, current_price, status, last_updated
 		FROM stocks
 		WHERE id = ?
 	`
@@ -81,6 +81,7 @@ func (r *StockRepo) GetStockByID(id int) (*models.Stock, error) {
 		&stock.Symbol,
 		&stock.Name,
 		&stock.Sector,
+		&stock.SectorID,
 		&stock.CurrentPrice,
 		&statusStr,
 		&stock.LastUpdated,

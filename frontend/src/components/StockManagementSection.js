@@ -13,8 +13,8 @@ const StockManagementSection = () => {
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [editingStock, setEditingStock] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showIPOModal, setShowIPOModal] = useState(false);
   const [showSectorEventModal, setShowSectorEventModal] = useState(false);
   
@@ -26,6 +26,17 @@ const StockManagementSection = () => {
     sector_id: 1,
     initial_price: 10.00,
     market_cap_category: 'mid',
+    volatility_profile: 'normal',
+    description: '',
+  });
+
+  const [editForm, setEditForm] = useState({
+    id: null,
+    symbol: '',
+    name: '',
+    sector: 'Technology',
+    sector_id: 1,
+    current_price: 0,
     volatility_profile: 'normal',
     description: '',
   });
@@ -93,18 +104,6 @@ const StockManagementSection = () => {
     }
   };
 
-  const handleUpdateStock = async (stockId, updates) => {
-    try {
-      console.log(`🔄 Updating stock ${stockId} with:`, updates);
-      await updateStock(stockId, updates);
-      console.log(`✅ Stock ${stockId} updated successfully`);
-      setEditingStock(null);
-      fetchStocks();
-    } catch (err) {
-      console.error(`❌ Failed to update stock ${stockId}:`, err);
-      setError(`Failed to update stock: ${err.message}`);
-    }
-  };
 
   const handleDeleteStock = async (stockId) => {
     if (window.confirm('Are you sure you want to delist this stock?')) {
@@ -153,12 +152,52 @@ const StockManagementSection = () => {
     }
   };
 
-  const handleInlineEdit = (stock, field, value) => {
-    const updates = { [field]: value };
-    console.log(`🔍 Inline edit triggered - Stock:`, stock);
-    console.log(`🔍 Field: ${field}, Value:`, value);
-    console.log(`🔍 Updates object:`, updates);
-    handleUpdateStock(stock.id, updates);
+  const openEditModal = (stock) => {
+    setEditForm({
+      id: stock.id,
+      symbol: stock.symbol,
+      name: stock.name,
+      sector: stock.sector,
+      sector_id: stock.sector_id || 1,
+      current_price: stock.current_price,
+      volatility_profile: stock.volatility_profile || 'normal',
+      description: stock.description || '',
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const stockData = {
+        name: editForm.name,
+        sector: editForm.sector,
+        sector_id: editForm.sector_id,
+        current_price: editForm.current_price,
+        volatility_profile: editForm.volatility_profile,
+        description: editForm.description,
+      };
+      
+      console.log(`🔄 Updating stock ${editForm.id} with complete data:`, stockData);
+      await updateStock(editForm.id, stockData);
+      console.log(`✅ Stock ${editForm.id} updated successfully`);
+      
+      setShowEditModal(false);
+      setEditForm({
+        id: null,
+        symbol: '',
+        name: '',
+        sector: 'Technology',
+        sector_id: 1,
+        current_price: 0,
+        volatility_profile: 'normal',
+        description: '',
+      });
+      fetchStocks();
+    } catch (err) {
+      console.error(`❌ Failed to update stock ${editForm.id}:`, err);
+      setError(`Failed to update stock: ${err.message}`);
+    }
   };
 
   return (
@@ -203,37 +242,24 @@ const StockManagementSection = () => {
                 <tr key={stock.id} className={stock.status === 'delisted' ? 'delisted' : ''}>
                   <td className="symbol">{stock.symbol}</td>
                   <td>
-                    {editingStock === stock.id ? (
-                      <input
-                        type="text"
-                        defaultValue={stock.name}
-                        onBlur={(e) => handleInlineEdit(stock, 'name', e.target.value)}
-                        autoFocus
-                      />
-                    ) : (
-                      <span onClick={() => setEditingStock(stock.id)}>{stock.name}</span>
-                    )}
+                    <span>{stock.name}</span>
                   </td>
                   <td>{stock.sector}</td>
                   <td className="price">
-                    ${editingStock === stock.id ? (
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={stock.current_price}
-                        onBlur={(e) => handleInlineEdit(stock, 'current_price', parseFloat(e.target.value))}
-                        style={{ width: '80px' }}
-                      />
-                    ) : (
-                      <span onClick={() => setEditingStock(stock.id)}>
-                        {stock.current_price.toFixed(2)}
-                      </span>
-                    )}
+                    ${stock.current_price.toFixed(2)}
                   </td>
                   <td>
                     <span className={`status ${stock.status}`}>{stock.status}</span>
                   </td>
                   <td>
+                    <button
+                      onClick={() => openEditModal(stock)}
+                      className="btn-edit"
+                      disabled={stock.status === 'delisted'}
+                      style={{ marginRight: '8px' }}
+                    >
+                      ✏️
+                    </button>
                     <button
                       onClick={() => handleDeleteStock(stock.id)}
                       className="btn-delete"
@@ -419,6 +445,93 @@ const StockManagementSection = () => {
               <div className="modal-actions">
                 <button type="submit" className="btn-ipo">Launch IPO</button>
                 <button type="button" onClick={() => setShowIPOModal(false)}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Stock Modal */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>✏️ Edit Stock</h3>
+            <form onSubmit={handleEditSubmit}>
+              <div className="form-group">
+                <label>Symbol:</label>
+                <input
+                  type="text"
+                  value={editForm.symbol}
+                  disabled
+                  style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                />
+                <small>Symbol cannot be changed</small>
+              </div>
+              <div className="form-group">
+                <label>Company Name:</label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Sector:</label>
+                <select
+                  value={editForm.sector_id}
+                  onChange={(e) => {
+                    const sectorId = parseInt(e.target.value);
+                    const sector = sectors.find(s => s.id === sectorId);
+                    setEditForm({ 
+                      ...editForm, 
+                      sector_id: sectorId,
+                      sector: sector.name 
+                    });
+                  }}
+                >
+                  {sectors.map((sector) => (
+                    <option key={sector.id} value={sector.id}>
+                      {sector.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Current Price:</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={editForm.current_price}
+                  onChange={(e) => setEditForm({ ...editForm, current_price: parseFloat(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Volatility Profile:</label>
+                <select
+                  value={editForm.volatility_profile}
+                  onChange={(e) => setEditForm({ ...editForm, volatility_profile: e.target.value })}
+                >
+                  <option value="stable">Stable</option>
+                  <option value="normal">Normal</option>
+                  <option value="volatile">Volatile</option>
+                  <option value="extreme">Extreme</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Description:</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows="3"
+                  placeholder="Optional description of the company..."
+                />
+              </div>
+              <div className="modal-actions">
+                <button type="submit" className="btn-primary">Save Changes</button>
+                <button type="button" onClick={() => setShowEditModal(false)}>Cancel</button>
               </div>
             </form>
           </div>
