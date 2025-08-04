@@ -75,10 +75,10 @@ export const initSSE = async () => {
     const protocol = window.location.protocol;
     const host = window.location.hostname;
     const port = process.env.REACT_APP_BACKEND_PORT || '8080';
-    sseUrl = `${protocol}//${host}:${port}/api/sse/stock-updates`;
+    sseUrl = `${protocol}//${host}:${port}/api/sse/working`;
   } else {
     // For production
-    sseUrl = `${BACKEND_URL}/api/sse/stock-updates`;
+    sseUrl = `${BACKEND_URL}/api/sse/working`;
   }
 
   console.log('🔗 Attempting SSE connection to:', sseUrl);

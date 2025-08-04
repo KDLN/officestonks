@@ -283,17 +283,33 @@ func main() {
 		log.Printf("✅ Working SSE initial data sent")
 		
 		// Keep connection alive and send updates
-		ticker := time.NewTicker(3 * time.Second)
-		defer ticker.Stop()
+		heartbeatTicker := time.NewTicker(15 * time.Second)
+		stockUpdateTicker := time.NewTicker(2 * time.Second)
+		defer heartbeatTicker.Stop()
+		defer stockUpdateTicker.Stop()
 		
 		for {
 			select {
-			case <-ticker.C:
+			case <-stockUpdateTicker.C:
+				// Send current stock prices every 2 seconds
+				stocks, err := marketService.GetAllStocks()
+				if err == nil {
+					for _, stock := range stocks {
+						fmt.Fprintf(w, "data: {\"type\": \"stock_update\", \"stock_id\": %d, \"symbol\": \"%s\", \"price\": %.2f}\r\n\r\n", 
+							stock.ID, stock.Symbol, stock.CurrentPrice)
+					}
+					if f, ok := w.(http.Flusher); ok {
+						f.Flush()
+					}
+				}
+				
+			case <-heartbeatTicker.C:
 				// Send heartbeat
 				fmt.Fprintf(w, "data: {\"type\": \"heartbeat\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
 				if f, ok := w.(http.Flusher); ok {
 					f.Flush()
 				}
+				
 			case <-r.Context().Done():
 				return
 			}
