@@ -758,6 +758,274 @@ func (h *AdminHandler) GetSimulatorStatus(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(response)
 }
 
+// GetAllStocksDetailed returns all stocks with full details for admin management
+func (h *AdminHandler) GetAllStocksDetailed(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	stocks, err := h.stockRepo.GetAllStocks()
+	if err != nil {
+		log.Printf("Error getting stocks: %v", err)
+		http.Error(w, "Failed to get stocks", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stocks)
+}
+
+// CreateStock creates a new stock
+func (h *AdminHandler) CreateStock(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var req struct {
+		Symbol            string  `json:"symbol"`
+		Name              string  `json:"name"`
+		Sector            string  `json:"sector"`
+		SectorID          int     `json:"sector_id"`
+		InitialPrice      float64 `json:"initial_price"`
+		MarketCapCategory string  `json:"market_cap_category"`
+		VolatilityProfile string  `json:"volatility_profile"`
+		Description       string  `json:"description"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate required fields
+	if req.Symbol == "" || req.Name == "" || req.InitialPrice <= 0 {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+	
+	// Create the stock
+	stock, err := h.stockRepo.CreateStock(
+		req.Symbol, req.Name, req.Sector, req.SectorID,
+		req.InitialPrice, req.MarketCapCategory, req.VolatilityProfile, req.Description,
+	)
+	if err != nil {
+		log.Printf("Error creating stock: %v", err)
+		http.Error(w, "Failed to create stock", http.StatusInternalServerError)
+		return
+	}
+	
+	// Add to market simulator
+	h.marketService.AddStockToSimulator(stock)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stock)
+}
+
+// UpdateStockAdmin updates stock details
+func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "PUT" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Extract stock ID from URL
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 4 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+	
+	stockIDStr := pathParts[len(pathParts)-1]
+	stockID, err := strconv.Atoi(stockIDStr)
+	if err != nil {
+		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
+		return
+	}
+	
+	var req struct {
+		Name              string  `json:"name"`
+		Sector            string  `json:"sector"`
+		SectorID          int     `json:"sector_id"`
+		CurrentPrice      float64 `json:"current_price"`
+		VolatilityProfile string  `json:"volatility_profile"`
+		Description       string  `json:"description"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Update stock details
+	err = h.stockRepo.UpdateStockDetails(stockID, req.Name, req.Sector, req.SectorID, req.VolatilityProfile, req.Description)
+	if err != nil {
+		log.Printf("Error updating stock: %v", err)
+		http.Error(w, "Failed to update stock", http.StatusInternalServerError)
+		return
+	}
+	
+	// Update price if provided
+	if req.CurrentPrice > 0 {
+		err = h.stockRepo.UpdateStockPrice(stockID, req.CurrentPrice)
+		if err != nil {
+			log.Printf("Error updating stock price: %v", err)
+		}
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Stock updated successfully"})
+}
+
+// DeleteStockAdmin soft deletes a stock
+func (h *AdminHandler) DeleteStockAdmin(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "DELETE" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	// Extract stock ID from URL
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 4 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+	
+	stockIDStr := pathParts[len(pathParts)-1]
+	stockID, err := strconv.Atoi(stockIDStr)
+	if err != nil {
+		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
+		return
+	}
+	
+	// Force delisting
+	err = h.stockRepo.ForceDelisting(stockID, "Admin deletion")
+	if err != nil {
+		log.Printf("Error deleting stock: %v", err)
+		http.Error(w, "Failed to delete stock", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Stock deleted successfully"})
+}
+
+// LaunchIPO launches a new stock as an IPO
+func (h *AdminHandler) LaunchIPO(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var req struct {
+		Symbol          string  `json:"symbol"`
+		Name            string  `json:"name"`
+		Sector          string  `json:"sector"`
+		SectorID        int     `json:"sector_id"`
+		IPOPrice        float64 `json:"ipo_price"`
+		SharesAvailable int     `json:"shares_available"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Default shares if not provided
+	if req.SharesAvailable == 0 {
+		req.SharesAvailable = 1000000
+	}
+	
+	// Launch IPO
+	stock, err := h.stockRepo.LaunchIPO(
+		req.Symbol, req.Name, req.Sector, req.SectorID,
+		req.IPOPrice, req.SharesAvailable,
+	)
+	if err != nil {
+		log.Printf("Error launching IPO: %v", err)
+		http.Error(w, "Failed to launch IPO", http.StatusInternalServerError)
+		return
+	}
+	
+	// Add to market simulator
+	h.marketService.AddStockToSimulator(stock)
+	
+	// Create news event for IPO
+	h.marketService.GenerateIPONews(stock)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stock)
+}
+
+// TriggerSectorEvent triggers a sector-wide market event
+func (h *AdminHandler) TriggerSectorEvent(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var req struct {
+		SectorID         int     `json:"sector_id"`
+		EventType        string  `json:"event_type"` // "boom" or "crash"
+		ImpactPercentage float64 `json:"impact_percentage"`
+		DurationMinutes  int     `json:"duration_minutes"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	
+	// Apply sector-wide impact
+	err := h.marketService.ApplySectorEvent(req.SectorID, req.EventType, req.ImpactPercentage, req.DurationMinutes)
+	if err != nil {
+		log.Printf("Error applying sector event: %v", err)
+		http.Error(w, "Failed to apply sector event", http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Sector event triggered successfully"})
+}
+
 // setCORSHeaders helper function to set CORS headers consistently
 func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")

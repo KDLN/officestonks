@@ -111,6 +111,137 @@ export const deleteUser = async (userId) => {
   }
 };
 
+// Stock Management APIs
+export const getAllStocksDetailed = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to fetch stocks");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching stocks:", error);
+    throw error;
+  }
+};
+
+export const createStock = async (stockData) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(stockData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to create stock");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating stock:", error);
+    throw error;
+  }
+};
+
+export const updateStock = async (stockId, stockData) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks/${stockId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(stockData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to update stock");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating stock:", error);
+    throw error;
+  }
+};
+
+export const deleteStock = async (stockId) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks/${stockId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to delete stock");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error deleting stock:", error);
+    throw error;
+  }
+};
+
+export const launchIPO = async (ipoData) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks/ipo`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(ipoData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to launch IPO");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error launching IPO:", error);
+    throw error;
+  }
+};
+
+export const triggerSectorEvent = async (eventData) => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/stocks/sector-event`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(eventData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to trigger sector event");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error triggering sector event:", error);
+    throw error;
+  }
+};
+
 // Reset stock prices (admin only)
 export const resetStockPrices = async () => {
   try {

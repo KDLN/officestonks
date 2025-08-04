@@ -47,6 +47,14 @@ type StockRepository interface {
 		Status   StockStatus
 	}, error)
 	ResetAllStockPrices() error
+	
+	// New lifecycle methods
+	CreateStock(symbol, name, sector string, sectorID int, initialPrice float64, marketCapCategory, volatilityProfile, description string) (*Stock, error)
+	UpdateStockDetails(id int, name, sector string, sectorID int, volatilityProfile, description string) error
+	DeleteStock(id int) error
+	LaunchIPO(symbol, name, sector string, sectorID int, ipoPrice float64, sharesAvailable int) (*Stock, error)
+	ForceDelisting(id int, reason string) error
+	GetStocksByStatus(status string) ([]*Stock, error)
 }
 
 // StockPrice represents a simple price update

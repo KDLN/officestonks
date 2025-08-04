@@ -520,7 +520,13 @@ func main() {
 	adminRouter.HandleFunc("/users/{id:[0-9]+}", adminHandler.DeleteUser).Methods("DELETE", "OPTIONS")
 
 	// Admin stock management
+	adminRouter.HandleFunc("/stocks", adminHandler.GetAllStocksDetailed).Methods("GET", "OPTIONS")
+	adminRouter.HandleFunc("/stocks", adminHandler.CreateStock).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/stocks/{id:[0-9]+}", adminHandler.UpdateStockAdmin).Methods("PUT", "OPTIONS")
+	adminRouter.HandleFunc("/stocks/{id:[0-9]+}", adminHandler.DeleteStockAdmin).Methods("DELETE", "OPTIONS")
 	adminRouter.HandleFunc("/stocks/reset", adminHandler.ResetStockPrices).Methods("GET", "POST", "OPTIONS")
+	adminRouter.HandleFunc("/stocks/ipo", adminHandler.LaunchIPO).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/stocks/sector-event", adminHandler.TriggerSectorEvent).Methods("POST", "OPTIONS")
 
 	// Admin chat management
 	adminRouter.HandleFunc("/chat/clear", adminHandler.ClearAllChats).Methods("GET", "POST", "OPTIONS")

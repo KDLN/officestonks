@@ -545,3 +545,80 @@ func (s *MarketService) ProcessStockBankruptcy(stockID int) error {
 	log.Printf("✅ Bankruptcy processing completed for %s", stock.Symbol)
 	return nil
 }
+
+// AddStockToSimulator adds a newly created stock to the market simulator
+func (s *MarketService) AddStockToSimulator(stock *models.Stock) {
+	if s.simulator != nil && stock != nil {
+		s.simulator.AddStock(stock.ID, stock.Symbol, stock.Name, stock.Sector, *stock.SectorID, stock.CurrentPrice)
+		log.Printf("Added stock %s to market simulator", stock.Symbol)
+	}
+}
+
+// GenerateIPONews creates a news event for a new IPO
+func (s *MarketService) GenerateIPONews(stock *models.Stock) {
+	if s.newsService != nil && stock != nil {
+		// Create IPO announcement news
+		newsContent := fmt.Sprintf("%s (%s) launches IPO at $%.2f per share. The %s sector welcomes its newest member!", 
+			stock.Name, stock.Symbol, stock.CurrentPrice, stock.Sector)
+		
+		s.newsService.CreateSystemNews(
+			fmt.Sprintf("%s IPO Launch", stock.Symbol),
+			newsContent,
+			"ipo",
+			stock.ID,
+			stock.CurrentPrice*1.1, // 10% positive impact for IPO hype
+		)
+	}
+}
+
+// ApplySectorEvent applies a sector-wide market event
+func (s *MarketService) ApplySectorEvent(sectorID int, eventType string, impactPercentage float64, durationMinutes int) error {
+	// Get all stocks in the sector
+	stocks, err := s.stockRepo.GetAllStocks()
+	if err != nil {
+		return err
+	}
+	
+	affectedStocks := 0
+	for _, stock := range stocks {
+		if stock.SectorID != nil && *stock.SectorID == sectorID {
+			// Calculate new price based on event type
+			multiplier := 1.0
+			if eventType == "boom" {
+				multiplier = 1 + (impactPercentage / 100)
+			} else if eventType == "crash" {
+				multiplier = 1 - (impactPercentage / 100)
+			}
+			
+			newPrice := stock.CurrentPrice * multiplier
+			if newPrice < 0.01 {
+				newPrice = 0.01
+			}
+			
+			// Update stock price
+			err := s.stockRepo.UpdateStockPrice(stock.ID, newPrice)
+			if err != nil {
+				log.Printf("Failed to update stock %s during sector event: %v", stock.Symbol, err)
+				continue
+			}
+			
+			affectedStocks++
+		}
+	}
+	
+	// Create news event
+	sector, _ := s.sectorRepo.GetSectorByID(sectorID)
+	sectorName := "Unknown"
+	if sector != nil {
+		sectorName = sector.Name
+	}
+	
+	newsTitle := fmt.Sprintf("%s Sector %s", sectorName, eventType)
+	newsContent := fmt.Sprintf("The %s sector experiences a major %s! %d stocks affected with %.1f%% price impact.", 
+		sectorName, eventType, affectedStocks, impactPercentage)
+	
+	s.newsService.CreateSystemNews(newsTitle, newsContent, "sector_event", 0, 0)
+	
+	log.Printf("Applied %s event to %s sector: %d stocks affected", eventType, sectorName, affectedStocks)
+	return nil
+}

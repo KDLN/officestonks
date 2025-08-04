@@ -4,6 +4,7 @@ import Navigation from "../components/Navigation";
 import GameConfigSection from "../components/GameConfigSection";
 import StorageHealthPanel from "../components/StorageHealthPanel";
 import LogsPanel from "../components/LogsPanel";
+import StockManagementSection from "../components/StockManagementSection";
 import {
   checkAdminStatus,
   getAllUsers,
@@ -366,6 +367,8 @@ const AdminPanel = () => {
         {error && <div className="error-message">{error}</div>}
 
         {statusMessage && <div className="status-message">{statusMessage}</div>}
+
+        <StockManagementSection />
 
         <GameConfigSection
           gameConfig={gameConfig}

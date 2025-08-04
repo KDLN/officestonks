@@ -333,9 +333,9 @@ func (s *MarketSimulator) updatePrices() {
 			newPrice = 10.00
 		}
 
-		// Ensure price doesn't go below $1.00 to prevent death spiral
-		if newPrice < 1.00 {
-			newPrice = 1.00
+		// Ensure price doesn't go below $0.01 (penny stock floor)
+		if newPrice < 0.01 {
+			newPrice = 0.01
 		} else if newPrice > 1000000 { // Cap at $1M per share
 			newPrice = 1000000
 		}

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
 	"math"
@@ -216,6 +217,168 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 		}
 	}
 
+	return stocks, nil
+}
+
+// CreateStock creates a new stock
+func (r *StockRepo) CreateStock(symbol, name, sector string, sectorID int, initialPrice float64, marketCapCategory, volatilityProfile, description string) (*models.Stock, error) {
+	query := `
+		INSERT INTO stocks (symbol, name, sector, sector_id, current_price, initial_price, 
+		                   market_cap_category, volatility_profile, company_description, 
+		                   status, launch_date)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+	`
+	
+	result, err := r.db.Exec(query, symbol, name, sector, sectorID, initialPrice, initialPrice, 
+		marketCapCategory, volatilityProfile, description)
+	if err != nil {
+		return nil, err
+	}
+	
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	
+	// Return the created stock
+	return r.GetStockByID(int(id))
+}
+
+// UpdateStockDetails updates all editable stock properties
+func (r *StockRepo) UpdateStockDetails(id int, name, sector string, sectorID int, volatilityProfile, description string) error {
+	query := `
+		UPDATE stocks 
+		SET name = ?, sector = ?, sector_id = ?, volatility_profile = ?, 
+		    company_description = ?, last_updated = NOW()
+		WHERE id = ?
+	`
+	
+	_, err := r.db.Exec(query, name, sector, sectorID, volatilityProfile, description, id)
+	return err
+}
+
+// DeleteStock soft deletes a stock by setting status to 'delisted'
+func (r *StockRepo) DeleteStock(id int) error {
+	query := `UPDATE stocks SET status = 'delisted', last_updated = NOW() WHERE id = ?`
+	_, err := r.db.Exec(query, id)
+	return err
+}
+
+// LaunchIPO launches a new stock as an IPO
+func (r *StockRepo) LaunchIPO(symbol, name, sector string, sectorID int, ipoPrice float64, sharesAvailable int) (*models.Stock, error) {
+	// Create as penny stock with IPO parameters
+	marketCap := "penny"
+	if ipoPrice > 5 {
+		marketCap = "small"
+	}
+	if ipoPrice > 50 {
+		marketCap = "mid"
+	}
+	
+	query := `
+		INSERT INTO stocks (symbol, name, sector, sector_id, current_price, initial_price,
+		                   market_cap_category, volatility_profile, ipo_shares_available,
+		                   status, launch_date)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 'volatile', ?, 'active', NOW())
+	`
+	
+	result, err := r.db.Exec(query, symbol, name, sector, sectorID, ipoPrice, ipoPrice, 
+		marketCap, sharesAvailable)
+	if err != nil {
+		return nil, err
+	}
+	
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+	
+	// Log IPO event
+	r.logStockEvent(int(id), "ipo", ipoPrice, map[string]interface{}{
+		"shares_available": sharesAvailable,
+		"ipo_price": ipoPrice,
+	})
+	
+	return r.GetStockByID(int(id))
+}
+
+// ForceDelisting forces a stock to be delisted
+func (r *StockRepo) ForceDelisting(id int, reason string) error {
+	// Get current price first
+	stock, err := r.GetStockByID(id)
+	if err != nil {
+		return err
+	}
+	
+	// Update status
+	query := `UPDATE stocks SET status = 'delisted', last_updated = NOW() WHERE id = ?`
+	_, err = r.db.Exec(query, id)
+	if err != nil {
+		return err
+	}
+	
+	// Log delisting event
+	r.logStockEvent(id, "delisting", stock.CurrentPrice, map[string]interface{}{
+		"reason": reason,
+		"final_price": stock.CurrentPrice,
+	})
+	
+	return nil
+}
+
+// logStockEvent logs a lifecycle event for a stock
+func (r *StockRepo) logStockEvent(stockID int, eventType string, priceAtEvent float64, details map[string]interface{}) error {
+	detailsJSON, _ := json.Marshal(details)
+	
+	query := `
+		INSERT INTO stock_lifecycle_events (stock_id, event_type, price_at_event, details)
+		VALUES (?, ?, ?, ?)
+	`
+	
+	_, err := r.db.Exec(query, stockID, eventType, priceAtEvent, string(detailsJSON))
+	return err
+}
+
+// GetStocksByStatus returns all stocks with a specific status
+func (r *StockRepo) GetStocksByStatus(status string) ([]*models.Stock, error) {
+	query := `
+		SELECT id, symbol, name, sector, sector_id, current_price, status, 
+		       crisis_start, recovery_chance, bankruptcy_chance, last_updated
+		FROM stocks
+		WHERE status = ?
+		ORDER BY symbol ASC
+	`
+	
+	rows, err := r.db.Query(query, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var stocks []*models.Stock
+	for rows.Next() {
+		var stock models.Stock
+		var statusStr string
+		err := rows.Scan(
+			&stock.ID,
+			&stock.Symbol,
+			&stock.Name,
+			&stock.Sector,
+			&stock.SectorID,
+			&stock.CurrentPrice,
+			&statusStr,
+			&stock.CrisisStart,
+			&stock.RecoveryChance,
+			&stock.BankruptcyChance,
+			&stock.LastUpdated,
+		)
+		if err != nil {
+			return nil, err
+		}
+		stock.Status = models.StockStatus(statusStr)
+		stocks = append(stocks, &stock)
+	}
+	
 	return stocks, nil
 }
 
