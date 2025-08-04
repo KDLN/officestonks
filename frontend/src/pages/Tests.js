@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navigation from '../components/Navigation';
-import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, getTestStatus } from '../services/admin';
+import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, createMissingSectors, getTestStatus } from '../services/admin';
 import { initSSE, addSSEListener, removeSSEListener, isSSEConnected, getSSEConnectionState, forceSSEReconnect } from '../services/sse';
 import { initWebSocket, getWebSocketInstance } from '../services/websocket';
 import './Tests.css';
@@ -1980,6 +1980,53 @@ const Tests = () => {
     return String(duration);
   };
 
+  // Create missing sectors to fix foreign key constraints
+  const handleCreateSectors = async () => {
+    setIsRunning(true);
+    setError(null);
+    
+    try {
+      addLogMessage('🔧 Creating missing sectors to fix foreign key constraints...');
+      const result = await createMissingSectors();
+      
+      addLogMessage(`✅ Sectors creation result: ${result.message}`);
+      
+      if (result.existing_sectors && result.existing_sectors.length > 0) {
+        addLogMessage(`📊 Created sectors: ${result.existing_sectors.map(s => `${s.id}: ${s.name}`).join(', ')}`);
+      }
+      
+      if (result.errors && result.errors.length > 0) {
+        result.errors.forEach(error => {
+          addLogMessage(`❌ Error: ${error}`);
+        });
+      }
+      
+      // Show success message with next steps
+      const nextStepsMessage = result.next_steps ? result.next_steps.join(' • ') : 'Re-run Stock Management Debug Suite to verify fix';
+      addLogMessage(`🎯 Next: ${nextStepsMessage}`);
+      
+      // Automatically re-run the stock management tests to verify the fix
+      if (result.status === 'completed' || result.status === 'partial_success') {
+        addLogMessage('🔄 Automatically re-running Stock Management Debug Suite...');
+        setTimeout(async () => {
+          try {
+            const testResults = await runStockManagementTests();
+            setTestSuite(testResults);
+            addLogMessage('✅ Stock Management Debug Suite completed - check if sectors issue is resolved!');
+          } catch (err) {
+            addLogMessage(`❌ Failed to re-run tests: ${err.message}`);
+          }
+        }, 1000);
+      }
+      
+    } catch (err) {
+      setError(`Failed to create sectors: ${err.message}`);
+      addLogMessage(`❌ Error creating sectors: ${err.message}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="tests-page">
       <Navigation />
@@ -2121,22 +2168,45 @@ const Tests = () => {
               )}
             </div>
           ) : (
-            <button 
-              onClick={runTests} 
-              disabled={isRunning}
-              className={`run-tests-btn ${isRunning ? 'running' : ''}`}
-            >
-              {isRunning ? (
-                <>
-                  <span className="spinner"></span>
-                  Running Tests...
-                </>
-              ) : (
-                <>
-                  ▶️ Run Tests
-                </>
+            <div className="test-buttons-container">
+              <button 
+                onClick={runTests} 
+                disabled={isRunning}
+                className={`run-tests-btn ${isRunning ? 'running' : ''}`}
+              >
+                {isRunning ? (
+                  <>
+                    <span className="spinner"></span>
+                    Running Tests...
+                  </>
+                ) : (
+                  <>
+                    ▶️ Run Tests
+                  </>
+                )}
+              </button>
+              
+              {/* Show Create Sectors button if stock-management test is selected and sectors are missing */}
+              {selectedTest === 'stock-management' && testSuite && testSuite.tests && testSuite.tests.some(test => test.test_name === 'Sectors Table Check' && test.status === 'failed') && (
+                <button 
+                  onClick={handleCreateSectors} 
+                  disabled={isRunning}
+                  className={`run-tests-btn sectors-fix-btn ${isRunning ? 'running' : ''}`}
+                  title="Create missing sectors to fix foreign key constraint errors"
+                >
+                  {isRunning ? (
+                    <>
+                      <span className="spinner"></span>
+                      Creating Sectors...
+                    </>
+                  ) : (
+                    <>
+                      🔧 Create Missing Sectors
+                    </>
+                  )}
+                </button>
               )}
-            </button>
+            </div>
           )}
         </div>
 

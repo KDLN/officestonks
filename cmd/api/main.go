@@ -135,7 +135,7 @@ func main() {
 	changelogHandler := handlers.NewChangelogHandler(changelogService)
 	auditHandler := handlers.NewAuditHandler(auditService)
 	gameConfigHandler := handlers.NewGameConfigHandler()
-	testHandler := handlers.NewTestHandler(marketService, userService, stockRepo, portfolioRepo, delistedStockRepo, portfolioLossRepo, newsRepo)
+	testHandler := handlers.NewTestHandler(db, marketService, userService, stockRepo, portfolioRepo, delistedStockRepo, portfolioLossRepo, newsRepo)
 	portfolioTestHandler := handlers.NewPortfolioTestHandler(marketService, userService, stockRepo, userRepo, portfolioRepo, transactionRepo)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
 	monitoringTestHandler := handlers.NewMonitoringTestHandler(db)
@@ -561,6 +561,7 @@ func main() {
 	adminRouter.HandleFunc("/tests/portfolio", portfolioTestHandler.RunPortfolioTests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/sse", testHandler.RunSSETests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/stock-management", testHandler.RunStockManagementTests).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/tests/create-sectors", testHandler.CreateMissingSectors).Methods("POST", "OPTIONS")
 
 	// Monitoring endpoints
 	adminRouter.HandleFunc("/monitoring/dashboard", monitoringHandler.GetMonitoringDashboard).Methods("GET", "OPTIONS")

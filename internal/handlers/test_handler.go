@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,6 +14,7 @@ import (
 
 // TestHandler handles test orchestration endpoints
 type TestHandler struct {
+	db             *sql.DB
 	marketService  *services.MarketService
 	userService    *services.UserService
 	stockRepo      models.StockRepository
@@ -24,6 +26,7 @@ type TestHandler struct {
 
 // NewTestHandler creates a new test handler
 func NewTestHandler(
+	db *sql.DB,
 	marketService *services.MarketService,
 	userService *services.UserService,
 	stockRepo models.StockRepository,
@@ -33,6 +36,7 @@ func NewTestHandler(
 	newsRepo models.NewsRepository,
 ) *TestHandler {
 	return &TestHandler{
+		db:             db,
 		marketService:  marketService,
 		userService:    userService,
 		stockRepo:      stockRepo,
@@ -784,6 +788,106 @@ func (h *TestHandler) testStockDeletion() TestResult {
 			"symbol": testSymbol,
 		},
 	}
+}
+
+// CreateMissingSectors creates the basic sectors needed for stock operations
+func (h *TestHandler) CreateMissingSectors(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	log.Printf("🔧 Creating missing sectors to fix foreign key constraints...")
+	
+	// Check if database connection is available
+	if h.db == nil {
+		result := map[string]interface{}{
+			"status": "error",
+			"message": "Database connection not available",
+		}
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	
+	// Define the sectors to create
+	sectors := []struct {
+		ID   int
+		Name string
+	}{
+		{1, "Technology"},
+		{2, "Healthcare"},
+		{3, "Finance"},
+		{4, "Energy"},
+		{5, "Consumer"},
+		{6, "Industrial"},
+		{7, "Real Estate"},
+		{8, "Utilities"},
+		{9, "Materials"},
+		{10, "Communications"},
+	}
+	
+	created := 0
+	errors := []string{}
+	
+	// Try to create each sector
+	for _, sector := range sectors {
+		query := `INSERT INTO sectors (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)`
+		_, err := h.db.Exec(query, sector.ID, sector.Name)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Failed to create sector %d (%s): %v", sector.ID, sector.Name, err))
+			log.Printf("❌ Failed to create sector %d (%s): %v", sector.ID, sector.Name, err)
+		} else {
+			created++
+			log.Printf("✅ Created/updated sector %d: %s", sector.ID, sector.Name)
+		}
+	}
+	
+	// Verify sectors were created by querying them back
+	verifyQuery := `SELECT id, name FROM sectors ORDER BY id`
+	rows, err := h.db.Query(verifyQuery)
+	var existingSectors []map[string]interface{}
+	
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var id int
+			var name string
+			if err := rows.Scan(&id, &name); err == nil {
+				existingSectors = append(existingSectors, map[string]interface{}{
+					"id":   id,
+					"name": name,
+				})
+			}
+		}
+	}
+	
+	result := map[string]interface{}{
+		"status":           "completed",
+		"message":          fmt.Sprintf("Created/updated %d sectors", created),
+		"sectors_created":  created,
+		"total_attempted":  len(sectors),
+		"existing_sectors": existingSectors,
+		"errors":           errors,
+		"next_steps": []string{
+			"Re-run the Stock Management Debug Suite to verify sectors exist",
+			"Stock operations should now work without foreign key errors",
+		},
+	}
+	
+	if len(errors) > 0 {
+		result["status"] = "partial_success"
+		result["message"] = fmt.Sprintf("Created %d sectors with %d errors", created, len(errors))
+	}
+	
+	json.NewEncoder(w).Encode(result)
 }
 
 // testSectorsTable checks what sectors exist and creates missing ones

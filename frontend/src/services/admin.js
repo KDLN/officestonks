@@ -573,3 +573,25 @@ export const runStockManagementTests = async () => {
     throw error;
   }
 };
+
+// Create missing sectors to fix foreign key constraints (admin only)
+export const createMissingSectors = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/create-sectors`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to create missing sectors");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating missing sectors:", error);
+    throw error;
+  }
+};
