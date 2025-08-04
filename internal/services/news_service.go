@@ -232,3 +232,25 @@ func (s *NewsService) GetStockNews(stockID int, limit int) ([]*models.NewsItem, 
 func (s *NewsService) GetSectorNews(sectorName string, limit int) ([]*models.NewsItem, error) {
 	return s.repo.GetNewsBySector(sectorName, limit)
 }
+
+// CreateSystemNews creates a simple system-generated news item (for admin actions)
+func (s *NewsService) CreateSystemNews(title, content, newsType string, stockID int, impactScore float64) error {
+	var stockIDPtr *int
+	if stockID > 0 {
+		stockIDPtr = &stockID
+	}
+	
+	newsItem := &models.NewsItem{
+		Type:        models.NewsType(newsType),
+		StockID:     stockIDPtr,
+		Title:       title,
+		Content:     content,
+		ImpactType:  models.ImpactTypeImmediate,
+		ImpactScore: int(impactScore), // Convert float64 to int
+		ExpiresAt:   time.Now().Add(24 * time.Hour),
+		IsAutomated: true,
+	}
+	
+	log.Printf("📰 Creating system news: %s", title)
+	return s.repo.CreateNewsItem(newsItem)
+}
