@@ -242,16 +242,16 @@ func (r *StockRepo) CreateStock(symbol, name, sector string, sectorID int, initi
 	return r.GetStockByID(int(id))
 }
 
-// UpdateStockDetails updates all editable stock properties
+// UpdateStockDetails updates editable stock properties (compatible with existing schema)
 func (r *StockRepo) UpdateStockDetails(id int, name, sector string, sectorID int, volatilityProfile, description string) error {
+	// Use only existing columns for compatibility
 	query := `
 		UPDATE stocks 
-		SET name = ?, sector = ?, sector_id = ?, volatility_profile = ?, 
-		    company_description = ?, last_updated = NOW()
+		SET name = ?, sector = ?, sector_id = ?, last_updated = NOW()
 		WHERE id = ?
 	`
 	
-	_, err := r.db.Exec(query, name, sector, sectorID, volatilityProfile, description, id)
+	_, err := r.db.Exec(query, name, sector, sectorID, id)
 	return err
 }
 

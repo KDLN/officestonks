@@ -459,7 +459,7 @@ func (h *PortfolioTestHandler) runPortfolioTest(suite *TestSuite, testName strin
 	details, err := testFunc()
 	
 	duration := time.Since(startTime)
-	result.Duration = duration.String()
+	result.Duration = int(duration.Milliseconds())
 	
 	if err != nil {
 		result.Status = "failed"

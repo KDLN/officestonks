@@ -560,6 +560,7 @@ func main() {
 	adminRouter.HandleFunc("/tests/crisis", testHandler.RunCrisisTests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/portfolio", portfolioTestHandler.RunPortfolioTests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/sse", testHandler.RunSSETests).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/tests/stock-management", testHandler.RunStockManagementTests).Methods("POST", "OPTIONS")
 
 	// Monitoring endpoints
 	adminRouter.HandleFunc("/monitoring/dashboard", monitoringHandler.GetMonitoringDashboard).Methods("GET", "OPTIONS")
