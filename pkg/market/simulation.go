@@ -330,12 +330,12 @@ func (s *MarketSimulator) updatePrices() {
 		// Validate the calculated price
 		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
 			// Reset to a safe price if calculation went wrong
-			newPrice = 0.01
+			newPrice = 10.00
 		}
 
-		// Ensure price doesn't go below 0.01 or above reasonable maximum
-		if newPrice < 0.01 {
-			newPrice = 0.01
+		// Ensure price doesn't go below $1.00 to prevent death spiral
+		if newPrice < 1.00 {
+			newPrice = 1.00
 		} else if newPrice > 1000000 { // Cap at $1M per share
 			newPrice = 1000000
 		}
@@ -786,11 +786,11 @@ func (s *MarketSimulator) ProcessTransaction(stockID int, quantity int, isBuy bo
 func (s *MarketSimulator) getPriceZoneVolatility(price float64) float64 {
 	switch {
 	case price <= 1.0:
-		// Penny stocks: High volatility (10%)
-		return 0.10
+		// Penny stocks: Reduced volatility to prevent death spiral (3%)
+		return 0.03
 	case price <= 10.0:
-		// Low-cap: Medium volatility (7%)
-		return 0.07
+		// Low-cap: Medium volatility (5%)
+		return 0.05
 	case price <= 100.0:
 		// Mid-cap: Normal volatility (5%)
 		return s.volatility // Use base volatility (5%)
