@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navigation from '../components/Navigation';
-import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, createMissingSectors, getTestStatus } from '../services/admin';
+import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, createMissingSectors, testAdminStockUpdate, getTestStatus } from '../services/admin';
 import { initSSE, addSSEListener, removeSSEListener, isSSEConnected, getSSEConnectionState, forceSSEReconnect } from '../services/sse';
 import { initWebSocket, getWebSocketInstance } from '../services/websocket';
 import './Tests.css';
@@ -1912,6 +1912,9 @@ const Tests = () => {
         case 'stock-management':
           results = await runStockManagementTests();
           break;
+        case 'admin-stock-update':
+          results = await testAdminStockUpdate();
+          break;
         case 'sse-comprehensive':
           results = await runComprehensiveSSETests();
           break;
@@ -2062,6 +2065,7 @@ const Tests = () => {
               <option value="portfolio">💼 Portfolio & Trading Test Suite</option>
               <option value="sse">📡 Basic SSE Test Suite</option>
               <option value="stock-management">🔧 Stock Management Debug Suite</option>
+              <option value="admin-stock-update">🔬 Admin Stock Update Test</option>
               <option value="changelog">📰 Changelog System Test Suite</option>
               <option value="monitoring">📊 Monitoring System Test Suite</option>
             </select>
@@ -2686,6 +2690,16 @@ const Tests = () => {
                     <li>Stock Update - Tests UpdateStockDetails (currently failing with 500)</li>
                     <li>IPO Launch - Tests LaunchIPO functionality</li>
                     <li>Stock Deletion - Tests ForceDelisting operation</li>
+                  </ul>
+                </div>
+                <div className="suite-info">
+                  <h5>🔬 Admin Stock Update Test:</h5>
+                  <ul>
+                    <li>Frontend-Backend Compatibility - Tests exact data format sent by admin panel</li>
+                    <li>UpdateStockDetails Test - Direct test of repository method</li>
+                    <li>UpdateStockPrice Test - Direct test of price update method</li>
+                    <li>Data Verification - Checks if changes are actually persisted</li>
+                    <li>Error Isolation - Identifies whether issue is in parsing, database, or validation</li>
                   </ul>
                 </div>
                 <div className="suite-info">

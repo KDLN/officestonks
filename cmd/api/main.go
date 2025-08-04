@@ -562,6 +562,7 @@ func main() {
 	adminRouter.HandleFunc("/tests/sse", testHandler.RunSSETests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/stock-management", testHandler.RunStockManagementTests).Methods("POST", "OPTIONS")
 	adminRouter.HandleFunc("/tests/create-sectors", testHandler.CreateMissingSectors).Methods("POST", "OPTIONS")
+	adminRouter.HandleFunc("/tests/admin-stock-update", testHandler.TestStockAdminUpdate).Methods("POST", "OPTIONS")
 
 	// Monitoring endpoints
 	adminRouter.HandleFunc("/monitoring/dashboard", monitoringHandler.GetMonitoringDashboard).Methods("GET", "OPTIONS")

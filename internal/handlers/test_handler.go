@@ -790,6 +790,133 @@ func (h *TestHandler) testStockDeletion() TestResult {
 	}
 }
 
+// TestStockAdminUpdate tests the specific admin stock update endpoint
+func (h *TestHandler) TestStockAdminUpdate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	log.Printf("🧪 Testing admin stock update endpoint...")
+	
+	// Get first stock to test with
+	stocks, err := h.stockRepo.GetAllStocks()
+	if err != nil || len(stocks) == 0 {
+		result := map[string]interface{}{
+			"status":  "error",
+			"message": "No stocks available for testing",
+			"error":   err.Error(),
+		}
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	
+	testStock := stocks[0]
+	originalName := testStock.Name
+	testName := "ADMIN TEST " + originalName
+	
+	// Test the exact same format that the frontend sends
+	testData := map[string]interface{}{
+		"name":               testName,
+		"sector":             testStock.Sector,
+		"sector_id":          1, // Use a known good sector ID
+		"current_price":      testStock.CurrentPrice + 1.0, // Increment by $1
+		"volatility_profile": "normal",
+		"description":        "Admin panel test update",
+	}
+	
+	log.Printf("🔬 Testing with data: %+v", testData)
+	
+	// Convert to JSON to test the exact same data format that the frontend sends
+	testDataJSON, _ := json.Marshal(testData)
+	
+	// Simulate the admin update process directly
+	var req struct {
+		Name              string  `json:"name"`
+		Sector            string  `json:"sector"`
+		SectorID          int     `json:"sector_id"`
+		CurrentPrice      float64 `json:"current_price"`
+		VolatilityProfile string  `json:"volatility_profile"`
+		Description       string  `json:"description"`
+	}
+	
+	err = json.Unmarshal(testDataJSON, &req)
+	if err != nil {
+		result := map[string]interface{}{
+			"status":  "error",
+			"message": "Failed to parse test data",
+			"error":   err.Error(),
+		}
+		json.NewEncoder(w).Encode(result)
+		return
+	}
+	
+	log.Printf("🔬 Parsed request data: %+v", req)
+	
+	// Test UpdateStockDetails
+	err = h.stockRepo.UpdateStockDetails(testStock.ID, req.Name, req.Sector, req.SectorID, req.VolatilityProfile, req.Description)
+	updateDetailsError := ""
+	if err != nil {
+		updateDetailsError = err.Error()
+		log.Printf("❌ UpdateStockDetails failed: %v", err)
+	} else {
+		log.Printf("✅ UpdateStockDetails succeeded")
+	}
+	
+	// Test UpdateStockPrice
+	priceUpdateError := ""
+	if req.CurrentPrice > 0 {
+		err = h.stockRepo.UpdateStockPrice(testStock.ID, req.CurrentPrice)
+		if err != nil {
+			priceUpdateError = err.Error()
+			log.Printf("❌ UpdateStockPrice failed: %v", err)
+		} else {
+			log.Printf("✅ UpdateStockPrice succeeded")
+		}
+	}
+	
+	// Get updated stock to verify changes
+	updatedStock, err := h.stockRepo.GetStockByID(testStock.ID)
+	verifyError := ""
+	if err != nil {
+		verifyError = err.Error()
+	}
+	
+	// Revert changes
+	h.stockRepo.UpdateStockDetails(testStock.ID, originalName, testStock.Sector, 1, "normal", "")
+	h.stockRepo.UpdateStockPrice(testStock.ID, testStock.CurrentPrice)
+	
+	result := map[string]interface{}{
+		"status":             "completed",
+		"message":            "Admin stock update test completed",
+		"test_stock_id":      testStock.ID,
+		"original_name":      originalName,
+		"test_name":          testName,
+		"original_price":     testStock.CurrentPrice,
+		"test_price":         req.CurrentPrice,
+		"update_details_error": updateDetailsError,
+		"price_update_error":   priceUpdateError,
+		"verify_error":         verifyError,
+		"updated_stock":        updatedStock,
+		"request_data":         req,
+	}
+	
+	if updateDetailsError != "" || priceUpdateError != "" || verifyError != "" {
+		result["status"] = "failed"
+		result["message"] = "Admin stock update test had errors"
+	}
+	
+	json.NewEncoder(w).Encode(result)
+}
+
 // CreateMissingSectors creates the basic sectors needed for stock operations
 func (h *TestHandler) CreateMissingSectors(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

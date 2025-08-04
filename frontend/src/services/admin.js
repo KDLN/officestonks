@@ -595,3 +595,25 @@ export const createMissingSectors = async () => {
     throw error;
   }
 };
+
+// Test admin stock update endpoint (admin only) - for debugging edit issues
+export const testAdminStockUpdate = async () => {
+  try {
+    const response = await authenticatedFetch(`${ADMIN_URL}/tests/admin-stock-update`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to test admin stock update");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error testing admin stock update:", error);
+    throw error;
+  }
+};
