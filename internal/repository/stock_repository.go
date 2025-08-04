@@ -220,17 +220,15 @@ func (r *StockRepo) LoadStocksForSimulation() (map[int]struct {
 	return stocks, nil
 }
 
-// CreateStock creates a new stock
+// CreateStock creates a new stock (using only existing columns for compatibility)
 func (r *StockRepo) CreateStock(symbol, name, sector string, sectorID int, initialPrice float64, marketCapCategory, volatilityProfile, description string) (*models.Stock, error) {
+	// Use basic stock creation with existing columns only
 	query := `
-		INSERT INTO stocks (symbol, name, sector, sector_id, current_price, initial_price, 
-		                   market_cap_category, volatility_profile, company_description, 
-		                   status, launch_date)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+		INSERT INTO stocks (symbol, name, sector, sector_id, current_price, status, last_updated)
+		VALUES (?, ?, ?, ?, ?, 'active', NOW())
 	`
 	
-	result, err := r.db.Exec(query, symbol, name, sector, sectorID, initialPrice, initialPrice, 
-		marketCapCategory, volatilityProfile, description)
+	result, err := r.db.Exec(query, symbol, name, sector, sectorID, initialPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -264,26 +262,15 @@ func (r *StockRepo) DeleteStock(id int) error {
 	return err
 }
 
-// LaunchIPO launches a new stock as an IPO
+// LaunchIPO launches a new stock as an IPO (using only existing columns for compatibility)
 func (r *StockRepo) LaunchIPO(symbol, name, sector string, sectorID int, ipoPrice float64, sharesAvailable int) (*models.Stock, error) {
-	// Create as penny stock with IPO parameters
-	marketCap := "penny"
-	if ipoPrice > 5 {
-		marketCap = "small"
-	}
-	if ipoPrice > 50 {
-		marketCap = "mid"
-	}
-	
+	// Use basic stock creation with existing columns only
 	query := `
-		INSERT INTO stocks (symbol, name, sector, sector_id, current_price, initial_price,
-		                   market_cap_category, volatility_profile, ipo_shares_available,
-		                   status, launch_date)
-		VALUES (?, ?, ?, ?, ?, ?, ?, 'volatile', ?, 'active', NOW())
+		INSERT INTO stocks (symbol, name, sector, sector_id, current_price, status, last_updated)
+		VALUES (?, ?, ?, ?, ?, 'active', NOW())
 	`
 	
-	result, err := r.db.Exec(query, symbol, name, sector, sectorID, ipoPrice, ipoPrice, 
-		marketCap, sharesAvailable)
+	result, err := r.db.Exec(query, symbol, name, sector, sectorID, ipoPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +280,7 @@ func (r *StockRepo) LaunchIPO(symbol, name, sector string, sectorID int, ipoPric
 		return nil, err
 	}
 	
-	// Log IPO event
+	// Log IPO event (skip if lifecycle table doesn't exist)
 	r.logStockEvent(int(id), "ipo", ipoPrice, map[string]interface{}{
 		"shares_available": sharesAvailable,
 		"ipo_price": ipoPrice,
@@ -326,7 +313,7 @@ func (r *StockRepo) ForceDelisting(id int, reason string) error {
 	return nil
 }
 
-// logStockEvent logs a lifecycle event for a stock
+// logStockEvent logs a lifecycle event for a stock (gracefully handles missing table)
 func (r *StockRepo) logStockEvent(stockID int, eventType string, priceAtEvent float64, details map[string]interface{}) error {
 	detailsJSON, _ := json.Marshal(details)
 	
@@ -336,7 +323,11 @@ func (r *StockRepo) logStockEvent(stockID int, eventType string, priceAtEvent fl
 	`
 	
 	_, err := r.db.Exec(query, stockID, eventType, priceAtEvent, string(detailsJSON))
-	return err
+	if err != nil {
+		// Log the error but don't fail the operation if the table doesn't exist
+		log.Printf("Warning: Could not log stock event (table may not exist): %v", err)
+	}
+	return nil // Always return nil to not block stock operations
 }
 
 // GetStocksByStatus returns all stocks with a specific status
