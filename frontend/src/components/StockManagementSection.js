@@ -155,6 +155,9 @@ const StockManagementSection = () => {
 
   const handleInlineEdit = (stock, field, value) => {
     const updates = { [field]: value };
+    console.log(`🔍 Inline edit triggered - Stock:`, stock);
+    console.log(`🔍 Field: ${field}, Value:`, value);
+    console.log(`🔍 Updates object:`, updates);
     handleUpdateStock(stock.id, updates);
   };
 

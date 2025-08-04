@@ -874,10 +874,53 @@ func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	// Update stock details
-	err = h.stockRepo.UpdateStockDetails(stockID, req.Name, req.Sector, req.SectorID, req.VolatilityProfile, req.Description)
+	log.Printf("🔬 Admin stock update - ID: %d, Request: %+v", stockID, req)
+	
+	// Get existing stock data to preserve values not being updated
+	existingStock, err := h.stockRepo.GetStockByID(stockID)
 	if err != nil {
-		log.Printf("Error updating stock: %v", err)
+		log.Printf("❌ Failed to get existing stock: %v", err)
+		http.Error(w, "Stock not found", http.StatusNotFound)
+		return
+	}
+	
+	// Use existing values for fields that are empty/default in the request
+	name := req.Name
+	if name == "" {
+		name = existingStock.Name
+	}
+	
+	sector := req.Sector
+	if sector == "" {
+		sector = existingStock.Sector
+	}
+	
+	sectorID := req.SectorID
+	if sectorID <= 0 {
+		// Use existing sector_id, or default to 1 if existing is also invalid
+		if existingStock.SectorID != nil && *existingStock.SectorID > 0 {
+			sectorID = *existingStock.SectorID
+		} else {
+			sectorID = 1 // Default to Technology
+		}
+		log.Printf("🔧 Using preserved/default sector_id: %d", sectorID)
+	}
+	
+	volatilityProfile := req.VolatilityProfile
+	if volatilityProfile == "" {
+		volatilityProfile = "normal" // Default value
+	}
+	
+	description := req.Description
+	// Description can be empty, so we allow it
+	
+	log.Printf("🔬 Final update parameters: name=%s, sector=%s, sectorID=%d, volatility=%s", 
+		name, sector, sectorID, volatilityProfile)
+	
+	// Update stock details
+	err = h.stockRepo.UpdateStockDetails(stockID, name, sector, sectorID, volatilityProfile, description)
+	if err != nil {
+		log.Printf("❌ UpdateStockDetails failed: %v", err)
 		http.Error(w, "Failed to update stock", http.StatusInternalServerError)
 		return
 	}
