@@ -157,6 +157,8 @@ export const createStock = async (stockData) => {
 
 export const updateStock = async (stockId, stockData) => {
   try {
+    console.log(`📡 API Call: PUT ${ADMIN_URL}/stocks/${stockId}`, stockData);
+    
     const response = await authenticatedFetch(`${ADMIN_URL}/stocks/${stockId}`, {
       method: "PUT",
       headers: {
@@ -165,14 +167,19 @@ export const updateStock = async (stockId, stockData) => {
       body: JSON.stringify(stockData),
     });
 
+    console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to update stock");
+      console.error(`📡 Error response:`, errorData);
+      throw new Error(errorData.error || `HTTP ${response.status}: Failed to update stock`);
     }
 
-    return await response.json();
+    const responseData = await response.json();
+    console.log(`📡 Success response:`, responseData);
+    return responseData;
   } catch (error) {
-    console.error("Error updating stock:", error);
+    console.error("❌ updateStock API error:", error);
     throw error;
   }
 };

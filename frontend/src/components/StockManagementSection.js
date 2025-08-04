@@ -95,11 +95,14 @@ const StockManagementSection = () => {
 
   const handleUpdateStock = async (stockId, updates) => {
     try {
+      console.log(`🔄 Updating stock ${stockId} with:`, updates);
       await updateStock(stockId, updates);
+      console.log(`✅ Stock ${stockId} updated successfully`);
       setEditingStock(null);
       fetchStocks();
     } catch (err) {
-      setError('Failed to update stock');
+      console.error(`❌ Failed to update stock ${stockId}:`, err);
+      setError(`Failed to update stock: ${err.message}`);
     }
   };
 
