@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"encoding/json"
 	"log"
 	"math"
 	"sync"
@@ -28,6 +29,9 @@ type Hub struct {
 
 	// Mutex for thread-safe operations
 	mu sync.Mutex
+
+	// Railway-compatible SSE handler (optional)
+	railwayHandler *RailwayCompatibleHandler
 }
 
 // NewHub creates a new hub
@@ -40,6 +44,11 @@ func NewHub(stockUpdates <-chan market.StockUpdate) *Hub {
 		messageQueue: make([]interface{}, 0, 100),
 		maxQueueSize: 100, // Keep last 100 messages
 	}
+}
+
+// SetRailwayHandler sets the Railway-compatible SSE handler
+func (h *Hub) SetRailwayHandler(handler *RailwayCompatibleHandler) {
+	h.railwayHandler = handler
 }
 
 // Run starts the hub's main loop
@@ -118,6 +127,13 @@ func (h *Hub) broadcastStockUpdate(update market.StockUpdate) {
 	for client := range h.clients {
 		client.Send(message)
 	}
+	
+	// Also broadcast to SSE clients if Railway handler is set
+	if h.railwayHandler != nil {
+		if jsonData, err := json.Marshal(message); err == nil {
+			h.railwayHandler.BroadcastToSSEClients(jsonData)
+		}
+	}
 }
 
 // BroadcastMessage sends a message to all connected clients
@@ -142,6 +158,13 @@ func (h *Hub) BroadcastMessage(messageType string, data interface{}) {
 	
 	for client := range h.clients {
 		client.Send(message)
+	}
+	
+	// Also broadcast to SSE clients if Railway handler is set
+	if h.railwayHandler != nil {
+		if jsonData, err := json.Marshal(message); err == nil {
+			h.railwayHandler.BroadcastToSSEClients(jsonData)
+		}
 	}
 }
 

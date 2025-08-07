@@ -124,6 +124,10 @@ func main() {
 
 	// Create websocket handler
 	wsHandler := websocket.NewWebSocketHandler(wsHub, authService, monitoringService)
+	
+	// Create Railway-compatible handler for environments that don't support WebSocket hijacking
+	railwayHandler := websocket.NewRailwayCompatibleHandler(wsHub, wsHandler)
+	wsHub.SetRailwayHandler(railwayHandler)
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService, auditService, monitoringService)
@@ -574,9 +578,9 @@ func main() {
 	adminRouter.HandleFunc("/monitoring/activity-range", monitoringHandler.GetActivityByTimeRange).Methods("GET", "OPTIONS")
 	adminRouter.HandleFunc("/monitoring/test", monitoringTestHandler.TestMonitoring).Methods("GET", "OPTIONS")
 
-	// WebSocket route with explicit OPTIONS handling
+	// WebSocket/SSE route with Railway-compatible fallback
 	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("WebSocket request received: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
+		log.Printf("Real-time connection request: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
 
 		// Special handling for OPTIONS requests
 		if r.Method == "OPTIONS" {
@@ -594,8 +598,8 @@ func main() {
 			return
 		}
 
-		// For actual WebSocket connections, use the handler
-		wsHandler.HandleConnection(w, r)
+		// Use Railway-compatible handler that automatically chooses WebSocket or SSE
+		railwayHandler.HandleRealTimeConnection(w, r)
 	})
 
 	// WebSocket health check endpoint with proper CORS handling

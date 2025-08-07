@@ -19,6 +19,9 @@ const HEARTBEAT_INTERVAL = 10000; // 10 seconds
 const HEARTBEAT_TIMEOUT = 5000; // 5 seconds to wait for pong
 const MAX_MISSED_HEARTBEATS = 3; // Force reconnect after 3 missed heartbeats
 
+// SSE connection for Railway compatibility
+let sseEventSource = null;
+
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
@@ -56,8 +59,33 @@ console.log('WebSocket using backend URL:', BACKEND_URL);
 // Get current connection state
 export const getConnectionState = () => connectionState;
 
+// Detect if we're on Railway deployment
+const isRailwayDeployment = () => {
+  return window.location.hostname.includes('railway.app') || 
+         window.location.hostname.includes('officestonks.com') ||
+         window.location.hostname.includes('beta.officestonks.com');
+};
+
 // Initialize WebSocket connection
 export const initWebSocket = async () => {
+  // If on Railway, immediately use SSE instead of WebSocket
+  if (isRailwayDeployment()) {
+    console.log('🚂 Railway deployment detected - using SSE for real-time updates');
+    console.log('Railway does not support WebSocket hijacking, switching to SSE');
+    
+    // Use SSE through the same /ws endpoint (Railway handler will serve SSE)
+    const token = await getAuthToken();
+    if (!token) {
+      console.error('No authentication token available for SSE connection');
+      connectionState = 'disconnected';
+      notifyListeners('connectionState', { state: 'disconnected', reason: 'no_token' });
+      return;
+    }
+    
+    initSSEConnection(token);
+    return;
+  }
+
   // Start forensic tracking for this connection attempt
   const attemptId = websocketForensics.startConnectionAttempt({
     url: getCurrentWebSocketURL(),
@@ -67,9 +95,8 @@ export const initWebSocket = async () => {
     reconnectAttempt: reconnectAttempts
   });
 
-  // Railway supports WebSocket when HTTP and WS are on the same port
-  // Let's try WebSocket first, fall back to polling if it fails
-  console.log('🔌 Attempting WebSocket connection (Railway compatible on same port)');
+  // For non-Railway deployments, try WebSocket
+  console.log('🔌 Attempting WebSocket connection (non-Railway environment)');
   
   // Reset any previous polling if WebSocket attempt is being made
   if (usePollingFallback) {
@@ -600,4 +627,89 @@ export const getConnectionDiagnostics = () => {
     isPollingActive: isPollingActive(),
     diagnostics: websocketForensics.generateReport()
   };
+};
+
+// Initialize SSE connection for Railway compatibility
+const initSSEConnection = (token) => {
+  if (sseEventSource && sseEventSource.readyState === EventSource.OPEN) {
+    console.log('SSE already connected');
+    return;
+  }
+  
+  console.log('🔗 Initializing SSE connection for Railway compatibility');
+  connectionState = 'connecting';
+  notifyListeners('connectionState', { state: 'connecting', protocol: 'SSE' });
+  
+  // Use the same /ws endpoint - Railway handler will serve SSE
+  const sseUrl = `${BACKEND_URL}/ws?token=${token}`;
+  console.log('SSE connecting to:', sseUrl);
+  
+  sseEventSource = new EventSource(sseUrl);
+  
+  sseEventSource.onopen = () => {
+    console.log('✅ SSE connection established');
+    connectionState = 'connected';
+    reconnectAttempts = 0;
+    notifyListeners('connection', { status: 'connected', protocol: 'SSE' });
+    notifyListeners('connectionState', { state: 'connected', protocol: 'SSE' });
+  };
+  
+  sseEventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log('📨 SSE message:', data);
+      
+      // Process the same way as WebSocket messages
+      if (data.type === 'stock_update') {
+        notifyListeners('stock_update', data);
+      } else if (data.type === 'connected') {
+        console.log('SSE connection confirmed:', data.message);
+      } else if (data.type === 'heartbeat' || data.type === 'pong') {
+        // Handle heartbeat/pong responses
+        console.log('SSE heartbeat received');
+      } else {
+        // Notify all listeners for other message types
+        notifyListeners(data.type || 'message', data);
+      }
+    } catch (error) {
+      console.error('Error parsing SSE message:', error, event.data);
+    }
+  };
+  
+  sseEventSource.onerror = (error) => {
+    console.error('❌ SSE connection error:', error);
+    
+    if (sseEventSource.readyState === EventSource.CLOSED) {
+      console.log('SSE connection closed, attempting reconnect...');
+      connectionState = 'disconnected';
+      notifyListeners('connectionState', { state: 'disconnected', protocol: 'SSE' });
+      
+      // Attempt to reconnect after delay
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        scheduleSSEReconnect();
+      } else {
+        console.error('SSE max reconnection attempts reached');
+        connectionState = 'failed';
+        notifyListeners('connectionState', { state: 'failed', protocol: 'SSE' });
+      }
+    }
+  };
+};
+
+// Schedule SSE reconnection
+const scheduleSSEReconnect = () => {
+  if (reconnectTimer) return;
+  
+  reconnectAttempts++;
+  const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_RECONNECT_DELAY);
+  
+  console.log(`Scheduling SSE reconnect attempt ${reconnectAttempts} in ${delay}ms`);
+  
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    const token = await getAuthToken();
+    if (token) {
+      initSSEConnection(token);
+    }
+  }, delay);
 };
