@@ -41,6 +41,7 @@ func NewSocketIOServer(stockUpdates <-chan market.StockUpdate, tokenValidator au
 	RemoveWebSocketConnection(connectionID string)
 }) *SocketIOServer {
 	// Create Socket.IO server with Railway-optimized settings
+	// Railway supports WebSocket over the same PORT - this is key!
 	server := socketio.NewServer(nil)
 
 	socketIOServer := &SocketIOServer{

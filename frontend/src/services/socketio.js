@@ -41,6 +41,7 @@ const getCurrentBackendURL = () => {
 const BACKEND_URL = getCurrentBackendURL();
 
 // Railway-optimized Socket.IO configuration
+// Railway supports WebSocket over same PORT - this is the key to success!
 const SOCKET_OPTIONS = {
   transports: ['websocket', 'polling'], // WebSocket first, polling fallback
   upgrade: true,
@@ -53,6 +54,9 @@ const SOCKET_OPTIONS = {
   reconnectionDelayMax: 30000,
   maxReconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
   randomizationFactor: 0.5,
+  // Railway-specific: ensure proper WebSocket URL formation
+  autoConnect: true,
+  forceBase64: false,
 };
 
 // Initialize Socket.IO connection

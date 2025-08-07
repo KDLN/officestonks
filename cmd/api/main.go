@@ -617,8 +617,9 @@ func main() {
 	// Socket.IO routes for modern real-time communication
 	log.Println("🔌 Setting up Socket.IO routes...")
 	
-	// Main Socket.IO endpoint
-	r.PathPrefix("/socket.io/").Handler(http.StripPrefix("/socket.io/", socketIOServer.GetHTTPHandler()))
+	// Main Socket.IO endpoint - Railway supports WSS over same PORT
+	// This is critical for Railway deployment success
+	r.PathPrefix("/socket.io/").Handler(socketIOServer.GetHTTPHandler())
 	
 	// TODO: Socket.IO Admin UI routes
 	// r.PathPrefix("/admin/socketio").HandlerFunc(adminServer.ServeAdminUI)
