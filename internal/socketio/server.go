@@ -7,14 +7,14 @@ import (
 	"sync"
 	"time"
 
-	socketio "github.com/doquangtan/socket.io/v4"
+	socketio "github.com/googollee/go-socket.io"
 	"officestonks/internal/auth"
 	"officestonks/pkg/market"
 )
 
 // SocketIOServer wraps the Socket.IO server with authentication and business logic
 type SocketIOServer struct {
-	io                *socketio.Io
+	server            *socketio.Server
 	tokenValidator    auth.TokenValidator
 	clients           map[string]*ClientInfo
 	clientsMutex      sync.RWMutex
@@ -40,11 +40,11 @@ func NewSocketIOServer(stockUpdates <-chan market.StockUpdate, tokenValidator au
 	TrackWebSocketConnection(connectionID string, userID int, username, ipAddress string)
 	RemoveWebSocketConnection(connectionID string)
 }) *SocketIOServer {
-	// Create Socket.IO server
-	io := socketio.New()
+	// Create Socket.IO server with Railway-optimized settings
+	server := socketio.NewServer(nil)
 
 	socketIOServer := &SocketIOServer{
-		io:                io,
+		server:            server,
 		tokenValidator:    tokenValidator,
 		clients:           make(map[string]*ClientInfo),
 		stockUpdates:      stockUpdates,
@@ -60,19 +60,19 @@ func NewSocketIOServer(stockUpdates <-chan market.StockUpdate, tokenValidator au
 // setupEventHandlers configures all Socket.IO event handlers
 func (s *SocketIOServer) setupEventHandlers() {
 	// Main connection handler with authentication
-	s.io.OnConnection(func(socket *socketio.Socket) {
-		log.Printf("🔗 Socket.IO connection attempt: %s", socket.Id)
+	s.server.OnConnect("/", func(conn socketio.Conn) error {
+		log.Printf("🔗 Socket.IO connection attempt: %s", conn.ID())
 		
 		// For now, skip token validation to get basic connection working
 		// TODO: Add proper token validation from query parameters
 		userID := 1 // Temporary - will implement proper auth later
 		
 		// Get client IP address (simplified for now)
-		clientIP := "unknown" // TODO: Extract from connection
+		clientIP := conn.RemoteAddr().String()
 		
 		// Register client
 		clientInfo := &ClientInfo{
-			SocketID:    socket.Id,
+			SocketID:    conn.ID(),
 			UserID:      userID,
 			Username:    fmt.Sprintf("User%d", userID),
 			IPAddress:   clientIP,
@@ -81,18 +81,18 @@ func (s *SocketIOServer) setupEventHandlers() {
 		}
 
 		s.clientsMutex.Lock()
-		s.clients[socket.Id] = clientInfo
+		s.clients[conn.ID()] = clientInfo
 		s.clientsMutex.Unlock()
 
 		// Track connection in monitoring service
 		if s.monitoringService != nil {
-			s.monitoringService.TrackWebSocketConnection(socket.Id, userID, clientInfo.Username, clientIP)
+			s.monitoringService.TrackWebSocketConnection(conn.ID(), userID, clientInfo.Username, clientIP)
 		}
 
-		log.Printf("✅ Socket.IO client connected: User %d (%s)", userID, socket.Id)
+		log.Printf("✅ Socket.IO client connected: User %d (%s)", userID, conn.ID())
 
 		// Send initial connection confirmation
-		socket.Emit("connected", map[string]interface{}{
+		conn.Emit("connected", map[string]interface{}{
 			"message":  fmt.Sprintf("Connected via Socket.IO. User ID: %d", userID),
 			"protocol": "Socket.IO",
 			"transport": "auto-detect", // Will be WebSocket or Polling
@@ -100,70 +100,92 @@ func (s *SocketIOServer) setupEventHandlers() {
 		})
 
 		// Join user to their personal room for targeted messages
-		socket.Join(fmt.Sprintf("user_%d", userID))
+		conn.Join(fmt.Sprintf("user_%d", userID))
 		clientInfo.Namespaces[fmt.Sprintf("user_%d", userID)] = true
 
-		// Note: OnDisconnect not available in this library version
-		// Disconnect handling will be managed through connection cleanup
+		return nil
+	})
 
-		// Handle ping messages for connection quality testing
-		socket.On("ping", func(event *socketio.EventPayload) {
-			socket.Emit("pong", map[string]interface{}{
-				"timestamp":    event.Data,
-				"server_time": time.Now().Unix(),
-			})
-		})
-
-		// Handle stock subscription requests
-		socket.On("subscribe_stocks", func(event *socketio.EventPayload) {
-			log.Printf("📊 Client %s subscribed to stock updates", socket.Id)
-			socket.Join("stocks")
+	// Handle disconnection
+	s.server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
+		log.Printf("⚠️ Socket.IO client disconnected: %s, reason: %s", conn.ID(), reason)
+		
+		s.clientsMutex.Lock()
+		if clientInfo, exists := s.clients[conn.ID()]; exists {
+			delete(s.clients, conn.ID())
 			
-			s.clientsMutex.Lock()
-			if clientInfo, exists := s.clients[socket.Id]; exists {
-				clientInfo.Namespaces["stocks"] = true
+			// Remove from monitoring service
+			if s.monitoringService != nil {
+				s.monitoringService.RemoveWebSocketConnection(conn.ID())
 			}
-			s.clientsMutex.Unlock()
 			
-			socket.Emit("subscription_confirmed", map[string]string{"channel": "stocks"})
+			log.Printf("📤 Client %s (User %d) removed from tracking", conn.ID(), clientInfo.UserID)
+		}
+		s.clientsMutex.Unlock()
+	})
+
+	// Handle ping messages for connection quality testing
+	s.server.OnEvent("/", "ping", func(conn socketio.Conn, data interface{}) {
+		conn.Emit("pong", map[string]interface{}{
+			"timestamp":    data,
+			"server_time": time.Now().Unix(),
 		})
+	})
 
-		// Handle chat room subscriptions
-		socket.On("join_chat", func(event *socketio.EventPayload) {
-			log.Printf("💬 Client %s joined chat", socket.Id)
-			socket.Join("chat")
-			
-			s.clientsMutex.Lock()
-			if clientInfo, exists := s.clients[socket.Id]; exists {
-				clientInfo.Namespaces["chat"] = true
-			}
-			s.clientsMutex.Unlock()
-			
-			socket.Emit("chat_joined", map[string]string{"status": "success"})
-		})
+	// Handle stock subscription requests
+	s.server.OnEvent("/", "subscribe_stocks", func(conn socketio.Conn) {
+		log.Printf("📊 Client %s subscribed to stock updates", conn.ID())
+		conn.Join("stocks")
+		
+		s.clientsMutex.Lock()
+		if clientInfo, exists := s.clients[conn.ID()]; exists {
+			clientInfo.Namespaces["stocks"] = true
+		}
+		s.clientsMutex.Unlock()
+		
+		conn.Emit("subscription_confirmed", map[string]string{"channel": "stocks"})
+	})
 
-		// Handle chat messages
-		socket.On("chat_message", func(event *socketio.EventPayload) {
-			s.clientsMutex.RLock()
-			clientInfo, exists := s.clients[socket.Id]
-			s.clientsMutex.RUnlock()
-			
-			if !exists {
-				return
-			}
+	// Handle chat room subscriptions
+	s.server.OnEvent("/", "join_chat", func(conn socketio.Conn) {
+		log.Printf("💬 Client %s joined chat", conn.ID())
+		conn.Join("chat")
+		
+		s.clientsMutex.Lock()
+		if clientInfo, exists := s.clients[conn.ID()]; exists {
+			clientInfo.Namespaces["chat"] = true
+		}
+		s.clientsMutex.Unlock()
+		
+		conn.Emit("chat_joined", map[string]string{"status": "success"})
+	})
 
-			// Broadcast chat message to all clients in chat room
-			chatData := map[string]interface{}{
-				"type":      "chat_message",
-				"user_id":   clientInfo.UserID,
-				"username":  clientInfo.Username,
-				"message":   event.Data,
-				"timestamp": time.Now().Unix(),
-			}
+	// Handle chat messages
+	s.server.OnEvent("/", "chat_message", func(conn socketio.Conn, message interface{}) {
+		s.clientsMutex.RLock()
+		clientInfo, exists := s.clients[conn.ID()]
+		s.clientsMutex.RUnlock()
+		
+		if !exists {
+			return
+		}
 
-			socket.To("chat").Emit("chat_message", chatData)
-			log.Printf("💬 Chat message from User %d: %v", clientInfo.UserID, event.Data)
-		})
+		// Broadcast chat message to all clients in chat room
+		chatData := map[string]interface{}{
+			"type":      "chat_message",
+			"user_id":   clientInfo.UserID,
+			"username":  clientInfo.Username,
+			"message":   message,
+			"timestamp": time.Now().Unix(),
+		}
+
+		s.server.BroadcastToRoom("/", "chat", "chat_message", chatData)
+		log.Printf("💬 Chat message from User %d: %v", clientInfo.UserID, message)
+	})
+
+	// Handle connection errors
+	s.server.OnError("/", func(conn socketio.Conn, err error) {
+		log.Printf("❌ Socket.IO error for %s: %v", conn.ID(), err)
 	})
 }
 
@@ -190,16 +212,16 @@ func (s *SocketIOServer) broadcastStockUpdates() {
 		}
 
 		// Broadcast to all clients subscribed to stocks room
-		s.io.To("stocks").Emit("stock_update", stockData)
+		s.server.BroadcastToRoom("/", "stocks", "stock_update", stockData)
 		
 		// Also broadcast to all connected clients (for compatibility)
-		s.io.Emit("stock_update", stockData)
+		s.server.BroadcastToNamespace("/", "stock_update", stockData)
 	}
 }
 
 // GetHTTPHandler returns the HTTP handler for Socket.IO
 func (s *SocketIOServer) GetHTTPHandler() http.Handler {
-	return s.io.HttpHandler()
+	return s.server
 }
 
 // GetConnectedClients returns information about all connected clients
@@ -216,12 +238,12 @@ func (s *SocketIOServer) GetConnectedClients() map[string]*ClientInfo {
 
 // BroadcastMessage sends a message to all connected clients
 func (s *SocketIOServer) BroadcastMessage(eventName string, data interface{}) {
-	s.io.Emit(eventName, data)
+	s.server.BroadcastToNamespace("/", eventName, data)
 }
 
 // BroadcastToRoom sends a message to all clients in a specific room
 func (s *SocketIOServer) BroadcastToRoom(room string, eventName string, data interface{}) {
-	s.io.To(room).Emit(eventName, data)
+	s.server.BroadcastToRoom("/", room, eventName, data)
 }
 
 // GetStats returns server statistics
