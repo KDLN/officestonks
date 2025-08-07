@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navigation from '../components/Navigation';
+import WebSocketDiagnostics from '../components/WebSocketDiagnostics';
 import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, createMissingSectors, testAdminStockUpdate, getTestStatus } from '../services/admin';
 import { initSSE, addSSEListener, removeSSEListener, isSSEConnected, getSSEConnectionState, forceSSEReconnect } from '../services/sse';
 import { initWebSocket, getWebSocketInstance } from '../services/websocket';
@@ -2058,6 +2059,7 @@ const Tests = () => {
               <option value="automated-testing">🤖 Automated Continuous Testing</option>
               <option value="sse-comprehensive">📡 Comprehensive SSE Tests</option>
               <option value="websocket-comprehensive">🔌 Comprehensive WebSocket Tests</option>
+              <option value="websocket-diagnostics">🔬 WebSocket Diagnostics Suite</option>
               <option value="performance-load">⚡ Performance & Load Tests</option>
               <option value="frontend-integration">🖥️ Frontend Integration Tests</option>
               <option value="end-to-end">🚀 End-to-End User Journey</option>
@@ -2574,6 +2576,11 @@ const Tests = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* WebSocket Diagnostics Suite */}
+        {selectedTest === 'websocket-diagnostics' && (
+          <WebSocketDiagnostics />
         )}
 
         {testSuite && (

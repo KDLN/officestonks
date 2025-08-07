@@ -1,5 +1,6 @@
 // WebSocket service for real-time updates
 import { getAuthToken } from './authBridge';
+import websocketForensics from './websocketForensics';
 
 let socket = null;
 let listeners = {};
@@ -57,6 +58,15 @@ export const getConnectionState = () => connectionState;
 
 // Initialize WebSocket connection
 export const initWebSocket = async () => {
+  // Start forensic tracking for this connection attempt
+  const attemptId = websocketForensics.startConnectionAttempt({
+    url: getCurrentWebSocketURL(),
+    timestamp: Date.now(),
+    userAgent: navigator.userAgent,
+    connectionState: connectionState,
+    reconnectAttempt: reconnectAttempts
+  });
+
   // Railway supports WebSocket when HTTP and WS are on the same port
   // Let's try WebSocket first, fall back to polling if it fails
   console.log('🔌 Attempting WebSocket connection (Railway compatible on same port)');
@@ -130,6 +140,17 @@ export const initWebSocket = async () => {
     socket.onopen = () => {
       clearTimeout(connectionTimeout);
       console.log('WebSocket connected successfully');
+      
+      // Log forensic success
+      websocketForensics.logConnectionStage(attemptId, 'websocket_open', {
+        protocol: socket.protocol,
+        readyState: socket.readyState
+      });
+      websocketForensics.completeConnectionAttempt(attemptId, 'success', {
+        protocol: socket.protocol,
+        readyState: socket.readyState
+      });
+      
       reconnectAttempts = 0;
       connectionState = 'connected';
       usePollingFallback = false;
@@ -174,7 +195,25 @@ export const initWebSocket = async () => {
     };
 
     socket.onclose = (event) => {
+      clearTimeout(connectionTimeout);
       console.log('WebSocket disconnected:', event.code, event.reason);
+      
+      // Log forensic data for the close event
+      websocketForensics.logConnectionStage(attemptId, 'websocket_close', {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+        readyState: socket.readyState
+      });
+      
+      // Only complete the attempt as failed if it wasn't already completed successfully
+      if (connectionState !== 'connected' || event.code !== 1000) {
+        websocketForensics.completeConnectionAttempt(attemptId, 'failed', {
+          reason: 'websocket_close',
+          code: event.code,
+          closeReason: event.reason
+        });
+      }
       
       // Log detailed error information for debugging
       const errorInfo = {
@@ -235,6 +274,14 @@ export const initWebSocket = async () => {
       }
     };
   } catch (error) {
+    websocketForensics.logConnectionError(attemptId, error, {
+      stage: 'websocket_creation_exception',
+      url: wsUrl
+    });
+    websocketForensics.completeConnectionAttempt(attemptId, 'failed', {
+      reason: 'creation_exception',
+      error: error.message
+    });
     console.error('Error creating WebSocket connection:', error);
     connectionState = 'failed';
     notifyListeners('error', error);
@@ -514,7 +561,43 @@ const stopPollingFallback = () => {
   }
 };
 
-// Export polling status for debugging
+// Helper functions for forensics integration
+const getCurrentWebSocketURL = () => {
+  const token = 'REDACTED'; // Don't log actual tokens
+  let wsUrl;
+  if (isLocalhost) {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname;
+    const wsPort = process.env.REACT_APP_WS_PORT || '8080';
+    wsUrl = `${wsProtocol}//${wsHost}:${wsPort}/ws?token=${token}`;
+  } else {
+    const wsHost = BACKEND_URL.replace(/^https?:\/\//, '');
+    wsUrl = `wss://${wsHost}/ws?token=${token}`;
+  }
+  return wsUrl.replace(/token=[^&]+/, 'token=REDACTED');
+};
+
+const isRailwayOrProduction = () => {
+  return window.location.hostname.includes('railway.app') || 
+         window.location.hostname.includes('officestonks.com') ||
+         window.location.hostname.includes('beta.officestonks.com');
+};
+
+// Export debugging functions
 export const isPollingActive = () => {
   return usePollingFallback && pollingInterval !== null;
+};
+
+export const getWebSocketForensics = () => {
+  return websocketForensics;
+};
+
+export const getConnectionDiagnostics = () => {
+  return {
+    connectionState,
+    reconnectAttempts,
+    usePollingFallback,
+    isPollingActive: isPollingActive(),
+    diagnostics: websocketForensics.generateReport()
+  };
 };
