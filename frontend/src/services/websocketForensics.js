@@ -364,6 +364,9 @@ class WebSocketForensics {
         case 'websocket_upgrade_complete':
           attempt.performance.wsUpgrade = stageTime;
           break;
+        default:
+          // Other stages don't have specific performance metrics
+          break;
       }
       
       previousTime = stage.timestamp;

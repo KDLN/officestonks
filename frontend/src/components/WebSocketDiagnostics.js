@@ -186,50 +186,50 @@ const WebSocketDiagnostics = () => {
   };
 
   const renderOverviewTab = () => (
-    <div className=\"diagnostics-overview\">
-      <div className=\"stats-grid\">
-        <div className=\"stat-card\">
+    <div className="diagnostics-overview">
+      <div className="stats-grid">
+        <div className="stat-card">
           <h3>Current Connection</h3>
           <div className={`status-indicator ${getConnectionStateColor(connectionStats.connectionState)}`}>
             {connectionStats.connectionState || 'Unknown'}
           </div>
-          <div className=\"stat-details\">
+          <div className="stat-details">
             <div>Reconnect Attempts: {connectionStats.reconnectAttempts || 0}</div>
             <div>Polling Active: {connectionStats.isPollingActive ? 'Yes' : 'No'}</div>
           </div>
         </div>
 
-        <div className=\"stat-card\">
+        <div className="stat-card">
           <h3>Success Rate</h3>
           <div className={`success-rate ${getSuccessRateColor(forensicsData.successRate || 0)}`}>
             {forensicsData.successRate ? `${forensicsData.successRate.toFixed(1)}%` : 'No data'}
           </div>
-          <div className=\"stat-details\">
+          <div className="stat-details">
             <div>Total Attempts: {forensicsData.totalAttempts || 0}</div>
             <div>Avg Connection: {forensicsData.averageConnectionTime ? `${forensicsData.averageConnectionTime}ms` : 'N/A'}</div>
           </div>
         </div>
 
-        <div className=\"stat-card\">
+        <div className="stat-card">
           <h3>Error Patterns</h3>
           {forensicsData.commonErrorPatterns && forensicsData.commonErrorPatterns.length > 0 ? (
-            <div className=\"error-patterns\">
+            <div className="error-patterns">
               {forensicsData.commonErrorPatterns.slice(0, 3).map((pattern, index) => (
-                <div key={index} className=\"error-pattern\">
-                  <span className=\"error-category\">{pattern.category}</span>
-                  <span className=\"error-count\">{pattern.count}x</span>
+                <div key={index} className="error-pattern">
+                  <span className="error-category">{pattern.category}</span>
+                  <span className="error-count">{pattern.count}x</span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className=\"no-data\">No error data</div>
+            <div className="no-data">No error data</div>
           )}
         </div>
 
-        <div className=\"stat-card\">
+        <div className="stat-card">
           <h3>Railway Analysis</h3>
           {forensicsData.railwaySpecificIssues ? (
-            <div className=\"railway-stats\">
+            <div className="railway-stats">
               <div>Railway Attempts: {forensicsData.railwaySpecificIssues.totalRailwayAttempts}</div>
               <div>Hijacker Errors: {forensicsData.railwaySpecificIssues.hijackerErrorCount}</div>
               <div className={`error-rate ${getSuccessRateColor(100 - forensicsData.railwaySpecificIssues.hijackerErrorRate)}`}>
@@ -237,82 +237,82 @@ const WebSocketDiagnostics = () => {
               </div>
             </div>
           ) : (
-            <div className=\"no-data\">No Railway data</div>
+            <div className="no-data">No Railway data</div>
           )}
         </div>
       </div>
 
-      <div className=\"recommendations\">
+      <div className="recommendations">
         <h3>Recommendations</h3>
         {forensicsData.recommendations && forensicsData.recommendations.length > 0 ? (
-          <div className=\"recommendation-list\">
+          <div className="recommendation-list">
             {forensicsData.recommendations.map((rec, index) => (
               <div key={index} className={`recommendation ${rec.priority}`}>
-                <div className=\"rec-header\">
-                  <span className=\"rec-priority\">{rec.priority.toUpperCase()}</span>
-                  <span className=\"rec-category\">{rec.category}</span>
+                <div className="rec-header">
+                  <span className="rec-priority">{rec.priority.toUpperCase()}</span>
+                  <span className="rec-category">{rec.category}</span>
                 </div>
-                <div className=\"rec-message\">{rec.recommendation || rec.message}</div>
-                {rec.action && <div className=\"rec-action\">Action: {rec.action}</div>}
-                {rec.evidence && <div className=\"rec-evidence\">Evidence: {rec.evidence}</div>}
+                <div className="rec-message">{rec.recommendation || rec.message}</div>
+                {rec.action && <div className="rec-action">Action: {rec.action}</div>}
+                {rec.evidence && <div className="rec-evidence">Evidence: {rec.evidence}</div>}
               </div>
             ))}
           </div>
         ) : (
-          <div className=\"no-recommendations\">No recommendations available. Run tests to generate insights.</div>
+          <div className="no-recommendations">No recommendations available. Run tests to generate insights.</div>
         )}
       </div>
     </div>
   );
 
   const renderTestingTab = () => (
-    <div className=\"diagnostics-testing\">
-      <div className=\"test-controls\">
+    <div className="diagnostics-testing">
+      <div className="test-controls">
         <h3>Automated Testing Suite</h3>
         
-        <div className=\"test-config\">
-          <div className=\"config-group\">
+        <div className="test-config">
+          <div className="config-group">
             <label>Reliability Test Iterations:</label>
             <input 
-              type=\"number\" 
+              type="number" 
               value={testConfig.reliabilityIterations}
               onChange={(e) => setTestConfig({...testConfig, reliabilityIterations: parseInt(e.target.value)})}
-              min=\"10\"
-              max=\"200\"
+              min="10"
+              max="200"
               disabled={isTestRunning}
             />
           </div>
           
-          <div className=\"config-group\">
+          <div className="config-group">
             <label>Stress Test - Concurrent:</label>
             <input 
-              type=\"number\" 
+              type="number" 
               value={testConfig.stressConcurrent}
               onChange={(e) => setTestConfig({...testConfig, stressConcurrent: parseInt(e.target.value)})}
-              min=\"2\"
-              max=\"20\"
+              min="2"
+              max="20"
               disabled={isTestRunning}
             />
           </div>
           
-          <div className=\"config-group\">
+          <div className="config-group">
             <label>Stress Test - Iterations:</label>
             <input 
-              type=\"number\" 
+              type="number" 
               value={testConfig.stressIterations}
               onChange={(e) => setTestConfig({...testConfig, stressIterations: parseInt(e.target.value)})}
-              min=\"1\"
-              max=\"10\"
+              min="1"
+              max="10"
               disabled={isTestRunning}
             />
           </div>
         </div>
 
-        <div className=\"test-buttons\">
+        <div className="test-buttons">
           <button 
             onClick={runReliabilityTest}
             disabled={isTestRunning}
-            className=\"test-button reliability\"
+            className="test-button reliability"
           >
             {isTestRunning ? '🧪 Running...' : '🎯 Reliability Test'}
           </button>
@@ -320,7 +320,7 @@ const WebSocketDiagnostics = () => {
           <button 
             onClick={runStressTest}
             disabled={isTestRunning}
-            className=\"test-button stress\"
+            className="test-button stress"
           >
             {isTestRunning ? '🧪 Running...' : '🚀 Stress Test'}
           </button>
@@ -328,7 +328,7 @@ const WebSocketDiagnostics = () => {
           <button 
             onClick={runRecoveryTest}
             disabled={isTestRunning}
-            className=\"test-button recovery\"
+            className="test-button recovery"
           >
             {isTestRunning ? '🧪 Running...' : '🔄 Recovery Test'}
           </button>
@@ -336,7 +336,7 @@ const WebSocketDiagnostics = () => {
           <button 
             onClick={runBrowserCompatibilityTest}
             disabled={isTestRunning}
-            className=\"test-button compatibility\"
+            className="test-button compatibility"
           >
             {isTestRunning ? '🧪 Running...' : '🌐 Browser Test'}
           </button>
@@ -344,16 +344,16 @@ const WebSocketDiagnostics = () => {
       </div>
 
       {testResults && (
-        <div className=\"test-results\">
+        <div className="test-results">
           <h3>Test Results</h3>
-          <div className=\"results-summary\">
-            <div className=\"result-stat\">
+          <div className="results-summary">
+            <div className="result-stat">
               <label>Test Type:</label>
               <span>{testResults.testType || 'Reliability'}</span>
             </div>
             
             {testResults.successRate && (
-              <div className=\"result-stat\">
+              <div className="result-stat">
                 <label>Success Rate:</label>
                 <span className={getSuccessRateColor(testResults.successRate)}>
                   {testResults.successRate.toFixed(1)}%
@@ -362,14 +362,14 @@ const WebSocketDiagnostics = () => {
             )}
             
             {testResults.totalAttempts && (
-              <div className=\"result-stat\">
+              <div className="result-stat">
                 <label>Total Attempts:</label>
                 <span>{testResults.totalAttempts}</span>
               </div>
             )}
             
             {testResults.performance && testResults.performance.averageConnectionTime && (
-              <div className=\"result-stat\">
+              <div className="result-stat">
                 <label>Avg Connection Time:</label>
                 <span>{Math.round(testResults.performance.averageConnectionTime)}ms</span>
               </div>
@@ -377,12 +377,12 @@ const WebSocketDiagnostics = () => {
           </div>
 
           {testResults.recommendations && testResults.recommendations.length > 0 && (
-            <div className=\"test-recommendations\">
+            <div className="test-recommendations">
               <h4>Test-Based Recommendations:</h4>
               {testResults.recommendations.map((rec, index) => (
                 <div key={index} className={`test-recommendation ${rec.priority}`}>
                   <strong>{rec.category}:</strong> {rec.message}
-                  {rec.action && <div className=\"rec-action\">→ {rec.action}</div>}
+                  {rec.action && <div className="rec-action">→ {rec.action}</div>}
                 </div>
               ))}
             </div>
@@ -393,29 +393,29 @@ const WebSocketDiagnostics = () => {
   );
 
   const renderLiveUpdatesTab = () => (
-    <div className=\"diagnostics-live\">
-      <div className=\"live-header\">
+    <div className="diagnostics-live">
+      <div className="live-header">
         <h3>Live Updates</h3>
-        <div className=\"live-controls\">
+        <div className="live-controls">
           <button onClick={() => setLiveUpdates([])}>Clear Updates</button>
-          <span className=\"update-count\">Updates: {liveUpdates.length}</span>
+          <span className="update-count">Updates: {liveUpdates.length}</span>
         </div>
       </div>
       
-      <div className=\"live-updates-container\">
+      <div className="live-updates-container">
         {liveUpdates.length === 0 ? (
-          <div className=\"no-updates\">No live updates yet. Make WebSocket connections to see diagnostic data.</div>
+          <div className="no-updates">No live updates yet. Make WebSocket connections to see diagnostic data.</div>
         ) : (
-          <div className=\"live-updates-list\">
+          <div className="live-updates-list">
             {liveUpdates.map((update) => (
               <div key={update.id} className={`live-update ${update.type}`}>
-                <div className=\"update-header\">
-                  <span className=\"update-type\">{update.type}</span>
-                  <span className=\"update-time\">
+                <div className="update-header">
+                  <span className="update-type">{update.type}</span>
+                  <span className="update-time">
                     {new Date(update.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <div className=\"update-data\">
+                <div className="update-data">
                   <pre>{JSON.stringify(update.data, null, 2)}</pre>
                 </div>
               </div>
@@ -427,46 +427,46 @@ const WebSocketDiagnostics = () => {
   );
 
   const renderRawDataTab = () => (
-    <div className=\"diagnostics-raw\">
-      <div className=\"raw-header\">
+    <div className="diagnostics-raw">
+      <div className="raw-header">
         <h3>Raw Diagnostic Data</h3>
-        <div className=\"raw-controls\">
+        <div className="raw-controls">
           <button onClick={exportDiagnosticData}>Export All Data</button>
-          <button onClick={clearForensicsData} className=\"danger\">Clear Data</button>
+          <button onClick={clearForensicsData} className="danger">Clear Data</button>
         </div>
       </div>
       
-      <div className=\"raw-data-sections\">
-        <div className=\"raw-section\">
+      <div className="raw-data-sections">
+        <div className="raw-section">
           <h4>Forensics Analysis</h4>
-          <pre className=\"raw-data\">{JSON.stringify(forensicsData, null, 2)}</pre>
+          <pre className="raw-data">{JSON.stringify(forensicsData, null, 2)}</pre>
         </div>
         
-        <div className=\"raw-section\">
+        <div className="raw-section">
           <h4>Connection Stats</h4>
-          <pre className=\"raw-data\">{JSON.stringify(connectionStats, null, 2)}</pre>
+          <pre className="raw-data">{JSON.stringify(connectionStats, null, 2)}</pre>
         </div>
         
-        <div className=\"raw-section\">
+        <div className="raw-section">
           <h4>Test Results</h4>
-          <pre className=\"raw-data\">{JSON.stringify(testResults, null, 2)}</pre>
+          <pre className="raw-data">{JSON.stringify(testResults, null, 2)}</pre>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className=\"websocket-diagnostics\">
-      <div className=\"diagnostics-header\">
+    <div className="websocket-diagnostics">
+      <div className="diagnostics-header">
         <h2>🔬 WebSocket Diagnostics Suite</h2>
-        <div className=\"header-stats\">
-          <div className=\"header-stat\">
+        <div className="header-stats">
+          <div className="header-stat">
             <label>Current State:</label>
             <span className={`state-badge ${getConnectionStateColor(connectionStats.connectionState)}`}>
               {connectionStats.connectionState || 'Unknown'}
             </span>
           </div>
-          <div className=\"header-stat\">
+          <div className="header-stat">
             <label>Success Rate:</label>
             <span className={`rate-badge ${getSuccessRateColor(forensicsData.successRate || 0)}`}>
               {forensicsData.successRate ? `${forensicsData.successRate.toFixed(1)}%` : 'No data'}
@@ -475,7 +475,7 @@ const WebSocketDiagnostics = () => {
         </div>
       </div>
 
-      <div className=\"diagnostics-tabs\">
+      <div className="diagnostics-tabs">
         <button 
           className={`tab ${selectedTab === 'overview' ? 'active' : ''}`}
           onClick={() => setSelectedTab('overview')}
@@ -502,7 +502,7 @@ const WebSocketDiagnostics = () => {
         </button>
       </div>
 
-      <div className=\"diagnostics-content\">
+      <div className="diagnostics-content">
         {selectedTab === 'overview' && renderOverviewTab()}
         {selectedTab === 'testing' && renderTestingTab()}
         {selectedTab === 'live' && renderLiveUpdatesTab()}
@@ -510,11 +510,11 @@ const WebSocketDiagnostics = () => {
       </div>
 
       {isTestRunning && (
-        <div className=\"test-overlay\">
-          <div className=\"test-spinner\">
-            <div className=\"spinner\"></div>
+        <div className="test-overlay">
+          <div className="test-spinner">
+            <div className="spinner"></div>
             <div>Running comprehensive WebSocket tests...</div>
-            <div className=\"test-notice\">This may take several minutes</div>
+            <div className="test-notice">This may take several minutes</div>
           </div>
         </div>
       )}
