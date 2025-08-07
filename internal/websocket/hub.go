@@ -22,6 +22,10 @@ type Hub struct {
 	// Stock updates channel
 	stockUpdates <-chan market.StockUpdate
 
+	// Message queue for when no clients are connected
+	messageQueue []interface{}
+	maxQueueSize int
+
 	// Mutex for thread-safe operations
 	mu sync.Mutex
 }
@@ -33,6 +37,8 @@ func NewHub(stockUpdates <-chan market.StockUpdate) *Hub {
 		register:     make(chan *Client),
 		unregister:   make(chan *Client),
 		stockUpdates: stockUpdates,
+		messageQueue: make([]interface{}, 0, 100),
+		maxQueueSize: 100, // Keep last 100 messages
 	}
 }
 
@@ -43,6 +49,17 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			log.Printf("Client registered. Total clients: %d", len(h.clients))
+			
+			// Send queued messages to new client
+			if len(h.messageQueue) > 0 {
+				log.Printf("Sending %d queued messages to new client", len(h.messageQueue))
+				for _, msg := range h.messageQueue {
+					client.Send(msg)
+				}
+				// Clear queue after sending
+				h.messageQueue = h.messageQueue[:0]
+			}
 			h.mu.Unlock()
 
 		case client := <-h.unregister:
@@ -50,6 +67,7 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
+				log.Printf("Client unregistered. Total clients: %d", len(h.clients))
 			}
 			h.mu.Unlock()
 
@@ -89,10 +107,17 @@ func (h *Hub) broadcastStockUpdate(update market.StockUpdate) {
 	}
 
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	// If no clients connected, queue the message
+	if len(h.clients) == 0 {
+		h.queueMessage(message)
+		return
+	}
+	
 	for client := range h.clients {
 		client.Send(message)
 	}
-	h.mu.Unlock()
 }
 
 // BroadcastMessage sends a message to all connected clients
@@ -107,8 +132,29 @@ func (h *Hub) BroadcastMessage(messageType string, data interface{}) {
 	}
 
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	
+	// If no clients connected, queue the message
+	if len(h.clients) == 0 {
+		h.queueMessage(message)
+		return
+	}
+	
 	for client := range h.clients {
 		client.Send(message)
 	}
-	h.mu.Unlock()
+}
+
+// queueMessage adds a message to the queue for later delivery
+func (h *Hub) queueMessage(msg interface{}) {
+	// Add to queue
+	h.messageQueue = append(h.messageQueue, msg)
+	
+	// Trim queue if it exceeds max size
+	if len(h.messageQueue) > h.maxQueueSize {
+		// Keep only the most recent messages
+		h.messageQueue = h.messageQueue[len(h.messageQueue)-h.maxQueueSize:]
+	}
+	
+	log.Printf("Message queued (queue size: %d)", len(h.messageQueue))
 }

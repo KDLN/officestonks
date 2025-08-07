@@ -16,13 +16,13 @@ const (
 	writeWait = 10 * time.Second
 
 	// Time allowed to read the next pong message from the peer
-	pongWait = 60 * time.Second
+	pongWait = 90 * time.Second // Increased for Railway proxy
 
 	// Send pings to peer with this period
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer
-	maxMessageSize = 512
+	maxMessageSize = 2048 // Increased to handle larger messages
 )
 
 // Client represents a connected websocket client
@@ -76,9 +76,26 @@ func (c *Client) readPump() {
 			break
 		}
 		
-		// Process incoming messages from client if needed
-		// For now we're just handling server -> client communication
-		_ = message
+		// Process incoming messages from client
+		var msg map[string]interface{}
+		if err := json.Unmarshal(message, &msg); err == nil {
+			// Handle ping messages with pong responses
+			if msgType, ok := msg["type"].(string); ok && msgType == "ping" {
+				pongMsg := map[string]interface{}{
+					"type":      "pong",
+					"timestamp": time.Now().Unix(),
+				}
+				if pongData, err := json.Marshal(pongMsg); err == nil {
+					select {
+					case c.send <- pongData:
+						log.Printf("Sent pong response to client %d", c.userID)
+					default:
+						log.Printf("Failed to send pong - buffer full for client %d", c.userID)
+					}
+				}
+			}
+			// Handle other message types here if needed
+		}
 	}
 }
 

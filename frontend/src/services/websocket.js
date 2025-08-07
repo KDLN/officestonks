@@ -6,9 +6,17 @@ let listeners = {};
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 let connectionState = 'disconnected'; // disconnected, connecting, connected, failed
-const MAX_RECONNECT_ATTEMPTS = 5;
+let heartbeatInterval = null;
+let heartbeatTimeout = null;
+let missedHeartbeats = 0;
+let pollingInterval = null;
+let usePollingFallback = false;
+const MAX_RECONNECT_ATTEMPTS = 10; // Increased from 5
 const INITIAL_RECONNECT_DELAY = 1000; // 1 second
 const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+const HEARTBEAT_INTERVAL = 10000; // 10 seconds
+const HEARTBEAT_TIMEOUT = 5000; // 5 seconds to wait for pong
+const MAX_MISSED_HEARTBEATS = 3; // Force reconnect after 3 missed heartbeats
 
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -106,7 +114,7 @@ export const initWebSocket = async () => {
         });
         scheduleReconnect();
       }
-    }, 20000); // 20 second timeout for Railway compatibility
+    }, 45000); // Increased to 45 seconds for Railway cold starts
     
     // Clear timeout when connection is established
     socket.onopen = () => {
@@ -114,6 +122,9 @@ export const initWebSocket = async () => {
       console.log('WebSocket connected successfully');
       reconnectAttempts = 0;
       connectionState = 'connected';
+      usePollingFallback = false;
+      stopPollingFallback();
+      startHeartbeat();
       notifyListeners('connection', { status: 'connected' });
       notifyListeners('connectionState', { state: 'connected' });
     };
@@ -122,6 +133,12 @@ export const initWebSocket = async () => {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        
+        // Handle heartbeat responses
+        if (data.type === 'pong') {
+          handleHeartbeatResponse();
+          return;
+        }
         
         // Sanitize data to prevent infinity/NaN issues
         const sanitizedData = sanitizeWebSocketData(data);
@@ -180,6 +197,7 @@ export const initWebSocket = async () => {
       });
       
       connectionState = 'disconnected';
+      stopHeartbeat();
       notifyListeners('connection', { status: 'disconnected' });
       notifyListeners('connectionState', { state: 'disconnected', ...errorInfo });
       
@@ -189,9 +207,21 @@ export const initWebSocket = async () => {
       
       if (shouldReconnect || isProxyError) {
         scheduleReconnect();
+        // Start polling fallback after multiple failures
+        if (reconnectAttempts > 3 && !usePollingFallback) {
+          console.log('Starting HTTP polling fallback after multiple WebSocket failures');
+          usePollingFallback = true;
+          startPollingFallback();
+        }
       } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
         connectionState = 'failed';
         notifyListeners('connectionState', { state: 'failed', reason: 'max_attempts', lastError: errorInfo });
+        // Ensure polling fallback is running
+        if (!usePollingFallback) {
+          console.log('WebSocket failed permanently, starting HTTP polling fallback');
+          usePollingFallback = true;
+          startPollingFallback();
+        }
       }
     };
   } catch (error) {
@@ -275,6 +305,9 @@ export const closeWebSocket = () => {
     reconnectTimer = null;
   }
   
+  stopHeartbeat();
+  stopPollingFallback();
+  
   if (socket) {
     socket.close(1000, 'Client closing connection');
     socket = null;
@@ -283,6 +316,7 @@ export const closeWebSocket = () => {
   connectionState = 'disconnected';
   listeners = {};
   reconnectAttempts = 0;
+  usePollingFallback = false;
 };
 
 // Reset WebSocket connection (useful for error recovery)
@@ -337,7 +371,11 @@ const notifyListeners = (event, data) => {
 // Send message through WebSocket
 export const sendWebSocketMessage = (message) => {
   if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(message));
+    try {
+      socket.send(JSON.stringify(message));
+    } catch (error) {
+      console.error('Error sending WebSocket message:', error);
+    }
   } else {
     console.error('WebSocket is not connected');
   }
@@ -351,4 +389,122 @@ export const isWebSocketConnected = () => {
 // Get the current WebSocket instance (for components that need direct access)
 export const getWebSocketInstance = () => {
   return socket;
+};
+
+// Application-level heartbeat mechanism
+const startHeartbeat = () => {
+  stopHeartbeat(); // Clear any existing heartbeat
+  missedHeartbeats = 0;
+  
+  console.log('Starting WebSocket heartbeat mechanism');
+  
+  // Send heartbeat every 10 seconds
+  heartbeatInterval = setInterval(() => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      sendWebSocketMessage({ type: 'ping', timestamp: Date.now() });
+      
+      // Check for response after 5 seconds
+      heartbeatTimeout = setTimeout(() => {
+        missedHeartbeats++;
+        console.warn(`Missed heartbeat #${missedHeartbeats}`);
+        
+        // If we miss 3 heartbeats, assume connection is dead
+        if (missedHeartbeats >= MAX_MISSED_HEARTBEATS) {
+          console.error('Connection appears dead after missing heartbeats, forcing reconnect');
+          if (socket) {
+            socket.close(4000, 'Heartbeat timeout');
+          }
+        }
+      }, HEARTBEAT_TIMEOUT);
+    }
+  }, HEARTBEAT_INTERVAL);
+};
+
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
+  }
+  if (heartbeatTimeout) {
+    clearTimeout(heartbeatTimeout);
+    heartbeatTimeout = null;
+  }
+  missedHeartbeats = 0;
+};
+
+const handleHeartbeatResponse = () => {
+  missedHeartbeats = 0;
+  if (heartbeatTimeout) {
+    clearTimeout(heartbeatTimeout);
+    heartbeatTimeout = null;
+  }
+};
+
+// HTTP polling fallback mechanism
+const startPollingFallback = async () => {
+  if (pollingInterval) return;
+  
+  console.log('Starting HTTP polling fallback for real-time updates');
+  
+  // Import the auth service for token
+  const token = await getAuthToken();
+  if (!token) {
+    console.error('No token available for polling fallback');
+    return;
+  }
+  
+  // Poll every 2 seconds to match WebSocket update frequency
+  pollingInterval = setInterval(async () => {
+    try {
+      const currentToken = await getAuthToken();
+      if (!currentToken) {
+        console.error('Token lost during polling');
+        stopPollingFallback();
+        return;
+      }
+      
+      const response = await fetch(`${BACKEND_URL}/api/stocks`, {
+        headers: {
+          'Authorization': `Bearer ${currentToken}`
+        }
+      });
+      
+      if (response.ok) {
+        const stocks = await response.json();
+        // Convert to WebSocket message format and notify listeners
+        if (Array.isArray(stocks)) {
+          stocks.forEach(stock => {
+            const sanitizedStock = sanitizeWebSocketData({
+              type: 'stock_update',
+              data: {
+                stock_id: stock.id,
+                symbol: stock.symbol,
+                price: stock.current_price || stock.price
+              }
+            });
+            notifyListeners('stockUpdate', sanitizedStock.data);
+          });
+        }
+      } else if (response.status === 401) {
+        console.error('Authentication failed during polling');
+        stopPollingFallback();
+      }
+    } catch (error) {
+      console.error('Polling fallback error:', error);
+      // Don't stop polling on network errors, just log them
+    }
+  }, 2000);
+};
+
+const stopPollingFallback = () => {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+    console.log('Stopped HTTP polling fallback');
+  }
+};
+
+// Export polling status for debugging
+export const isPollingActive = () => {
+  return usePollingFallback && pollingInterval !== null;
 };

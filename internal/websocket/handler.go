@@ -23,8 +23,8 @@ type WebSocketHandler struct {
 
 // Upgrader upgrades HTTP connections to WebSocket connections
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  2048, // Increased buffer size
+	WriteBufferSize: 2048, // Increased buffer size
 	// Allow all origins for development and production
 	CheckOrigin: func(r *http.Request) bool {
 		// Log the origin attempting to connect
@@ -39,6 +39,8 @@ var upgrader = websocket.Upgrader{
 		log.Printf("WebSocket upgrade error: status=%d, reason=%v", status, reason)
 		http.Error(w, reason.Error(), status)
 	},
+	// Set handshake timeout for Railway
+	HandshakeTimeout: 45 * time.Second,
 }
 
 // NewWebSocketHandler creates a new websocket handler
@@ -119,11 +121,12 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 	if isRailway {
 		// For Railway, use a custom upgrader with different settings
 		railwayUpgrader := websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
+			ReadBufferSize:  2048, // Increased buffer
+			WriteBufferSize: 2048, // Increased buffer
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Railway already handles CORS
 			},
+			HandshakeTimeout: 45 * time.Second, // Longer timeout for Railway
 			// Don't set Error handler for Railway - let it fail gracefully
 		}
 
