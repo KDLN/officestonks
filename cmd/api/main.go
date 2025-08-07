@@ -136,10 +136,10 @@ func main() {
 	socketIOServer.Start()
 	log.Println("✅ Socket.IO server started with Railway optimization")
 
-	// TODO: Create Socket.IO admin server for monitoring and management
-	// log.Println("🔧 Setting up Socket.IO Admin UI...")
-	// adminServer := socketio.NewAdminServer(socketIOServer)
-	// log.Println("✅ Socket.IO Admin UI configured")
+	// Create Socket.IO admin server for monitoring and management
+	log.Println("🔧 Setting up Socket.IO Admin UI...")
+	adminServer := socketio.NewAdminServer(socketIOServer)
+	log.Println("✅ Socket.IO Admin UI configured")
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService, auditService, monitoringService)
@@ -621,17 +621,17 @@ func main() {
 	// This is critical for Railway deployment success
 	r.PathPrefix("/socket.io/").Handler(socketIOServer.GetHTTPHandler())
 	
-	// TODO: Socket.IO Admin UI routes
-	// r.PathPrefix("/admin/socketio").HandlerFunc(adminServer.ServeAdminUI)
-	// r.HandleFunc("/admin/socketio", adminServer.ServeAdminUI).Methods("GET")
+	// Socket.IO Admin UI routes
+	r.PathPrefix("/admin/socketio").HandlerFunc(adminServer.ServeAdminUI)
+	r.HandleFunc("/admin/socketio", adminServer.ServeAdminUI).Methods("GET")
 	
-	// TODO: Socket.IO Admin API endpoint
-	// r.HandleFunc("/api/admin/socketio/stats", adminServer.GetAdminStatsEndpoint()).Methods("GET", "OPTIONS")
+	// Socket.IO Admin API endpoint
+	r.HandleFunc("/api/admin/socketio/stats", adminServer.GetAdminStatsEndpoint()).Methods("GET", "OPTIONS")
 	
 	log.Println("✅ Socket.IO routes configured:")
 	log.Println("   📡 /socket.io/ - Main Socket.IO endpoint")  
-	// log.Println("   🔧 /admin/socketio - Admin dashboard")
-	// log.Println("   📊 /api/admin/socketio/stats - Admin API")
+	log.Println("   🔧 /admin/socketio - Admin dashboard")
+	log.Println("   📊 /api/admin/socketio/stats - Admin API")
 
 	// WebSocket health check endpoint with proper CORS handling
 	r.HandleFunc("/ws/health", func(w http.ResponseWriter, r *http.Request) {

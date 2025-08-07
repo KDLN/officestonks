@@ -60,20 +60,28 @@ const SOCKET_OPTIONS = {
 };
 
 // Initialize Socket.IO connection
-export const connect = () => {
+export const connect = async () => {
   if (socket && socket.connected) {
     console.log('🔗 Socket.IO already connected');
     return Promise.resolve();
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     connectionState = 'connecting';
     notifyConnectionStateChange();
     
     console.log(`🚀 Connecting to Socket.IO at ${BACKEND_URL}`);
     
-    // Get auth token for connection
-    const token = getAuthToken();
+    // Get auth token for connection - ensure it's resolved if it's a Promise
+    let token;
+    try {
+      const authToken = getAuthToken();
+      token = typeof authToken === 'string' ? authToken : await Promise.resolve(authToken);
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+      token = null;
+    }
+    
     const options = {
       ...SOCKET_OPTIONS,
       auth: {
