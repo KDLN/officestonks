@@ -115,29 +115,10 @@ func (h *WebSocketHandler) HandleConnection(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Railway-specific WebSocket upgrade handling
-	var conn *websocket.Conn
-
-	if isRailway {
-		// For Railway, use a custom upgrader with different settings
-		railwayUpgrader := websocket.Upgrader{
-			ReadBufferSize:  2048, // Increased buffer
-			WriteBufferSize: 2048, // Increased buffer
-			CheckOrigin: func(r *http.Request) bool {
-				return true // Railway already handles CORS
-			},
-			HandshakeTimeout: 45 * time.Second, // Longer timeout for Railway
-			// Don't set Error handler for Railway - let it fail gracefully
-		}
-
-		// Set additional Railway headers right before upgrade
-		w.Header().Set("X-Railway-WebSocket", "upgrade")
-
-		conn, err = railwayUpgrader.Upgrade(w, r, nil)
-	} else {
-		// Use standard upgrader for non-Railway deployments
-		conn, err = upgrader.Upgrade(w, r, nil)
-	}
+	// Use the same upgrader for all deployments (Railway supports WebSocket on same port)
+	log.Printf("Attempting WebSocket upgrade using standard upgrader (Railway compatible)")
+	
+	conn, err := upgrader.Upgrade(w, r, nil)
 
 	if err != nil {
 		// Log the error details with Railway context

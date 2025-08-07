@@ -57,21 +57,14 @@ export const getConnectionState = () => connectionState;
 
 // Initialize WebSocket connection
 export const initWebSocket = async () => {
-  // Check if we're on Railway/Production - WebSocket doesn't work there
-  const isRailwayOrProduction = window.location.hostname.includes('railway.app') || 
-                                window.location.hostname.includes('officestonks.com') ||
-                                window.location.hostname.includes('beta.officestonks.com');
+  // Railway supports WebSocket when HTTP and WS are on the same port
+  // Let's try WebSocket first, fall back to polling if it fails
+  console.log('🔌 Attempting WebSocket connection (Railway compatible on same port)');
   
-  if (isRailwayOrProduction) {
-    console.log('🚫 WebSocket disabled on Railway/Production - using SSE instead');
-    connectionState = 'disabled';
-    notifyListeners('connectionState', { state: 'disabled', reason: 'railway_incompatible' });
-    // Start polling as a fallback for any WebSocket-specific features
-    if (!usePollingFallback) {
-      usePollingFallback = true;
-      startPollingFallback();
-    }
-    return;
+  // Reset any previous polling if WebSocket attempt is being made
+  if (usePollingFallback) {
+    usePollingFallback = false;
+    stopPollingFallback();
   }
 
   // Don't attempt if already connecting or connected
