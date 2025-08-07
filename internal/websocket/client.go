@@ -70,8 +70,11 @@ func (c *Client) readPump() {
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
+			// Enhanced error handling for Railway proxy compatibility
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNoStatusReceived) {
+				log.Printf("Railway WebSocket error (user %d): %v", c.userID, err)
+			} else {
+				log.Printf("Normal WebSocket close (user %d): %v", c.userID, err)
 			}
 			break
 		}
