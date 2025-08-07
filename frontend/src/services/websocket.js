@@ -640,9 +640,12 @@ const initSSEConnection = (token) => {
   connectionState = 'connecting';
   notifyListeners('connectionState', { state: 'connecting', protocol: 'SSE' });
   
-  // Use the same /ws endpoint - Railway handler will serve SSE
-  const sseUrl = `${BACKEND_URL}/ws?token=${token}`;
+  // For Railway, use the working SSE endpoint since /ws is giving 502 errors
+  // This is a temporary fix while the Railway handler deployment completes
+  let sseUrl = `${BACKEND_URL}/api/sse/stock-updates`;
+  
   console.log('SSE connecting to:', sseUrl);
+  console.log('Railway SSE using dedicated endpoint (temporary fix)');
   
   sseEventSource = new EventSource(sseUrl);
   

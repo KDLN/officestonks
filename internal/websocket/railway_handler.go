@@ -43,12 +43,18 @@ func (h *RailwayCompatibleHandler) HandleRealTimeConnection(w http.ResponseWrite
 
 // handleSSEConnection handles Server-Sent Events for Railway compatibility
 func (h *RailwayCompatibleHandler) handleSSEConnection(w http.ResponseWriter, r *http.Request) {
-	// Set SSE headers
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	log.Printf("🔗 Railway SSE connection request from %s", r.RemoteAddr)
+	
+	// Set SSE headers with Railway-specific optimizations
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("X-Accel-Buffering", "no") // Disable proxy buffering
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx proxy buffering
+	w.Header().Set("X-Railway-SSE", "enabled") // Railway-specific header
 	
 	// Extract and validate token
 	token := r.URL.Query().Get("token")
@@ -92,14 +98,19 @@ func (h *RailwayCompatibleHandler) handleSSEConnection(w http.ResponseWriter, r 
 		log.Printf("SSE client %s disconnected", clientID)
 	}()
 	
-	// Send initial connection message
+	// Send initial connection message with Railway compatibility
 	initialMsg := map[string]interface{}{
 		"type":    "connected",
 		"message": fmt.Sprintf("Connected via SSE (Railway compatible). User ID: %d", userID),
+		"protocol": "SSE",
+		"railway": true,
 	}
 	if data, err := json.Marshal(initialMsg); err == nil {
-		fmt.Fprintf(w, "data: %s\n\n", data)
-		w.(http.Flusher).Flush()
+		fmt.Fprintf(w, "data: %s\r\n\r\n", data)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		log.Printf("✅ SSE initial message sent to user %d", userID)
 	}
 	
 	// Create ticker for keep-alive
@@ -114,17 +125,19 @@ func (h *RailwayCompatibleHandler) handleSSEConnection(w http.ResponseWriter, r 
 				return
 			}
 			
-			// Send message to client
-			fmt.Fprintf(w, "data: %s\n\n", message)
+			// Send message to client using proper SSE format
+			fmt.Fprintf(w, "data: %s\r\n\r\n", message)
 			
-			// Flush the response writer
+			// Flush the response writer (essential for Railway)
 			if flusher, ok := w.(http.Flusher); ok {
 				flusher.Flush()
+			} else {
+				log.Printf("⚠️ SSE ResponseWriter does not support flushing")
 			}
 			
 		case <-ticker.C:
-			// Send keep-alive ping
-			fmt.Fprintf(w, ": ping\n\n")
+			// Send keep-alive ping (Railway-compatible format)
+			fmt.Fprintf(w, ": ping\r\n\r\n")
 			if flusher, ok := w.(http.Flusher); ok {
 				flusher.Flush()
 			}
