@@ -130,6 +130,11 @@ func isPollingRequest(r *http.Request) bool {
 		return true
 	}
 	
+	// Exclude admin endpoints from rate limiting - admins should have unlimited access
+	if strings.Contains(r.URL.Path, "/api/admin/") {
+		return true
+	}
+	
 	return false
 }
 
@@ -139,8 +144,17 @@ func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
 		// Check if this is a polling request that should be excluded from rate limiting
 		if isPollingRequest(r) {
 			// Skip rate limiting for polling requests but still call next handler
-			log.Printf("⚡ BYPASS: Polling request bypassed rate limiting: %s %s (X-Request-Type: %s)", 
-				r.Method, r.URL.Path, r.Header.Get("X-Request-Type"))
+			reason := "unknown"
+			if strings.Contains(r.URL.Path, "/api/admin/") {
+				reason = "admin endpoint"
+			} else if strings.Contains(r.URL.Path, "/stock-updates/poll") || strings.Contains(r.URL.Path, "/sse/") {
+				reason = "polling/sse endpoint"
+			} else if r.Header.Get("X-Request-Type") == "polling" {
+				reason = "polling header"
+			} else if strings.Contains(r.URL.Path, "/health") {
+				reason = "health check"
+			}
+			log.Printf("⚡ BYPASS: Request bypassed rate limiting (%s): %s %s", reason, r.Method, r.URL.Path)
 			next.ServeHTTP(w, r)
 			return
 		}
