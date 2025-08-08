@@ -33,7 +33,8 @@ const io = new Server(httpServer, {
 // JWT secret from environment or default for development
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const GO_BACKEND_URL = process.env.GO_BACKEND_URL || 'http://localhost:8080';
-const PORT = process.env.PORT || 3001;
+// Always use port 3001 for Socket.IO server (internal)
+const PORT = 3001;
 
 // Track connected clients
 const clients = new Map();

@@ -11,28 +11,20 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// Get Socket.IO server URL - can be different from main backend
+// Get Socket.IO server URL - now served via Go proxy to unified Node.js server
 const getSocketIOURL = () => {
   // If explicitly set for Socket.IO server
   if (process.env.REACT_APP_SOCKETIO_URL) {
     return process.env.REACT_APP_SOCKETIO_URL;
   }
   
-  // For localhost development
+  // For localhost development, still connect directly to Socket.IO server
   if (isLocalhost) {
     return `${window.location.protocol}//${window.location.hostname}:3001`;
   }
   
-  // For production Railway deployment
-  if (window.location.hostname.includes('railway.app')) {
-    // Try to use a dedicated Socket.IO service URL
-    // Pattern: officestonks-socketio-production.up.railway.app
-    const currentDomain = window.location.hostname;
-    const socketioDomain = currentDomain.replace('beta.officestonks.com', 'socketio.officestonks.com');
-    return `${window.location.protocol}//${socketioDomain}`;
-  }
-  
-  // Fallback to same domain (if Socket.IO is served from main backend)
+  // For production Railway deployment, use same domain (proxied by Go backend)
+  // The Go backend will proxy /socket.io/ requests to the Node.js server
   return window.location.origin;
 };
 

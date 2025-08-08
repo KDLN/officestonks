@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -21,7 +22,6 @@ import (
 	"officestonks/internal/middleware"
 	"officestonks/internal/repository"
 	"officestonks/internal/services"
-	"officestonks/internal/socketio"
 	"officestonks/internal/websocket"
 )
 
@@ -130,16 +130,9 @@ func main() {
 	railwayHandler := websocket.NewRailwayCompatibleHandler(wsHub, wsHandler)
 	wsHub.SetRailwayHandler(railwayHandler)
 
-	// Create Socket.IO server for modern real-time communication
-	log.Println("🚀 Creating Socket.IO server...")
-	socketIOServer := socketio.NewSocketIOServer(marketService.GetSimulatorUpdates(), authService, monitoringService)
-	socketIOServer.Start()
-	log.Println("✅ Socket.IO server started with Railway optimization")
-
-	// Create Socket.IO admin server for monitoring and management
-	log.Println("🔧 Setting up Socket.IO Admin UI...")
-	adminServer := socketio.NewAdminServer(socketIOServer)
-	log.Println("✅ Socket.IO Admin UI configured")
+	// Socket.IO is handled by the separate Node.js server on port 3001
+	// This Go backend will proxy requests to the Node.js Socket.IO server
+	log.Println("📡 Socket.IO handled by Node.js server (unified deployment)")
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService, auditService, monitoringService)
@@ -614,26 +607,31 @@ func main() {
 		railwayHandler.HandleRealTimeConnection(w, r)
 	})
 
-	// Socket.IO routes for modern real-time communication
-	log.Println("🔌 Setting up Socket.IO routes...")
+	// Socket.IO proxy routes to Node.js server on port 3001
+	log.Println("🔌 Setting up Socket.IO proxy routes...")
 	
-	// Main Socket.IO endpoint - Railway supports WSS over same PORT
-	// According to documentation, must use http.Handle for Socket.IO
-	// The path MUST be exactly "/socket.io/" with trailing slash
-	r.PathPrefix("/socket.io/").Handler(socketIOServer.GetHTTPHandler())
+	// Proxy all Socket.IO requests to Node.js server
+	r.PathPrefix("/socket.io/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("🔄 Proxying Socket.IO request: %s %s", r.Method, r.URL.Path)
+		proxyToSocketIOServer(w, r)
+	})
 	
-	// Socket.IO Admin UI routes
-	r.PathPrefix("/admin/socketio").HandlerFunc(adminServer.ServeAdminUI)
-	r.HandleFunc("/admin/socketio", adminServer.ServeAdminUI).Methods("GET")
+	// Socket.IO Admin dashboard proxy
+	r.HandleFunc("/admin/socketio", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("🔄 Proxying Socket.IO admin request: %s", r.URL.Path)
+		proxyToSocketIOServer(w, r)
+	}).Methods("GET")
 	
-	// Socket.IO Admin API endpoints
-	r.HandleFunc("/api/admin/socketio/stats", adminServer.GetAdminStatsEndpoint()).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/admin/socketio/test-connection", adminServer.GetTestConnectionEndpoint()).Methods("GET", "OPTIONS")
+	// Socket.IO Admin API proxy
+	r.HandleFunc("/api/admin/socketio/stats", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("🔄 Proxying Socket.IO stats request: %s", r.URL.Path)
+		proxyToSocketIOServer(w, r)
+	}).Methods("GET", "OPTIONS")
 	
-	log.Println("✅ Socket.IO routes configured:")
-	log.Println("   📡 /socket.io/ - Main Socket.IO endpoint")  
-	log.Println("   🔧 /admin/socketio - Admin dashboard")
-	log.Println("   📊 /api/admin/socketio/stats - Admin API")
+	log.Println("✅ Socket.IO proxy routes configured:")
+	log.Println("   📡 /socket.io/ - Proxied to Node.js server")
+	log.Println("   🔧 /admin/socketio - Proxied to Node.js server")
+	log.Println("   📊 /api/admin/socketio/stats - Proxied to Node.js server")
 
 	// WebSocket health check endpoint with proper CORS handling
 	r.HandleFunc("/ws/health", func(w http.ResponseWriter, r *http.Request) {
@@ -870,6 +868,53 @@ func getPort() int {
 	}
 
 	return port
+}
+
+// Proxy requests to Socket.IO Node.js server
+func proxyToSocketIOServer(w http.ResponseWriter, r *http.Request) {
+	// Target URL for Socket.IO server
+	targetURL := "http://localhost:3001" + r.URL.Path
+	if r.URL.RawQuery != "" {
+		targetURL += "?" + r.URL.RawQuery
+	}
+
+	// Create new request
+	req, err := http.NewRequest(r.Method, targetURL, r.Body)
+	if err != nil {
+		log.Printf("❌ Failed to create proxy request: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Copy headers
+	for key, values := range r.Header {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+
+	// Make request to Socket.IO server
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("❌ Failed to proxy to Socket.IO server: %v", err)
+		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Copy response headers
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Copy status code
+	w.WriteHeader(resp.StatusCode)
+
+	// Copy response body
+	io.Copy(w, resp.Body)
 }
 
 // Helper function to run commands and return output
