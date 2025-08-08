@@ -345,16 +345,13 @@ func (h *SocketIOHandler) handlePollingGet(w http.ResponseWriter, r *http.Reques
 	
 	var response string
 	
-	// If no messages, send heartbeat
+	// If no messages, just send heartbeat (don't send stock updates until client connects)
 	if len(messages) == 0 {
+		// Send a simple pong message to keep connection alive
 		pongMessage := MessageTypePong
 		response = pongMessage + "\x1e"
 		
-		// Also send test stock update periodically
-		stockUpdate := `42["stock_update",{"type":"stock_update","stock_id":1,"symbol":"AAPL","price":150.00}]`
-		response += stockUpdate + "\x1e"
-		
-		log.Printf("📊 Socket.IO Polling: Sent heartbeat and test data to %s (session: %s)", username, sid)
+		log.Printf("📊 Socket.IO Polling: Sent heartbeat to %s (session: %s)", username, sid)
 	} else {
 		// Send queued messages
 		for _, msg := range messages {
@@ -407,6 +404,13 @@ func (h *SocketIOHandler) handlePollingPost(w http.ResponseWriter, r *http.Reque
 		log.Printf("🏓 Received ping from %s via polling (session: %s)", username, sid)
 		// Queue pong response
 		h.queueMessage(sid, MessageTypePong)
+	} else if strings.HasPrefix(messageStr, "40") {
+		// Socket.IO connect packet - client is connecting to Socket.IO namespace
+		log.Printf("🔗 %s Socket.IO connected via polling (session: %s)", username, sid)
+		// Send connect acknowledgment (packet type 4, message type 0)
+		h.queueMessage(sid, "40") // Connect acknowledgment for default namespace
+		// Also queue stock subscription confirmation after connect
+		h.queueMessage(sid, `42["subscription_confirmed",{"channel":"stocks"}]`)
 	}
 	
 	// Send OK response
