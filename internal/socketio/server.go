@@ -64,6 +64,9 @@ func (s *SocketIOServer) setupEventHandlers() {
 	s.server.OnConnect("/", func(conn socketio.Conn) error {
 		log.Printf("🔗 Socket.IO connection attempt: %s", conn.ID())
 		
+		// Set context for the connection (required by library)
+		conn.SetContext("")
+		
 		// For now, skip token validation to get basic connection working
 		// TODO: Add proper token validation from query parameters
 		userID := 1 // Temporary - will implement proper auth later
@@ -110,6 +113,8 @@ func (s *SocketIOServer) setupEventHandlers() {
 	// Handle disconnection
 	s.server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
 		log.Printf("⚠️ Socket.IO client disconnected: %s, reason: %s", conn.ID(), reason)
+		
+		// Clean up connection resources
 		
 		s.clientsMutex.Lock()
 		if clientInfo, exists := s.clients[conn.ID()]; exists {
@@ -192,12 +197,8 @@ func (s *SocketIOServer) setupEventHandlers() {
 
 // Start begins listening for Socket.IO connections and starts the stock update broadcaster
 func (s *SocketIOServer) Start() error {
-	// Start the Socket.IO server
-	go func() {
-		if err := s.server.Serve(); err != nil {
-			log.Printf("❌ Socket.IO server error: %v", err)
-		}
-	}()
+	// Start the Socket.IO server (must be called before serving)
+	go s.server.Serve()
 	
 	// Start stock update broadcaster
 	go s.broadcastStockUpdates()
@@ -208,6 +209,11 @@ func (s *SocketIOServer) Start() error {
 	log.Println("🏠 Rooms: stocks, chat, user_* available")
 	
 	return nil
+}
+
+// Close properly shuts down the Socket.IO server
+func (s *SocketIOServer) Close() error {
+	return s.server.Close()
 }
 
 // broadcastStockUpdates listens for stock updates and broadcasts them to subscribed clients
