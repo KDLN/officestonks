@@ -25,12 +25,25 @@ type SocketIOHandler struct {
 	upgrader         websocket.Upgrader
 	clients          map[string]*Client
 	clientsMu        sync.RWMutex
+	pollingSessions  map[string]*PollingSession
+	pollingMu        sync.RWMutex
 	stockUpdates     <-chan market.StockUpdate
 	tokenValidator   auth.TokenValidator
 	monitoringService interface {
 		TrackWebSocketConnection(connectionID string, userID int, username, ipAddress string)
 		RemoveWebSocketConnection(connectionID string)
 	}
+}
+
+// PollingSession represents a polling transport session
+type PollingSession struct {
+	ID           string
+	UserID       int
+	Username     string
+	CreatedAt    time.Time
+	LastActivity time.Time
+	MessageQueue []string
+	mu           sync.Mutex
 }
 
 // Client represents a connected Socket.IO client
@@ -59,7 +72,7 @@ func NewSocketIOHandler(stockUpdates <-chan market.StockUpdate, tokenValidator a
 	TrackWebSocketConnection(connectionID string, userID int, username, ipAddress string)
 	RemoveWebSocketConnection(connectionID string)
 }) *SocketIOHandler {
-	return &SocketIOHandler{
+	handler := &SocketIOHandler{
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allow all origins for Socket.IO compatibility
@@ -68,10 +81,16 @@ func NewSocketIOHandler(stockUpdates <-chan market.StockUpdate, tokenValidator a
 			WriteBufferSize: 1024,
 		},
 		clients:           make(map[string]*Client),
+		pollingSessions:   make(map[string]*PollingSession),
 		stockUpdates:      stockUpdates,
 		tokenValidator:    tokenValidator,
 		monitoringService: monitoringService,
 	}
+	
+	// Start cleanup routine for expired polling sessions
+	go handler.cleanupExpiredSessions()
+	
+	return handler
 }
 
 // ServeHTTP handles Socket.IO requests
@@ -239,14 +258,16 @@ func (h *SocketIOHandler) handlePolling(w http.ResponseWriter, r *http.Request) 
 	// Get or create session
 	sid := r.URL.Query().Get("sid")
 	
+	log.Printf("🔍 Session ID from query: '%s'", sid)
+	
 	if r.Method == "GET" {
 		if sid == "" {
 			// Initial handshake - create new session
-			log.Printf("📡 Socket.IO Polling: Initial handshake for %s", username)
+			log.Printf("📡 Socket.IO Polling: Initial handshake for %s (no sid)", username)
 			h.handlePollingHandshake(w, r, userID, username)
 		} else {
 			// Existing session - send pending messages
-			log.Printf("📡 Socket.IO Polling: GET request for session %s", sid)
+			log.Printf("📡 Socket.IO Polling: GET request for existing session %s", sid)
 			h.handlePollingGet(w, r, sid, userID, username)
 		}
 	} else if r.Method == "POST" {
@@ -259,7 +280,22 @@ func (h *SocketIOHandler) handlePolling(w http.ResponseWriter, r *http.Request) 
 // handlePollingHandshake handles initial Socket.IO handshake
 func (h *SocketIOHandler) handlePollingHandshake(w http.ResponseWriter, r *http.Request, userID int, username string) {
 	// Create session ID
-	sid := fmt.Sprintf("polling_%d_%d", userID, time.Now().Unix())
+	sid := fmt.Sprintf("polling_%d_%d", userID, time.Now().UnixNano())
+	
+	// Create polling session
+	session := &PollingSession{
+		ID:           sid,
+		UserID:       userID,
+		Username:     username,
+		CreatedAt:    time.Now(),
+		LastActivity: time.Now(),
+		MessageQueue: make([]string, 0),
+	}
+	
+	// Store session
+	h.pollingMu.Lock()
+	h.pollingSessions[sid] = session
+	h.pollingMu.Unlock()
 	
 	// Create handshake response
 	handshake := map[string]interface{}{
@@ -274,7 +310,7 @@ func (h *SocketIOHandler) handlePollingHandshake(w http.ResponseWriter, r *http.
 	// Format in Socket.IO polling protocol: length:message
 	response := fmt.Sprintf("%d:%s", len(openMessage), openMessage)
 	
-	log.Printf("✅ Socket.IO Polling: Handshake sent to %s (session: %s)", username, sid)
+	log.Printf("✅ Socket.IO Polling: Created session %s for %s", sid, username)
 	
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
@@ -283,18 +319,48 @@ func (h *SocketIOHandler) handlePollingHandshake(w http.ResponseWriter, r *http.
 
 // handlePollingGet handles polling GET requests (client requesting messages)
 func (h *SocketIOHandler) handlePollingGet(w http.ResponseWriter, r *http.Request, sid string, userID int, username string) {
+	// Find session
+	h.pollingMu.RLock()
+	session, exists := h.pollingSessions[sid]
+	h.pollingMu.RUnlock()
+	
+	if !exists {
+		log.Printf("❌ Socket.IO Polling: Session %s not found for %s", sid, username)
+		http.Error(w, "Session not found", http.StatusNotFound)
+		return
+	}
+	
+	// Update last activity
+	session.mu.Lock()
+	session.LastActivity = time.Now()
+	
+	// Get queued messages
+	messages := make([]string, len(session.MessageQueue))
+	copy(messages, session.MessageQueue)
+	session.MessageQueue = session.MessageQueue[:0] // Clear queue
+	session.mu.Unlock()
+	
 	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	
-	// Send heartbeat or any pending messages
-	// For now, send a simple pong message to keep connection alive
-	pongMessage := MessageTypePong
-	response := fmt.Sprintf("%d:%s", len(pongMessage), pongMessage)
+	var response string
 	
-	// Also send test stock update
-	stockUpdate := `42["stock_update",{"type":"stock_update","stock_id":1,"symbol":"AAPL","price":150.00}]`
-	response += fmt.Sprintf("%d:%s", len(stockUpdate), stockUpdate)
-	
-	log.Printf("📊 Socket.IO Polling: Sent messages to %s", username)
+	// If no messages, send heartbeat
+	if len(messages) == 0 {
+		pongMessage := MessageTypePong
+		response = fmt.Sprintf("%d:%s", len(pongMessage), pongMessage)
+		
+		// Also send test stock update periodically
+		stockUpdate := `42["stock_update",{"type":"stock_update","stock_id":1,"symbol":"AAPL","price":150.00}]`
+		response += fmt.Sprintf("%d:%s", len(stockUpdate), stockUpdate)
+		
+		log.Printf("📊 Socket.IO Polling: Sent heartbeat and test data to %s (session: %s)", username, sid)
+	} else {
+		// Send queued messages
+		for _, msg := range messages {
+			response += fmt.Sprintf("%d:%s", len(msg), msg)
+		}
+		log.Printf("📊 Socket.IO Polling: Sent %d queued messages to %s (session: %s)", len(messages), username, sid)
+	}
 	
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
@@ -302,22 +368,44 @@ func (h *SocketIOHandler) handlePollingGet(w http.ResponseWriter, r *http.Reques
 
 // handlePollingPost handles polling POST requests (client sending messages)
 func (h *SocketIOHandler) handlePollingPost(w http.ResponseWriter, r *http.Request, sid string, userID int, username string) {
+	// Find session
+	h.pollingMu.RLock()
+	session, exists := h.pollingSessions[sid]
+	h.pollingMu.RUnlock()
+	
+	if !exists {
+		log.Printf("❌ Socket.IO Polling: Session %s not found for POST from %s", sid, username)
+		http.Error(w, "Session not found", http.StatusNotFound)
+		return
+	}
+	
+	// Update last activity
+	session.mu.Lock()
+	session.LastActivity = time.Now()
+	session.mu.Unlock()
+	
 	// Read the request body
 	body := make([]byte, r.ContentLength)
 	r.Body.Read(body)
 	
-	log.Printf("📨 Socket.IO Polling: Received from %s: %s", username, string(body))
+	log.Printf("📨 Socket.IO Polling: Received from %s (session: %s): %s", username, sid, string(body))
 	
 	// Parse Socket.IO polling format and handle messages
 	messageStr := string(body)
 	
 	// Handle different message types
 	if strings.Contains(messageStr, "subscribe_stocks") {
-		log.Printf("📊 %s subscribed to stocks via polling", username)
+		log.Printf("📊 %s subscribed to stocks via polling (session: %s)", username, sid)
+		// Queue confirmation message
+		h.queueMessage(sid, `42["subscription_confirmed",{"channel":"stocks"}]`)
 	} else if strings.Contains(messageStr, "join_chat") {
-		log.Printf("💬 %s joined chat via polling", username)
+		log.Printf("💬 %s joined chat via polling (session: %s)", username, sid)
+		// Queue confirmation message
+		h.queueMessage(sid, `42["chat_joined",{"status":"success"}]`)
 	} else if strings.Contains(messageStr, MessageTypePing) {
-		log.Printf("🏓 Received ping from %s via polling", username)
+		log.Printf("🏓 Received ping from %s via polling (session: %s)", username, sid)
+		// Queue pong response
+		h.queueMessage(sid, MessageTypePong)
 	}
 	
 	// Send OK response
@@ -584,6 +672,54 @@ func computeWebSocketAcceptKey(key string) string {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
+// queueMessage adds a message to a polling session's queue
+func (h *SocketIOHandler) queueMessage(sessionID, message string) {
+	h.pollingMu.RLock()
+	session, exists := h.pollingSessions[sessionID]
+	h.pollingMu.RUnlock()
+	
+	if !exists {
+		log.Printf("❌ Cannot queue message: session %s not found", sessionID)
+		return
+	}
+	
+	session.mu.Lock()
+	session.MessageQueue = append(session.MessageQueue, message)
+	session.mu.Unlock()
+	
+	log.Printf("📮 Queued message for session %s: %s", sessionID, message)
+}
+
+// cleanupExpiredSessions removes old polling sessions
+func (h *SocketIOHandler) cleanupExpiredSessions() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		now := time.Now()
+		expiredSessions := make([]string, 0)
+		
+		h.pollingMu.RLock()
+		for sid, session := range h.pollingSessions {
+			session.mu.Lock()
+			if now.Sub(session.LastActivity) > 2*time.Minute {
+				expiredSessions = append(expiredSessions, sid)
+			}
+			session.mu.Unlock()
+		}
+		h.pollingMu.RUnlock()
+		
+		if len(expiredSessions) > 0 {
+			h.pollingMu.Lock()
+			for _, sid := range expiredSessions {
+				delete(h.pollingSessions, sid)
+				log.Printf("🧹 Cleaned up expired polling session: %s", sid)
+			}
+			h.pollingMu.Unlock()
+		}
+	}
+}
+
 // handleNhooyrWebSocketConnection handles nhooyr.io/websocket connections
 func (h *SocketIOHandler) handleNhooyrWebSocketConnection(conn *nhooyrws.Conn, r *http.Request, userID int, username string) {
 	defer conn.Close(nhooyrws.StatusInternalError, "Internal server error")
@@ -671,5 +807,22 @@ func (h *SocketIOHandler) handleNhooyrWebSocketConnection(conn *nhooyrws.Conn, r
 				}
 			}()
 		}
+	}
+}
+
+// GetSessionStats returns current session statistics
+func (h *SocketIOHandler) GetSessionStats() map[string]interface{} {
+	h.pollingMu.RLock()
+	pollingSessions := len(h.pollingSessions)
+	h.pollingMu.RUnlock()
+	
+	h.clientsMu.RLock()
+	websocketClients := len(h.clients)
+	h.clientsMu.RUnlock()
+	
+	return map[string]interface{}{
+		"polling_sessions":  pollingSessions,
+		"websocket_clients": websocketClients,
+		"total_connections": pollingSessions + websocketClients,
 	}
 }

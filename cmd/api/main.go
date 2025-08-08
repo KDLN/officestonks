@@ -614,6 +614,17 @@ func main() {
 	// Handle all Socket.IO requests with native Go implementation
 	r.PathPrefix("/socket.io/").Handler(socketIOHandler)
 	
+	// Socket.IO session status endpoint
+	r.HandleFunc("/debug/socketio/sessions", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		
+		// Get session info from handler
+		sessionInfo := socketIOHandler.GetSessionStats()
+		
+		json.NewEncoder(w).Encode(sessionInfo)
+	}).Methods("GET", "OPTIONS")
+	
 	// Socket.IO Admin stats endpoint
 	r.HandleFunc("/api/admin/socketio/stats", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
