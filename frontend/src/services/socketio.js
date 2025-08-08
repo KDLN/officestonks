@@ -11,34 +11,32 @@ const MAX_RECONNECT_ATTEMPTS = 10;
 // Check the current hostname to determine if we're running locally
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// Get configuration from environment variables with fallbacks
-const getCurrentBackendURL = () => {
-  // If explicitly set, use that
-  if (process.env.REACT_APP_BACKEND_URL) {
-    return process.env.REACT_APP_BACKEND_URL;
+// Get Socket.IO server URL - can be different from main backend
+const getSocketIOURL = () => {
+  // If explicitly set for Socket.IO server
+  if (process.env.REACT_APP_SOCKETIO_URL) {
+    return process.env.REACT_APP_SOCKETIO_URL;
   }
   
   // For localhost development
   if (isLocalhost) {
-    return `${window.location.protocol}//${window.location.hostname}:8080`;
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
   }
   
-  // For production, try to use the current domain
-  // This handles Railway deployments automatically
+  // For production Railway deployment
   if (window.location.hostname.includes('railway.app')) {
-    // If we're on a Railway frontend URL, try the backend
+    // Try to use a dedicated Socket.IO service URL
+    // Pattern: officestonks-socketio-production.up.railway.app
     const currentDomain = window.location.hostname;
-    // Look for pattern like officestonks-frontend-production.up.railway.app
-    // and convert to officestonks-production.up.railway.app (backend)
-    const backendDomain = currentDomain.replace('-frontend', '');
-    return `${window.location.protocol}//${backendDomain}`;
+    const socketioDomain = currentDomain.replace('beta.officestonks.com', 'socketio.officestonks.com');
+    return `${window.location.protocol}//${socketioDomain}`;
   }
   
-  // For other production deployments, assume same domain
+  // Fallback to same domain (if Socket.IO is served from main backend)
   return window.location.origin;
 };
 
-const BACKEND_URL = getCurrentBackendURL();
+const SOCKETIO_URL = getSocketIOURL();
 
 // Railway-optimized Socket.IO configuration
 // Railway supports WebSocket over same PORT - this is the key to success!
@@ -70,7 +68,7 @@ export const connect = async () => {
     connectionState = 'connecting';
     notifyConnectionStateChange();
     
-    console.log(`🚀 Connecting to Socket.IO at ${BACKEND_URL}`);
+    console.log(`🚀 Connecting to Socket.IO at ${SOCKETIO_URL}`);
     
     // Get auth token for connection - getAuthToken is async so we need to await it
     let token;
@@ -92,8 +90,8 @@ export const connect = async () => {
       }
     };
 
-    // Create Socket.IO connection
-    socket = io(BACKEND_URL, options);
+    // Create Socket.IO connection to dedicated Socket.IO server
+    socket = io(SOCKETIO_URL, options);
 
     // Connection successful
     socket.on('connect', () => {
@@ -255,7 +253,7 @@ export const getConnectionState = () => {
 export const getConnectionStats = () => {
   return {
     ...getConnectionState(),
-    backendUrl: BACKEND_URL,
+    socketioUrl: SOCKETIO_URL,
     options: SOCKET_OPTIONS,
     listeners: Object.keys(listeners),
   };
