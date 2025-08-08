@@ -103,6 +103,7 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Socket.IO Admin - Office Stonks</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f8f9fa; }
@@ -141,7 +142,7 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
         }
         
         function testConnection() {
-            fetch('/socket.io/test-connection')
+            fetch('/api/admin/socketio/test-connection')
                 .then(response => response.json())
                 .then(data => {
                     alert('Connection test result: ' + JSON.stringify(data, null, 2));
@@ -157,20 +158,20 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
 </head>
 <body>
     <div class="header">
-        <h1>🎯 Socket.IO Admin Dashboard</h1>
-        <p>Office Stonks Real-time Server Monitoring & Debugging</p>
+        <h1>Socket.IO Admin Dashboard</h1>
+        <p>Office Stonks Real-time Server Monitoring &amp; Debugging</p>
     </div>
     
     <div class="container">
         <div class="refresh-notice">
             <strong>Auto-refresh:</strong> This page refreshes every 30 seconds. 
-            <button class="btn" onclick="refreshStats()">🔄 Refresh Now</button>
-            <button class="btn" onclick="testConnection()">🧪 Test Connection</button>
+            <button class="btn" onclick="refreshStats()">Refresh Now</button>
+            <button class="btn" onclick="testConnection()">Test Connection</button>
         </div>
 
         <div class="grid">
             <div class="card">
-                <div class="card-header">📊 Server Overview</div>
+                <div class="card-header">Server Overview</div>
                 <div class="card-body">
                     <div class="stat-grid">
                         <div class="stat-item">
@@ -194,12 +195,12 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
             </div>
 
             <div class="card">
-                <div class="card-header">🔗 Connection Health</div>
+                <div class="card-header">Connection Health</div>
                 <div class="card-body">
                     <div class="debug-section">
                         <h4>Connection Debugging Info</h4>
                         <div class="debug-info">
-                            <strong>Backend URL:</strong> %s<br>
+                            <strong>Backend URL:</strong> https://%s<br>
                             <strong>Socket.IO Endpoint:</strong> /socket.io/<br>
                             <strong>WebSocket URL:</strong> wss://%s/socket.io/<br>
                             <strong>Polling Fallback:</strong> https://%s/socket.io/<br>
@@ -207,10 +208,10 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
                             <strong>Auth Method:</strong> JWT Token in query params<br>
                             <br>
                             <strong>Common Issues:</strong><br>
-                            • Token format: Ensure not [object Promise]<br>
-                            • CORS: Check Railway domain matches<br>
-                            • Transport: WebSocket → Polling fallback<br>
-                            • Port: Same port for HTTP and WebSocket<br>
+                            - Token format: Ensure not [object Promise]<br>
+                            - CORS: Check Railway domain matches<br>
+                            - Transport: WebSocket to Polling fallback<br>
+                            - Port: Same port for HTTP and WebSocket<br>
                         </div>
                     </div>
                 </div>
@@ -218,7 +219,7 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
         </div>
 
         <div class="card">
-            <div class="card-header">👥 Connected Clients (%d)</div>
+            <div class="card-header">Connected Clients (%d)</div>
             <div class="card-body">
                 <table class="clients-table">
                     <thead>
@@ -239,7 +240,7 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
         </div>
 
         <div class="card">
-            <div class="card-header">🔍 Full Server Statistics (JSON)</div>
+            <div class="card-header">Full Server Statistics (JSON)</div>
             <div class="card-body">
                 <div class="debug-info">
                     <pre>%s</pre>
@@ -248,7 +249,7 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
         </div>
         
         <div class="card">
-            <div class="card-header">🚀 Socket.IO Server Information</div>
+            <div class="card-header">Socket.IO Server Information</div>
             <div class="card-body">
                 <p><strong>Office Stonks Socket.IO Server</strong> - Real-time stock market simulation with Railway deployment compatibility.</p>
                 <p>This dashboard helps debug WebSocket connections, monitor client activity, and troubleshoot real-time communication issues.</p>
@@ -258,8 +259,8 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
     </div>
 </body>
 </html>
-`, stats.ClientsCount, stats.NamespacesCount, "🟢 Online", 
-   "wss://beta.officestonks.com", "beta.officestonks.com", "beta.officestonks.com",
+`, stats.ClientsCount, stats.NamespacesCount, "Online", 
+   r.Host, r.Host, r.Host,
    stats.ClientsCount, a.generateClientsTableHTML(), string(statsJSON))
 
 	w.Write([]byte(html))
@@ -372,10 +373,44 @@ func (a *AdminServer) GetAdminStatsEndpoint() http.HandlerFunc {
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		
 		stats := a.getServerStats()
 		json.NewEncoder(w).Encode(stats)
+	}
+}
+
+// GetTestConnectionEndpoint returns an HTTP handler for testing Socket.IO connectivity
+func (a *AdminServer) GetTestConnectionEndpoint() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Basic auth check
+		if a.authEnabled {
+			user, pass, ok := r.BasicAuth()
+			if !ok || user != a.username || pass != a.password {
+				w.Header().Set("WWW-Authenticate", `Basic realm="Socket.IO Admin API"`)
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		
+		// Test Socket.IO server status
+		stats := a.socketServer.GetStats()
+		
+		result := map[string]interface{}{
+			"status": "ok",
+			"timestamp": time.Now().Unix(),
+			"server": map[string]interface{}{
+				"connected_clients": stats["connected_clients"],
+				"transport_info": stats["transport_info"],
+				"server_uptime": stats["server_uptime"],
+			},
+			"connection_test": "Socket.IO server is responding",
+		}
+		
+		json.NewEncoder(w).Encode(result)
 	}
 }

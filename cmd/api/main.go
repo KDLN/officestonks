@@ -625,8 +625,9 @@ func main() {
 	r.PathPrefix("/admin/socketio").HandlerFunc(adminServer.ServeAdminUI)
 	r.HandleFunc("/admin/socketio", adminServer.ServeAdminUI).Methods("GET")
 	
-	// Socket.IO Admin API endpoint
+	// Socket.IO Admin API endpoints
 	r.HandleFunc("/api/admin/socketio/stats", adminServer.GetAdminStatsEndpoint()).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/admin/socketio/test-connection", adminServer.GetTestConnectionEndpoint()).Methods("GET", "OPTIONS")
 	
 	log.Println("✅ Socket.IO routes configured:")
 	log.Println("   📡 /socket.io/ - Main Socket.IO endpoint")  
