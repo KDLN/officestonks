@@ -619,7 +619,28 @@ func main() {
 	
 	// Main Socket.IO endpoint - Railway supports WSS over same PORT
 	// This is critical for Railway deployment success
-	r.PathPrefix("/socket.io/").Handler(socketIOServer.GetHTTPHandler())
+	// Wrap with CORS handler for Socket.IO
+	socketIOHandler := socketIOServer.GetHTTPHandler()
+	r.PathPrefix("/socket.io/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers for Socket.IO
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "*"
+		}
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		// Handle preflight
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		// Serve Socket.IO
+		socketIOHandler.ServeHTTP(w, r)
+	})
 	
 	// Socket.IO Admin UI routes
 	r.PathPrefix("/admin/socketio").HandlerFunc(adminServer.ServeAdminUI)

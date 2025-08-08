@@ -191,7 +191,14 @@ func (s *SocketIOServer) setupEventHandlers() {
 }
 
 // Start begins listening for Socket.IO connections and starts the stock update broadcaster
-func (s *SocketIOServer) Start() {
+func (s *SocketIOServer) Start() error {
+	// Start the Socket.IO server
+	go func() {
+		if err := s.server.Serve(); err != nil {
+			log.Printf("❌ Socket.IO server error: %v", err)
+		}
+	}()
+	
 	// Start stock update broadcaster
 	go s.broadcastStockUpdates()
 	
@@ -199,6 +206,8 @@ func (s *SocketIOServer) Start() {
 	log.Println("📡 Transports: WebSocket (primary) → Polling (fallback)")
 	log.Println("🔐 Authentication: JWT token validation enabled")
 	log.Println("🏠 Rooms: stocks, chat, user_* available")
+	
+	return nil
 }
 
 // broadcastStockUpdates listens for stock updates and broadcasts them to subscribed clients
