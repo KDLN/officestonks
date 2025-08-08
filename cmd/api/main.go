@@ -17,6 +17,7 @@ import (
 	_ "github.com/dgrijalva/jwt-go"    // Used indirectly
 	_ "github.com/go-sql-driver/mysql" // Used as database driver
 	"github.com/gorilla/mux"
+	gorillaws "github.com/gorilla/websocket"
 
 	"officestonks/internal/handlers"
 	"officestonks/internal/middleware"
@@ -870,8 +871,18 @@ func getPort() int {
 	return port
 }
 
-// Proxy requests to Socket.IO Node.js server
+// Proxy requests to Socket.IO Node.js server with WebSocket support
 func proxyToSocketIOServer(w http.ResponseWriter, r *http.Request) {
+	// Check if this is a WebSocket upgrade request
+	if r.Header.Get("Upgrade") == "websocket" {
+		log.Printf("🔗 Proxying WebSocket upgrade request for Socket.IO")
+		proxyWebSocketToSocketIO(w, r)
+		return
+	}
+
+	// Regular HTTP proxy for polling requests
+	log.Printf("📡 Proxying HTTP request to Socket.IO: %s %s", r.Method, r.URL.Path)
+	
 	// Target URL for Socket.IO server
 	targetURL := "http://localhost:3001" + r.URL.Path
 	if r.URL.RawQuery != "" {
@@ -915,6 +926,82 @@ func proxyToSocketIOServer(w http.ResponseWriter, r *http.Request) {
 
 	// Copy response body
 	io.Copy(w, resp.Body)
+}
+
+// Proxy WebSocket connections to Socket.IO server
+func proxyWebSocketToSocketIO(w http.ResponseWriter, r *http.Request) {
+	// Target WebSocket URL
+	targetURL := "ws://localhost:3001" + r.URL.Path
+	if r.URL.RawQuery != "" {
+		targetURL += "?" + r.URL.RawQuery
+	}
+
+	log.Printf("🔗 Establishing WebSocket proxy to: %s", targetURL)
+
+	// Connect to target WebSocket server
+	targetConn, _, err := gorillaws.DefaultDialer.Dial(targetURL, r.Header)
+	if err != nil {
+		log.Printf("❌ Failed to connect to target WebSocket: %v", err)
+		http.Error(w, "Failed to connect to Socket.IO server", http.StatusBadGateway)
+		return
+	}
+	defer targetConn.Close()
+
+	// Upgrade client connection to WebSocket
+	upgrader := gorillaws.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all origins for Socket.IO
+		},
+		Subprotocols: []string{"socket.io"},
+	}
+
+	clientConn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("❌ Failed to upgrade client connection: %v", err)
+		return
+	}
+	defer clientConn.Close()
+
+	log.Printf("✅ WebSocket proxy established for Socket.IO")
+
+	// Proxy data bidirectionally
+	errChan := make(chan error, 2)
+
+	// Client to target
+	go func() {
+		for {
+			messageType, data, err := clientConn.ReadMessage()
+			if err != nil {
+				errChan <- fmt.Errorf("client read error: %v", err)
+				return
+			}
+			
+			if err := targetConn.WriteMessage(messageType, data); err != nil {
+				errChan <- fmt.Errorf("target write error: %v", err)
+				return
+			}
+		}
+	}()
+
+	// Target to client
+	go func() {
+		for {
+			messageType, data, err := targetConn.ReadMessage()
+			if err != nil {
+				errChan <- fmt.Errorf("target read error: %v", err)
+				return
+			}
+			
+			if err := clientConn.WriteMessage(messageType, data); err != nil {
+				errChan <- fmt.Errorf("client write error: %v", err)
+				return
+			}
+		}
+	}()
+
+	// Wait for either direction to error out
+	err = <-errChan
+	log.Printf("⚠️ WebSocket proxy ended: %v", err)
 }
 
 // Helper function to run commands and return output
