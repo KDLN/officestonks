@@ -21,24 +21,17 @@ RUN go mod download
 COPY . .
 RUN go build -o out ./cmd/api/main.go
 
-# Final runtime image with Node.js for Socket.IO
-FROM node:18-alpine
-RUN apk --no-cache add ca-certificates bash netcat-openbsd
+# Final minimal runtime image
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
-# Copy Go backend
+# Copy Go backend and frontend build
 COPY --from=backend-builder /app/out .
 COPY --from=frontend-builder /app/frontend/build ./frontend/build
 
-# Copy Socket.IO server
-COPY socketio-server/ ./socketio-server/
-
-# Copy startup script
-COPY start.sh .
-RUN chmod +x start.sh
-
-# Expose ports (Railway will use PORT env var for main service)
+# Expose port (Railway will use PORT env var)
 EXPOSE 8080
 
-# Use startup script to run both services
-CMD ["./start.sh"]
+# Run the Go backend directly
+CMD ["./out"]

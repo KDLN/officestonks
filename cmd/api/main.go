@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -17,12 +16,12 @@ import (
 	_ "github.com/dgrijalva/jwt-go"    // Used indirectly
 	_ "github.com/go-sql-driver/mysql" // Used as database driver
 	"github.com/gorilla/mux"
-	gorillaws "github.com/gorilla/websocket"
 
 	"officestonks/internal/handlers"
 	"officestonks/internal/middleware"
 	"officestonks/internal/repository"
 	"officestonks/internal/services"
+	"officestonks/internal/socketio"
 	"officestonks/internal/websocket"
 )
 
@@ -131,9 +130,10 @@ func main() {
 	railwayHandler := websocket.NewRailwayCompatibleHandler(wsHub, wsHandler)
 	wsHub.SetRailwayHandler(railwayHandler)
 
-	// Socket.IO is handled by the separate Node.js server on port 3001
-	// This Go backend will proxy requests to the Node.js Socket.IO server
-	log.Println("📡 Socket.IO handled by Node.js server (unified deployment)")
+	// Create native Socket.IO handler
+	log.Println("🚀 Creating native Socket.IO v4 handler...")
+	socketIOHandler := socketio.NewSocketIOHandler(marketService.GetSimulatorUpdates(), authService, monitoringService)
+	log.Println("✅ Socket.IO handler ready")
 
 	// Create handlers
 	authHandler := handlers.NewAuthHandler(authService, auditService, monitoringService)
@@ -608,31 +608,29 @@ func main() {
 		railwayHandler.HandleRealTimeConnection(w, r)
 	})
 
-	// Socket.IO proxy routes to Node.js server on port 3001
-	log.Println("🔌 Setting up Socket.IO proxy routes...")
+	// Socket.IO native routes
+	log.Println("🔌 Setting up native Socket.IO v4 routes...")
 	
-	// Proxy all Socket.IO requests to Node.js server
-	r.PathPrefix("/socket.io/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("🔄 Proxying Socket.IO request: %s %s", r.Method, r.URL.Path)
-		proxyToSocketIOServer(w, r)
-	})
+	// Handle all Socket.IO requests with native Go implementation
+	r.PathPrefix("/socket.io/").Handler(socketIOHandler)
 	
-	// Socket.IO Admin dashboard proxy
-	r.HandleFunc("/admin/socketio", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("🔄 Proxying Socket.IO admin request: %s", r.URL.Path)
-		proxyToSocketIOServer(w, r)
-	}).Methods("GET")
-	
-	// Socket.IO Admin API proxy
+	// Socket.IO Admin stats endpoint
 	r.HandleFunc("/api/admin/socketio/stats", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("🔄 Proxying Socket.IO stats request: %s", r.URL.Path)
-		proxyToSocketIOServer(w, r)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		
+		stats := map[string]interface{}{
+			"status": "healthy",
+			"protocol": "Socket.IO v4 (Native Go)",
+			"transport": []string{"websocket", "polling"},
+			"message": "Native Go Socket.IO implementation",
+		}
+		json.NewEncoder(w).Encode(stats)
 	}).Methods("GET", "OPTIONS")
 	
-	log.Println("✅ Socket.IO proxy routes configured:")
-	log.Println("   📡 /socket.io/ - Proxied to Node.js server")
-	log.Println("   🔧 /admin/socketio - Proxied to Node.js server")
-	log.Println("   📊 /api/admin/socketio/stats - Proxied to Node.js server")
+	log.Println("✅ Native Socket.IO routes configured:")
+	log.Println("   📡 /socket.io/ - Native Go Socket.IO v4 handler")
+	log.Println("   📊 /api/admin/socketio/stats - Admin API")
 
 	// WebSocket health check endpoint with proper CORS handling
 	r.HandleFunc("/ws/health", func(w http.ResponseWriter, r *http.Request) {
@@ -871,157 +869,6 @@ func getPort() int {
 	return port
 }
 
-// Proxy requests to Socket.IO Node.js server with WebSocket support
-func proxyToSocketIOServer(w http.ResponseWriter, r *http.Request) {
-	// Check if this is a WebSocket upgrade request
-	if r.Header.Get("Upgrade") == "websocket" {
-		log.Printf("🔗 Proxying WebSocket upgrade request for Socket.IO")
-		proxyWebSocketToSocketIO(w, r)
-		return
-	}
-
-	// Regular HTTP proxy for polling requests
-	log.Printf("📡 Proxying HTTP request to Socket.IO: %s %s", r.Method, r.URL.Path)
-	
-	// Target URL for Socket.IO server - use 127.0.0.1 to force IPv4
-	targetURL := "http://127.0.0.1:3001" + r.URL.Path
-	if r.URL.RawQuery != "" {
-		targetURL += "?" + r.URL.RawQuery
-	}
-
-	// Create new request
-	req, err := http.NewRequest(r.Method, targetURL, r.Body)
-	if err != nil {
-		log.Printf("❌ Failed to create proxy request: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	// Copy headers
-	for key, values := range r.Header {
-		for _, value := range values {
-			req.Header.Add(key, value)
-		}
-	}
-
-	// Make request to Socket.IO server
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("❌ Failed to proxy to Socket.IO server: %v", err)
-		http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Copy response headers
-	for key, values := range resp.Header {
-		for _, value := range values {
-			w.Header().Add(key, value)
-		}
-	}
-
-	// Copy status code
-	w.WriteHeader(resp.StatusCode)
-
-	// Copy response body
-	io.Copy(w, resp.Body)
-}
-
-// Proxy WebSocket connections to Socket.IO server
-func proxyWebSocketToSocketIO(w http.ResponseWriter, r *http.Request) {
-	// Target WebSocket URL - use 127.0.0.1 to force IPv4
-	targetURL := "ws://127.0.0.1:3001" + r.URL.Path
-	if r.URL.RawQuery != "" {
-		targetURL += "?" + r.URL.RawQuery
-	}
-
-	log.Printf("🔗 Establishing WebSocket proxy to: %s", targetURL)
-	log.Printf("🔍 Original headers: %v", r.Header)
-
-	// Create filtered headers for target connection (exclude WebSocket-specific headers)
-	filteredHeaders := make(http.Header)
-	for key, values := range r.Header {
-		// Skip WebSocket-specific headers to avoid duplication
-		switch key {
-		case "Upgrade", "Connection", "Sec-Websocket-Key", "Sec-Websocket-Version", 
-			 "Sec-Websocket-Extensions", "Sec-Websocket-Protocol":
-			// Skip these headers as they will be handled by the dialer
-			continue
-		default:
-			for _, value := range values {
-				filteredHeaders.Add(key, value)
-			}
-		}
-	}
-
-	log.Printf("🔍 Filtered headers: %v", filteredHeaders)
-
-	// Connect to target WebSocket server with filtered headers
-	targetConn, _, err := gorillaws.DefaultDialer.Dial(targetURL, filteredHeaders)
-	if err != nil {
-		log.Printf("❌ Failed to connect to target WebSocket: %v", err)
-		http.Error(w, "Failed to connect to Socket.IO server", http.StatusBadGateway)
-		return
-	}
-	defer targetConn.Close()
-
-	// Upgrade client connection to WebSocket
-	upgrader := gorillaws.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			return true // Allow all origins for Socket.IO
-		},
-		Subprotocols: []string{"socket.io"},
-	}
-
-	clientConn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("❌ Failed to upgrade client connection: %v", err)
-		return
-	}
-	defer clientConn.Close()
-
-	log.Printf("✅ WebSocket proxy established for Socket.IO")
-
-	// Proxy data bidirectionally
-	errChan := make(chan error, 2)
-
-	// Client to target
-	go func() {
-		for {
-			messageType, data, err := clientConn.ReadMessage()
-			if err != nil {
-				errChan <- fmt.Errorf("client read error: %v", err)
-				return
-			}
-			
-			if err := targetConn.WriteMessage(messageType, data); err != nil {
-				errChan <- fmt.Errorf("target write error: %v", err)
-				return
-			}
-		}
-	}()
-
-	// Target to client
-	go func() {
-		for {
-			messageType, data, err := targetConn.ReadMessage()
-			if err != nil {
-				errChan <- fmt.Errorf("target read error: %v", err)
-				return
-			}
-			
-			if err := clientConn.WriteMessage(messageType, data); err != nil {
-				errChan <- fmt.Errorf("client write error: %v", err)
-				return
-			}
-		}
-	}()
-
-	// Wait for either direction to error out
-	err = <-errChan
-	log.Printf("⚠️ WebSocket proxy ended: %v", err)
-}
 
 // Helper function to run commands and return output
 func getMustString(command string) string {
