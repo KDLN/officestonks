@@ -9,7 +9,6 @@ import (
 	"officestonks/internal/models"
 	"officestonks/internal/repository"
 	"officestonks/internal/services"
-	"officestonks/pkg/market"
 )
 
 // TestCrisisMechanics tests the complete crisis/bankruptcy/recovery flow
