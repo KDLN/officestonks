@@ -138,6 +138,8 @@ func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
 		// Check if this is a polling request that should be excluded from rate limiting
 		if isPollingRequest(r) {
 			// Skip rate limiting for polling requests but still call next handler
+			log.Printf("⚡ BYPASS: Polling request bypassed rate limiting: %s %s (X-Request-Type: %s)", 
+				r.Method, r.URL.Path, r.Header.Get("X-Request-Type"))
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -159,6 +161,14 @@ func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
 		if len(rl.clients[clientIP]) >= rl.maxRequests {
 			// Too many requests, return 429 status
 			rl.stats.blockedRequests++
+			
+			// Enhanced logging for rate limit blocks
+			log.Printf("🚫 RATE LIMIT: Client %s blocked (requests: %d/%d) for %s %s", 
+				clientIP, len(rl.clients[clientIP]), rl.maxRequests, r.Method, r.URL.Path)
+			log.Printf("🚫 RATE LIMIT: User-Agent: %s", r.Header.Get("User-Agent"))
+			log.Printf("🚫 RATE LIMIT: Origin: %s", r.Header.Get("Origin"))
+			log.Printf("🚫 RATE LIMIT: X-Request-Type: %s", r.Header.Get("X-Request-Type"))
+			
 			rl.mu.Unlock() // Unlock before returning response
 
 			w.Header().Set("Retry-After", rl.window.String())

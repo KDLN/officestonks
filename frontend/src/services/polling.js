@@ -130,8 +130,10 @@ const performPoll = async () => {
     consecutiveFailures = 0;
     
     // Log occasionally to avoid spam
-    if (pollCounter % 30 === 1) { // Every minute at 2s intervals
+    if (pollCounter % 30 === 1) { // Every minute at 5s intervals
       console.log(`📊 Poll #${pollCounter} successful - ${data.updates?.length || 0} updates received`);
+      console.log(`🔗 Poll URL: ${pollUrl}`);
+      console.log(`📋 Headers sent:`, headers);
     }
     
     // Process stock updates
@@ -245,6 +247,37 @@ export const getPollingStats = () => {
 export const forcePoll = async () => {
   console.log('🔄 Forcing manual poll...');
   await performPoll();
+};
+
+// Test rate limiter bypass (debugging function)
+export const testRateLimiterBypass = async () => {
+  console.log('🧪 Testing rate limiter bypass...');
+  
+  try {
+    const testUrl = `${BACKEND_URL}/api/test-polling`;
+    const headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-Request-Type': 'polling',
+    };
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: headers,
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Rate limiter bypass test successful:', data);
+      return { success: true, data };
+    } else {
+      console.error('❌ Rate limiter bypass test failed:', response.status, response.statusText);
+      return { success: false, status: response.status, statusText: response.statusText };
+    }
+  } catch (error) {
+    console.error('❌ Rate limiter bypass test error:', error);
+    return { success: false, error: error.message };
+  }
 };
 
 // Reset polling state (useful for debugging)

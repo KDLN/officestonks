@@ -157,7 +157,7 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(authService, monitoringService)
 
 	// Create rate limiter (100 requests per minute per IP)
-	rateLimiter := middleware.NewRateLimiter(100, time.Minute)
+	rateLimiter := middleware.NewRateLimiter(500, time.Minute) // Increased from 100 to 500 requests per minute
 	
 	// Create trade frequency limiter (5 second cooldown, max 20 trades per hour per user)
 	tradeLimiter := middleware.NewTradeLimiter(5, 20)
@@ -364,6 +364,21 @@ func main() {
 	// Apply rate limiting after SSE endpoint registration
 	r.Use(rateLimiter.RateLimit)
 	r.Use(monitoringService.CreateRequestTrackerMiddleware())
+	
+	// Test endpoint to verify rate limiter bypass logic
+	r.HandleFunc("/api/test-polling", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/json")
+		log.Printf("🧪 TEST: Polling test endpoint called with X-Request-Type: %s", r.Header.Get("X-Request-Type"))
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message": "Polling test endpoint working",
+			"timestamp": time.Now().Unix(),
+			"headers": map[string]string{
+				"X-Request-Type": r.Header.Get("X-Request-Type"),
+				"User-Agent": r.Header.Get("User-Agent"),
+			},
+		})
+	}).Methods("GET", "OPTIONS")
 
 	// Simple health check for Railway (no dependencies)
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

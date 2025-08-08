@@ -9,7 +9,8 @@ import {
   getPollingStats,
   getEnhancedPollingStats,
   forcePoll,
-  resetPolling
+  resetPolling,
+  testRateLimiterBypass
 } from '../services/polling';
 import Navigation from '../components/Navigation';
 
@@ -104,6 +105,15 @@ const PollingDebug = () => {
     resetPolling();
   };
 
+  const handleTestRateLimit = async () => {
+    try {
+      const result = await testRateLimiterBypass();
+      console.log('Rate limiter test result:', result);
+    } catch (error) {
+      console.error('Rate limiter test failed:', error);
+    }
+  };
+
   const handleClearMessages = () => {
     setMessages([]);
   };
@@ -141,6 +151,9 @@ const PollingDebug = () => {
           </button>
           <button onClick={handleClearMessages} style={{ marginRight: '10px' }}>
             🗑️ Clear Messages
+          </button>
+          <button onClick={handleTestRateLimit} style={{ marginRight: '10px' }}>
+            🧪 Test Rate Limit Bypass
           </button>
           <label style={{ marginLeft: '20px' }}>
             <input
