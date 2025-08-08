@@ -883,8 +883,8 @@ func proxyToSocketIOServer(w http.ResponseWriter, r *http.Request) {
 	// Regular HTTP proxy for polling requests
 	log.Printf("📡 Proxying HTTP request to Socket.IO: %s %s", r.Method, r.URL.Path)
 	
-	// Target URL for Socket.IO server
-	targetURL := "http://localhost:3001" + r.URL.Path
+	// Target URL for Socket.IO server - use 127.0.0.1 to force IPv4
+	targetURL := "http://127.0.0.1:3001" + r.URL.Path
 	if r.URL.RawQuery != "" {
 		targetURL += "?" + r.URL.RawQuery
 	}
@@ -930,8 +930,8 @@ func proxyToSocketIOServer(w http.ResponseWriter, r *http.Request) {
 
 // Proxy WebSocket connections to Socket.IO server
 func proxyWebSocketToSocketIO(w http.ResponseWriter, r *http.Request) {
-	// Target WebSocket URL
-	targetURL := "ws://localhost:3001" + r.URL.Path
+	// Target WebSocket URL - use 127.0.0.1 to force IPv4
+	targetURL := "ws://127.0.0.1:3001" + r.URL.Path
 	if r.URL.RawQuery != "" {
 		targetURL += "?" + r.URL.RawQuery
 	}

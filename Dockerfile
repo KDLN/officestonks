@@ -23,7 +23,7 @@ RUN go build -o out ./cmd/api/main.go
 
 # Final runtime image with Node.js for Socket.IO
 FROM node:18-alpine
-RUN apk --no-cache add ca-certificates bash
+RUN apk --no-cache add ca-certificates bash netcat-openbsd
 WORKDIR /app
 
 # Copy Go backend
