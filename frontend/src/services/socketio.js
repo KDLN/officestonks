@@ -72,11 +72,11 @@ export const connect = async () => {
     
     console.log(`🚀 Connecting to Socket.IO at ${BACKEND_URL}`);
     
-    // Get auth token for connection - ensure it's resolved if it's a Promise
+    // Get auth token for connection - getAuthToken is async so we need to await it
     let token;
     try {
-      const authToken = getAuthToken();
-      token = typeof authToken === 'string' ? authToken : await Promise.resolve(authToken);
+      token = await getAuthToken();
+      console.log('🔑 Got auth token for Socket.IO:', token ? `${token.substring(0, 20)}...` : 'null');
     } catch (error) {
       console.error('Failed to get auth token:', error);
       token = null;
