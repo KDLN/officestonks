@@ -54,6 +54,8 @@ type StockInfo struct {
 	SectorID     int
 	Trend        float64 // Bias for price movement: positive means upward trend, negative means downward
 	TrendCounter int     // Counter to track trend duration
+	LockedUntil  time.Time // Admin lock - prevents automatic updates until this time
+	LockedPrice  float64   // The price set by admin during lock period
 }
 
 // SectorInfo tracks sector-wide trends and volatility
@@ -153,7 +155,11 @@ func (s *MarketSimulator) UpdateStockPrice(id int, newPrice float64) {
 
 	if info, exists := s.stocksInfo[id]; exists {
 		info.BasePrice = newPrice
+		// Lock the price for 30 seconds after admin update to prevent race conditions
+		info.LockedUntil = time.Now().Add(30 * time.Second)
+		info.LockedPrice = newPrice
 		s.stocksInfo[id] = info
+		log.Printf("🔒 Stock %s (ID: %d) price locked at $%.2f for 30 seconds", info.Symbol, id, newPrice)
 	}
 }
 
@@ -260,6 +266,28 @@ func (s *MarketSimulator) updatePrices() {
 
 	// Update all stocks
 	for id, info := range s.stocksInfo {
+		// Check if stock is locked by admin update
+		if !info.LockedUntil.IsZero() && time.Now().Before(info.LockedUntil) {
+			// Stock is locked, use the locked price and skip automatic updates
+			select {
+			case s.updateChan <- StockUpdate{
+				StockID: info.ID,
+				Symbol:  info.Symbol,
+				Price:   info.LockedPrice,
+			}:
+			default:
+				// Channel is full, skip this update
+			}
+			continue // Skip to next stock
+		}
+		
+		// If lock has expired, clear it
+		if !info.LockedUntil.IsZero() && time.Now().After(info.LockedUntil) {
+			info.LockedUntil = time.Time{} // Clear the lock
+			info.LockedPrice = 0
+			log.Printf("🔓 Stock %s (ID: %d) price lock expired, resuming automatic updates", info.Symbol, id)
+		}
+		
 		// Validate base price before any calculations
 		if math.IsInf(info.BasePrice, 0) || math.IsNaN(info.BasePrice) || info.BasePrice <= 0 {
 			info.BasePrice = 0.01 // Reset to safe value
@@ -562,11 +590,16 @@ func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
 		}
 		stock.BasePrice = newPrice
 
+		// Lock the price for 30 seconds after admin reset to prevent race conditions
+		stock.LockedUntil = time.Now().Add(30 * time.Second)
+		stock.LockedPrice = newPrice
+
 		// Reset trend to prevent carrying over corrupted values
 		stock.Trend = 0
 		stock.TrendCounter = rand.Intn(10) + 5
 
 		s.stocksInfo[stockID] = stock
+		log.Printf("🔒 Stock %s (ID: %d) reloaded at $%.2f and locked for 30 seconds", stock.Symbol, stockID, newPrice)
 	}
 }
 
@@ -684,6 +717,19 @@ func (s *MarketSimulator) ForceRecovery(stockID int) error {
 	s.triggerRecovery(stockID, stock)
 
 	return nil
+}
+
+// UnlockStock removes the admin lock from a stock, allowing automatic updates to resume
+func (s *MarketSimulator) UnlockStock(stockID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if stock, exists := s.stocksInfo[stockID]; exists {
+		stock.LockedUntil = time.Time{} // Clear the lock
+		stock.LockedPrice = 0
+		s.stocksInfo[stockID] = stock
+		log.Printf("🔓 Stock %s (ID: %d) manually unlocked", stock.Symbol, stockID)
+	}
 }
 
 // GetStockInfo returns current stock information for testing

@@ -456,6 +456,9 @@ func (s *MarketService) GetSimulatorStockInfo(stockID int) (map[string]interface
 		"base_price":    stock.BasePrice,
 		"trend":         stock.Trend,
 		"trend_counter": stock.TrendCounter,
+		"is_locked":     !stock.LockedUntil.IsZero() && time.Now().Before(stock.LockedUntil),
+		"locked_until":  stock.LockedUntil,
+		"locked_price":  stock.LockedPrice,
 	}, nil
 }
 
