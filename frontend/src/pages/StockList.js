@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
-import { initSSE, addSSEListener, removeSSEListener } from '../services/sse';
+import { startPolling, addPollingListener, removePollingListener } from '../services/polling';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
@@ -36,15 +36,15 @@ const StockList = () => {
     // Initialize WebSocket connection for chat (keeping existing functionality)
     initWebSocket();
 
-    // Initialize SSE connection for stock updates
-    const sseTimeout = setTimeout(() => {
-      console.log('📡 Initializing SSE for StockList updates...');
-      initSSE().catch(err => {
-        console.error('❌ Failed to initialize SSE:', err);
+    // Initialize HTTP polling for stock updates
+    const pollingTimeout = setTimeout(() => {
+      console.log('📡 Starting HTTP polling for StockList updates...');
+      startPolling().catch(err => {
+        console.error('❌ Failed to start HTTP polling:', err);
       });
     }, 750);
 
-    // Listen for SSE stock price updates
+    // Listen for polling stock price updates
     const handleStockUpdate = (message) => {
       setStocks(prevStocks => 
         prevStocks.map(stock => 
@@ -59,13 +59,13 @@ const StockList = () => {
       );
     };
 
-    addSSEListener('stockUpdate', handleStockUpdate);
+    addPollingListener('stockUpdate', handleStockUpdate);
 
     // Cleanup on unmount
     return () => {
-      clearTimeout(sseTimeout);
-      removeSSEListener('stockUpdate', handleStockUpdate);
-      // Don't close WebSocket or SSE on component unmount as they're shared
+      clearTimeout(pollingTimeout);
+      removePollingListener('stockUpdate', handleStockUpdate);
+      // Don't close WebSocket or polling on component unmount as they're shared
     };
   }, []);
 

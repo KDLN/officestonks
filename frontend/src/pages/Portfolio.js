@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory } from '../services/stock';
 import { initWebSocket, addWebSocketListener, removeWebSocketListener } from '../services/websocket';
-import { initSSE, addSSEListener, removeSSEListener, isSSEConnected } from '../services/sse';
+import { startPolling, addPollingListener, removePollingListener, isPollingActive } from '../services/polling';
 import Navigation from '../components/Navigation';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PortfolioCrisisAlert from '../components/PortfolioCrisisAlert';
@@ -31,23 +31,17 @@ function Portfolio() {
       });
     }, 500);
 
-    // Initialize SSE for stock price updates
-    const sseTimeout = setTimeout(() => {
-      console.log('📡 Initializing SSE for Portfolio stock updates...');
-      initSSE().catch(err => {
-        console.error('❌ Failed to initialize SSE:', err);
-        // Start polling fallback after SSE fails
-        setTimeout(() => {
-          if (!isSSEConnected()) {
-            startPolling();
-          }
-        }, 2000);
+    // Initialize HTTP polling for stock price updates
+    const pollingTimeout = setTimeout(() => {
+      console.log('📡 Starting HTTP polling for Portfolio stock updates...');
+      startPolling().catch(err => {
+        console.error('❌ Failed to start HTTP polling:', err);
       });
     }, 750);
 
     // Handle page visibility changes to pause/resume polling
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !isSSEConnected() && !pollingInterval) {
+      if (document.visibilityState === 'visible' && !isPollingActive() && !pollingInterval) {
         console.log('📱 Page became visible - resuming polling');
         startPolling();
       } else if (document.visibilityState === 'hidden') {
@@ -58,33 +52,26 @@ function Portfolio() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Listen for SSE connection state changes
-    const handleSSEConnectionState = (state) => {
+    // Listen for polling connection state changes
+    const handlePollingConnectionState = (state) => {
       if (state.state === 'connected') {
-        console.log('✅ SSE connected - stopping polling fallback');
-        setIsWebSocketConnected(true); // Reusing this state for SSE connection
-        stopPolling();
+        console.log('✅ HTTP polling connected');
+        setIsWebSocketConnected(true); // Reusing this state for polling connection
       } else if (state.state === 'disconnected' || state.state === 'failed') {
-        console.log('❌ SSE disconnected - will start polling fallback');
+        console.log('❌ HTTP polling failed or disconnected');
         setIsWebSocketConnected(false);
-        // Start polling fallback after a short delay
-        setTimeout(() => {
-          if (!isSSEConnected() && document.visibilityState === 'visible') {
-            startPolling();
-          }
-        }, 3000);
       }
     };
 
-    // Listen for SSE stock updates to update portfolio in real-time
+    // Listen for polling stock updates to update portfolio in real-time
     const handleStockUpdate = (message) => {
-      console.log('Portfolio received SSE stock update:', message);
+      console.log('Portfolio received polling stock update:', message);
       
       const stock_id = message.stock_id;
       const price = message.price;
       
       if (!stock_id || !price) {
-        console.log('Missing required fields in SSE stock update:', message);
+        console.log('Missing required fields in polling stock update:', message);
         return;
       }
       
@@ -104,7 +91,7 @@ function Portfolio() {
           if (item.stock_id === stock_id) {
             const oldPrice = item.stock.current_price;
             if (oldPrice !== price) {
-              console.log(`SSE update: ${item.stock.symbol} price from $${oldPrice} to $${price}`);
+              console.log(`Polling update: ${item.stock.symbol} price from $${oldPrice} to $${price}`);
               hasChanges = true;
               
               // Track the direction of change for this item
@@ -185,16 +172,16 @@ function Portfolio() {
       });
     };
     
-    // Add SSE listeners
-    addSSEListener('stockUpdate', handleStockUpdate);
-    addSSEListener('connectionState', handleSSEConnectionState);
+    // Add polling listeners
+    addPollingListener('stockUpdate', handleStockUpdate);
+    addPollingListener('connectionState', handlePollingConnectionState);
     
     // Cleanup on unmount
     return () => {
       clearTimeout(wsTimeout);
-      clearTimeout(sseTimeout);
-      removeSSEListener('stockUpdate', handleStockUpdate);
-      removeSSEListener('connectionState', handleSSEConnectionState);
+      clearTimeout(pollingTimeout);
+      removePollingListener('stockUpdate', handleStockUpdate);
+      removePollingListener('connectionState', handlePollingConnectionState);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       stopPolling();
     };
