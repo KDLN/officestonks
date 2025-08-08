@@ -154,12 +154,26 @@ func (s *MarketSimulator) UpdateStockPrice(id int, newPrice float64) {
 	defer s.mu.Unlock()
 
 	if info, exists := s.stocksInfo[id]; exists {
+		// Set both BasePrice and LockedPrice to ensure consistency
 		info.BasePrice = newPrice
+		info.LockedPrice = newPrice
 		// Lock the price for 30 seconds after admin update to prevent race conditions
 		info.LockedUntil = time.Now().Add(30 * time.Second)
-		info.LockedPrice = newPrice
 		s.stocksInfo[id] = info
-		log.Printf("🔒 Stock %s (ID: %d) price locked at $%.2f for 30 seconds", info.Symbol, id, newPrice)
+		log.Printf("🔒 Stock %s (ID: %d) price locked at $%.2f for 30 seconds (until %v)", info.Symbol, id, newPrice, info.LockedUntil.Format("15:04:05"))
+		
+		// Immediately send the locked price to ensure it's broadcast
+		select {
+		case s.updateChan <- StockUpdate{
+			StockID: info.ID,
+			Symbol:  info.Symbol,
+			Price:   info.LockedPrice,
+		}:
+			log.Printf("🔒 Immediately broadcast locked price $%.2f for %s", info.LockedPrice, info.Symbol)
+		default:
+			// Channel is full, skip this immediate update
+			log.Printf("⚠️ Update channel full, couldn't immediately broadcast locked price for %s", info.Symbol)
+		}
 	}
 }
 
@@ -269,6 +283,7 @@ func (s *MarketSimulator) updatePrices() {
 		// Check if stock is locked by admin update
 		if !info.LockedUntil.IsZero() && time.Now().Before(info.LockedUntil) {
 			// Stock is locked, use the locked price and skip automatic updates
+			log.Printf("🔒 Stock %s still locked until %v, sending locked price $%.2f", info.Symbol, info.LockedUntil.Format("15:04:05"), info.LockedPrice)
 			select {
 			case s.updateChan <- StockUpdate{
 				StockID: info.ID,
@@ -281,11 +296,16 @@ func (s *MarketSimulator) updatePrices() {
 			continue // Skip to next stock
 		}
 		
-		// If lock has expired, clear it
+		// If lock has expired, clear it and ensure BasePrice matches the locked price
 		if !info.LockedUntil.IsZero() && time.Now().After(info.LockedUntil) {
+			// CRITICAL: Set BasePrice to the locked price to prevent snapback
+			if info.LockedPrice > 0 {
+				info.BasePrice = info.LockedPrice
+				log.Printf("🔓 Stock %s (ID: %d) price lock expired, BasePrice updated to locked price $%.2f", info.Symbol, id, info.LockedPrice)
+			}
 			info.LockedUntil = time.Time{} // Clear the lock
 			info.LockedPrice = 0
-			log.Printf("🔓 Stock %s (ID: %d) price lock expired, resuming automatic updates", info.Symbol, id)
+			s.stocksInfo[id] = info // Make sure to save the updated info
 		}
 		
 		// Validate base price before any calculations
@@ -588,11 +608,12 @@ func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
 		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
 			newPrice = 0.01
 		}
+		// Set both BasePrice and LockedPrice to ensure consistency
 		stock.BasePrice = newPrice
+		stock.LockedPrice = newPrice
 
 		// Lock the price for 30 seconds after admin reset to prevent race conditions
 		stock.LockedUntil = time.Now().Add(30 * time.Second)
-		stock.LockedPrice = newPrice
 
 		// Reset trend to prevent carrying over corrupted values
 		stock.Trend = 0

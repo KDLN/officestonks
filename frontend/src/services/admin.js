@@ -796,13 +796,47 @@ export const testStockPriceLocking = async () => {
         result: `Price is $${finalPrice} (lock should be expired, price may have changed)`
       });
 
+      // Step 6: Wait 5 more seconds to ensure price doesn't snap back to original
+      testResults.steps.push({ step: 6, action: "Waiting 5 seconds post-lock to check for snapback...", timestamp: new Date().toISOString() });
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const postLockCheck = await authenticatedFetch(`${API_URL}/stocks/${testStockId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!postLockCheck.ok) {
+        throw new Error("Failed to fetch stock for post-lock check");
+      }
+
+      const postLockData = await postLockCheck.json();
+      const postLockPrice = postLockData.current_price;
+
+      console.log(`🔒 Step 6 complete: Post-lock price check = $${postLockPrice}`);
+      testResults.steps.push({ 
+        step: 6, 
+        action: "Post-lock snapback check completed", 
+        timestamp: new Date().toISOString(),
+        result: `Price is $${postLockPrice} (checking for snapback to original $${originalPrice})`
+      });
+
+      // Check if price snapped back to original (which would be bad)
+      const priceDifferenceFromOriginal = Math.abs(postLockPrice - originalPrice);
+      const priceDifferenceFromTest = Math.abs(postLockPrice - testPrice);
+      
+      if (priceDifferenceFromOriginal < 0.01 && priceDifferenceFromTest > 0.02) {
+        throw new Error(`Price snapped back! Post-lock price $${postLockPrice} is too close to original $${originalPrice}, suggesting snapback occurred`);
+      }
+
       // Success if we made it this far
       testResults.success = true;
       testResults.steps.push({ 
-        step: 6, 
+        step: 7, 
         action: "Test completed successfully", 
         timestamp: new Date().toISOString(),
-        result: "Stock price locking mechanism is working correctly"
+        result: `Stock price locking mechanism working correctly. No snapback detected. Final price: $${postLockPrice}`
       });
 
       console.log("🔒 Stock price locking test completed successfully!");
