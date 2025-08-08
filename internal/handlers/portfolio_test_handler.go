@@ -473,7 +473,7 @@ func (h *PortfolioTestHandler) runPortfolioTest(suite *TestSuite, testName strin
 	
 	suite.Tests = append(suite.Tests, result)
 	
-	log.Printf("Portfolio Test '%s': %s (duration: %s)", testName, result.Status, result.Duration)
+	log.Printf("Portfolio Test '%s': %s (duration: %d ms)", testName, result.Status, result.Duration)
 }
 
 func (h *PortfolioTestHandler) createTestUser(username string, cashBalance float64) (*models.User, error) {

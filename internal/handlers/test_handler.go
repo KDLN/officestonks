@@ -325,7 +325,7 @@ func (h *TestHandler) runTest(suite *TestSuite, testName string, testFunc func()
 	
 	suite.Tests = append(suite.Tests, result)
 	
-	log.Printf("Test '%s': %s (duration: %s)", testName, result.Status, result.Duration)
+	log.Printf("Test '%s': %s (duration: %d ms)", testName, result.Status, result.Duration)
 }
 
 // RunSSETests runs Server-Sent Events test suite (admin only)
