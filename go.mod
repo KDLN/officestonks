@@ -15,6 +15,7 @@ require (
 require (
 	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/gomodule/redigo v1.8.4 // indirect
+	nhooyr.io/websocket v1.8.17 // indirect
 )
 
 require (

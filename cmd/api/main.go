@@ -628,9 +628,222 @@ func main() {
 		json.NewEncoder(w).Encode(stats)
 	}).Methods("GET", "OPTIONS")
 	
+	// Socket.IO Debug page
+	r.HandleFunc("/debug/socketio", func(w http.ResponseWriter, r *http.Request) {
+		html := `<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket.IO Debug - Office Stonks</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #00ff00; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 10px; border: 1px solid #333; }
+        .log { background: #000; padding: 10px; height: 300px; overflow-y: scroll; font-size: 12px; }
+        button { background: #333; color: #00ff00; border: 1px solid #666; padding: 10px; margin: 5px; cursor: pointer; }
+        button:hover { background: #555; }
+        .status { padding: 5px; margin: 5px 0; }
+        .success { color: #00ff00; }
+        .error { color: #ff0000; }
+        .warning { color: #ffaa00; }
+    </style>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 Socket.IO Debug Console</h1>
+        
+        <div class="section">
+            <h2>Connection Status</h2>
+            <div id="status" class="status">Disconnected</div>
+            <button onclick="testConnection()">Test WebSocket Connection</button>
+            <button onclick="testPolling()">Test Polling Connection</button>
+            <button onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div class="section">
+            <h2>Connection Info</h2>
+            <div id="info">
+                <div>Transport: <span id="transport">None</span></div>
+                <div>Socket ID: <span id="socketId">None</span></div>
+                <div>Connected: <span id="connected">false</span></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Test Actions</h2>
+            <button onclick="subscribeStocks()">Subscribe to Stocks</button>
+            <button onclick="joinChat()">Join Chat</button>
+            <button onclick="sendPing()">Send Ping</button>
+            <button onclick="sendTestMessage()">Send Test Message</button>
+        </div>
+        
+        <div class="section">
+            <h2>Debug Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+    
+    <script>
+        let socket = null;
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            logDiv.innerHTML += '<div class="' + className + '">[' + timestamp + '] ' + message + '</div>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log('[Socket.IO Debug]', message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+        }
+        
+        function updateInfo() {
+            if (socket) {
+                document.getElementById('transport').textContent = socket.io?.engine?.transport?.name || 'Unknown';
+                document.getElementById('socketId').textContent = socket.id || 'None';
+                document.getElementById('connected').textContent = socket.connected;
+            }
+        }
+        
+        function testConnection() {
+            log('🔄 Testing WebSocket connection...', 'info');
+            
+            const token = 'test_token_123'; // For debugging
+            socket = io(window.location.origin, {
+                transports: ['websocket', 'polling'],
+                auth: { token: token },
+                query: { token: token }
+            });
+            
+            socket.on('connect', () => {
+                log('✅ Connected successfully!', 'success');
+                updateStatus('Connected', 'success');
+                updateInfo();
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ Connection error: ' + error.message, 'error');
+                updateStatus('Connection Error', 'error');
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('⚠️ Disconnected: ' + reason, 'warning');
+                updateStatus('Disconnected', 'warning');
+                updateInfo();
+            });
+            
+            socket.on('connected', (data) => {
+                log('📡 Server confirmation: ' + JSON.stringify(data), 'success');
+            });
+            
+            socket.on('stock_update', (data) => {
+                log('📊 Stock update: ' + JSON.stringify(data), 'info');
+            });
+            
+            socket.on('subscription_confirmed', (data) => {
+                log('✅ Subscription confirmed: ' + JSON.stringify(data), 'success');
+            });
+            
+            socket.on('pong', (data) => {
+                log('🏓 Pong received: ' + JSON.stringify(data), 'info');
+            });
+        }
+        
+        function testPolling() {
+            log('🔄 Testing polling connection only...', 'info');
+            
+            const token = 'test_token_123';
+            socket = io(window.location.origin, {
+                transports: ['polling'], // Force polling
+                auth: { token: token },
+                query: { token: token }
+            });
+            
+            // Same event handlers as above
+            socket.on('connect', () => {
+                log('✅ Polling connected successfully!', 'success');
+                updateStatus('Connected (Polling)', 'success');
+                updateInfo();
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ Polling connection error: ' + error.message, 'error');
+                updateStatus('Polling Error', 'error');
+            });
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                updateStatus('Disconnected', 'warning');
+                updateInfo();
+                log('🔌 Manual disconnect', 'info');
+            }
+        }
+        
+        function subscribeStocks() {
+            if (socket && socket.connected) {
+                socket.emit('subscribe_stocks');
+                log('📊 Subscribing to stocks...', 'info');
+            } else {
+                log('❌ Not connected', 'error');
+            }
+        }
+        
+        function joinChat() {
+            if (socket && socket.connected) {
+                socket.emit('join_chat');
+                log('💬 Joining chat...', 'info');
+            } else {
+                log('❌ Not connected', 'error');
+            }
+        }
+        
+        function sendPing() {
+            if (socket && socket.connected) {
+                socket.emit('ping', Date.now());
+                log('🏓 Ping sent', 'info');
+            } else {
+                log('❌ Not connected', 'error');
+            }
+        }
+        
+        function sendTestMessage() {
+            if (socket && socket.connected) {
+                socket.emit('test_message', { message: 'Hello from debug console!', timestamp: Date.now() });
+                log('📤 Test message sent', 'info');
+            } else {
+                log('❌ Not connected', 'error');
+            }
+        }
+        
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+        
+        // Auto-update info every second
+        setInterval(updateInfo, 1000);
+        
+        log('🚀 Socket.IO Debug Console loaded', 'success');
+        log('Token: test_token_123 (hardcoded for debugging)', 'info');
+        log('Click "Test WebSocket Connection" to start', 'info');
+    </script>
+</body>
+</html>`
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte(html))
+	}).Methods("GET")
+	
 	log.Println("✅ Native Socket.IO routes configured:")
 	log.Println("   📡 /socket.io/ - Native Go Socket.IO v4 handler")
 	log.Println("   📊 /api/admin/socketio/stats - Admin API")
+	log.Println("   🔧 /debug/socketio - Debug console")
 
 	// WebSocket health check endpoint with proper CORS handling
 	r.HandleFunc("/ws/health", func(w http.ResponseWriter, r *http.Request) {
