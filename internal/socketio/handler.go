@@ -303,12 +303,13 @@ func (h *SocketIOHandler) handlePollingHandshake(w http.ResponseWriter, r *http.
 		"upgrades":     []string{}, // No WebSocket upgrade available
 		"pingInterval": 25000,
 		"pingTimeout":  60000,
+		"maxPayload":   1000000,   // Add maxPayload for Socket.IO v4
 	}
 	handshakeData, _ := json.Marshal(handshake)
 	openMessage := MessageTypeOpen + string(handshakeData)
 	
-	// Format in Socket.IO polling protocol: length:message
-	response := fmt.Sprintf("%d:%s", len(openMessage), openMessage)
+	// Socket.IO v4 uses record separator (\x1e) between packets, not length:message
+	response := openMessage + "\x1e"
 	
 	log.Printf("✅ Socket.IO Polling: Created session %s for %s", sid, username)
 	
@@ -347,17 +348,17 @@ func (h *SocketIOHandler) handlePollingGet(w http.ResponseWriter, r *http.Reques
 	// If no messages, send heartbeat
 	if len(messages) == 0 {
 		pongMessage := MessageTypePong
-		response = fmt.Sprintf("%d:%s", len(pongMessage), pongMessage)
+		response = pongMessage + "\x1e"
 		
 		// Also send test stock update periodically
 		stockUpdate := `42["stock_update",{"type":"stock_update","stock_id":1,"symbol":"AAPL","price":150.00}]`
-		response += fmt.Sprintf("%d:%s", len(stockUpdate), stockUpdate)
+		response += stockUpdate + "\x1e"
 		
 		log.Printf("📊 Socket.IO Polling: Sent heartbeat and test data to %s (session: %s)", username, sid)
 	} else {
 		// Send queued messages
 		for _, msg := range messages {
-			response += fmt.Sprintf("%d:%s", len(msg), msg)
+			response += msg + "\x1e"
 		}
 		log.Printf("📊 Socket.IO Polling: Sent %d queued messages to %s (session: %s)", len(messages), username, sid)
 	}
