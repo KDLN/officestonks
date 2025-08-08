@@ -198,30 +198,121 @@ func (h *SocketIOHandler) handleWebSocket(w http.ResponseWriter, r *http.Request
 
 // handlePolling handles HTTP polling transport
 func (h *SocketIOHandler) handlePolling(w http.ResponseWriter, r *http.Request) {
-	// For MVP, return a simple handshake response
-	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	// Get token from query
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		log.Printf("❌ Socket.IO Polling: No token provided")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate token
+	userID, username, err := h.validateToken(token)
+	if err != nil {
+		log.Printf("❌ Socket.IO Polling: Invalid token: %v", err)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Set CORS headers
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	if r.Method == "GET" {
-		// Send handshake for new connections
-		sid := fmt.Sprintf("polling_%d", time.Now().Unix())
-		handshake := map[string]interface{}{
-			"sid":          sid,
-			"upgrades":     []string{"websocket"},
-			"pingInterval": 25000,
-			"pingTimeout":  60000,
-		}
-		handshakeData, _ := json.Marshal(handshake)
-		response := MessageTypeOpen + string(handshakeData)
-		
-		// Socket.IO polling format: length:type+data
-		formatted := fmt.Sprintf("%d:%s", len(response), response)
-		w.Write([]byte(formatted))
-	} else {
-		// Handle POST (client sending data)
+	// Handle OPTIONS request
+	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
+		return
 	}
+
+	// Get or create session
+	sid := r.URL.Query().Get("sid")
+	
+	if r.Method == "GET" {
+		if sid == "" {
+			// Initial handshake - create new session
+			log.Printf("📡 Socket.IO Polling: Initial handshake for %s", username)
+			h.handlePollingHandshake(w, r, userID, username)
+		} else {
+			// Existing session - send pending messages
+			log.Printf("📡 Socket.IO Polling: GET request for session %s", sid)
+			h.handlePollingGet(w, r, sid, userID, username)
+		}
+	} else if r.Method == "POST" {
+		// Client sending data
+		log.Printf("📡 Socket.IO Polling: POST request for session %s", sid)
+		h.handlePollingPost(w, r, sid, userID, username)
+	}
+}
+
+// handlePollingHandshake handles initial Socket.IO handshake
+func (h *SocketIOHandler) handlePollingHandshake(w http.ResponseWriter, r *http.Request, userID int, username string) {
+	// Create session ID
+	sid := fmt.Sprintf("polling_%d_%d", userID, time.Now().Unix())
+	
+	// Create handshake response
+	handshake := map[string]interface{}{
+		"sid":          sid,
+		"upgrades":     []string{}, // No WebSocket upgrade available
+		"pingInterval": 25000,
+		"pingTimeout":  60000,
+	}
+	handshakeData, _ := json.Marshal(handshake)
+	openMessage := MessageTypeOpen + string(handshakeData)
+	
+	// Format in Socket.IO polling protocol: length:message
+	response := fmt.Sprintf("%d:%s", len(openMessage), openMessage)
+	
+	log.Printf("✅ Socket.IO Polling: Handshake sent to %s (session: %s)", username, sid)
+	
+	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(response))
+}
+
+// handlePollingGet handles polling GET requests (client requesting messages)
+func (h *SocketIOHandler) handlePollingGet(w http.ResponseWriter, r *http.Request, sid string, userID int, username string) {
+	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	
+	// Send heartbeat or any pending messages
+	// For now, send a simple pong message to keep connection alive
+	pongMessage := MessageTypePong
+	response := fmt.Sprintf("%d:%s", len(pongMessage), pongMessage)
+	
+	// Also send test stock update
+	stockUpdate := `42["stock_update",{"type":"stock_update","stock_id":1,"symbol":"AAPL","price":150.00}]`
+	response += fmt.Sprintf("%d:%s", len(stockUpdate), stockUpdate)
+	
+	log.Printf("📊 Socket.IO Polling: Sent messages to %s", username)
+	
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(response))
+}
+
+// handlePollingPost handles polling POST requests (client sending messages)
+func (h *SocketIOHandler) handlePollingPost(w http.ResponseWriter, r *http.Request, sid string, userID int, username string) {
+	// Read the request body
+	body := make([]byte, r.ContentLength)
+	r.Body.Read(body)
+	
+	log.Printf("📨 Socket.IO Polling: Received from %s: %s", username, string(body))
+	
+	// Parse Socket.IO polling format and handle messages
+	messageStr := string(body)
+	
+	// Handle different message types
+	if strings.Contains(messageStr, "subscribe_stocks") {
+		log.Printf("📊 %s subscribed to stocks via polling", username)
+	} else if strings.Contains(messageStr, "join_chat") {
+		log.Printf("💬 %s joined chat via polling", username)
+	} else if strings.Contains(messageStr, MessageTypePing) {
+		log.Printf("🏓 Received ping from %s via polling", username)
+	}
+	
+	// Send OK response
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 }
 
 // validateToken validates the JWT token
