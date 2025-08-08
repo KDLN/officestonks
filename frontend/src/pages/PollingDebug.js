@@ -7,6 +7,7 @@ import {
   getPollingConnectionState,
   isPollingActive,
   getPollingStats,
+  getEnhancedPollingStats,
   forcePoll,
   resetPolling
 } from '../services/polling';
@@ -20,7 +21,7 @@ const PollingDebug = () => {
   // Update stats every second
   useEffect(() => {
     const updateStats = () => {
-      setStats(getPollingStats());
+      setStats(getEnhancedPollingStats());
     };
 
     updateStats();
@@ -180,8 +181,17 @@ const PollingDebug = () => {
 
             <div className="status-card" style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
               <h3>Configuration</h3>
-              <p>Interval: <strong>{stats.interval}ms</strong></p>
+              <p>Base Interval: <strong>{stats.interval}ms</strong></p>
+              <p>Current Interval: <strong>{stats.currentInterval}ms</strong></p>
+              <p>Adaptive: <strong>{stats.adaptive ? 'Yes' : 'No'}</strong></p>
               <p>Listeners: <strong>{stats.listeners}</strong></p>
+            </div>
+
+            <div className="status-card" style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
+              <h3>User Activity</h3>
+              <p>Page Visible: <strong>{stats.isPageVisible ? 'Yes' : 'No'}</strong></p>
+              <p>Last Activity: <strong>{stats.lastUserActivity}</strong></p>
+              <p>Time Since: <strong>{Math.round(stats.timeSinceActivity / 1000)}s</strong></p>
             </div>
 
             <div className="status-card" style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '5px' }}>
@@ -239,13 +249,20 @@ const PollingDebug = () => {
         <div className="debug-instructions" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e3f2fd', borderRadius: '5px' }}>
           <h3>🔧 Testing Instructions</h3>
           <ul>
-            <li><strong>Start Polling:</strong> Begin HTTP polling for stock updates</li>
+            <li><strong>Start Polling:</strong> Begin adaptive HTTP polling for stock updates</li>
             <li><strong>Stop Polling:</strong> Stop the polling service</li>
             <li><strong>Force Poll:</strong> Trigger an immediate poll request</li>
             <li><strong>Reset Polling:</strong> Reset the service and restart</li>
             <li><strong>Monitor Messages:</strong> Watch for stock updates, connection states, and errors</li>
           </ul>
-          <p><strong>Expected Behavior:</strong> You should see periodic stock updates every 2 seconds when polling is active.</p>
+          <p><strong>Rate Limiting:</strong> Polling requests are excluded from user rate limits via X-Request-Type header.</p>
+          <p><strong>Adaptive Behavior:</strong></p>
+          <ul>
+            <li>Active users (last 30s): 5 second intervals</li>
+            <li>Recent users (last 5min): 10 second intervals</li>
+            <li>Idle users: 15 second intervals</li>
+            <li>Hidden page: 20 second intervals</li>
+          </ul>
         </div>
       </div>
     </div>

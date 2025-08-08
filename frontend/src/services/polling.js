@@ -28,10 +28,17 @@ const getBackendURL = () => {
 const BACKEND_URL = getBackendURL();
 console.log('🔗 Polling service using backend URL:', BACKEND_URL);
 
-// Polling configuration
-const POLL_INTERVAL = 2000; // 2 seconds - same as market updates
-const MAX_CONSECUTIVE_FAILURES = 5;
+// Polling configuration - optimized for rate limiting
+const POLL_INTERVAL = 5000; // 5 seconds - reduced from 2s to avoid rate limits
+const MAX_CONSECUTIVE_FAILURES = 3;
+const ADAPTIVE_POLLING = true; // Enable adaptive polling based on activity
 let consecutiveFailures = 0;
+
+// Adaptive polling state
+let isPageVisible = true;
+let lastUserActivity = Date.now();
+let currentPollInterval = POLL_INTERVAL;
+let adaptiveTimer = null;
 
 // Initialize HTTP polling
 export const startPolling = async () => {
@@ -50,10 +57,15 @@ export const startPolling = async () => {
   // Start polling immediately
   await performPoll();
   
-  // Set up regular polling
-  pollingInterval = setInterval(async () => {
-    await performPoll();
-  }, POLL_INTERVAL);
+  // Set up adaptive polling
+  if (ADAPTIVE_POLLING) {
+    setupAdaptivePolling();
+  } else {
+    // Set up regular polling
+    pollingInterval = setInterval(async () => {
+      await performPoll();
+    }, POLL_INTERVAL);
+  }
   
   connectionState = 'connected';
   notifyListeners('connectionState', { state: connectionState });
@@ -65,6 +77,11 @@ export const stopPolling = () => {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+  }
+  
+  if (adaptiveTimer) {
+    clearTimeout(adaptiveTimer);
+    adaptiveTimer = null;
   }
   
   connectionState = 'disconnected';
@@ -92,6 +109,7 @@ const performPoll = async () => {
     const headers = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      'X-Request-Type': 'polling', // Identify as polling request to bypass rate limiting
     };
     
     if (token) {
@@ -235,7 +253,77 @@ export const resetPolling = () => {
   consecutiveFailures = 0;
   pollCounter = 0;
   lastSuccessfulPoll = null;
+  lastUserActivity = Date.now();
+  currentPollInterval = POLL_INTERVAL;
   setTimeout(startPolling, 1000);
+};
+
+// Adaptive polling setup to reduce rate limiting
+const setupAdaptivePolling = () => {
+  // Track page visibility
+  document.addEventListener('visibilitychange', () => {
+    isPageVisible = !document.hidden;
+    console.log(`📱 Page visibility changed: ${isPageVisible ? 'visible' : 'hidden'}`);
+    scheduleNextPoll();
+  });
+
+  // Track user activity
+  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+  const updateActivity = () => {
+    lastUserActivity = Date.now();
+  };
+  
+  activityEvents.forEach(event => {
+    document.addEventListener(event, updateActivity, true);
+  });
+
+  // Start adaptive polling
+  scheduleNextPoll();
+};
+
+// Calculate adaptive poll interval based on user activity and page visibility
+const getAdaptivePollInterval = () => {
+  if (!isPageVisible) {
+    return POLL_INTERVAL * 4; // 20 seconds when page hidden
+  }
+  
+  const timeSinceActivity = Date.now() - lastUserActivity;
+  
+  if (timeSinceActivity < 30000) { // Active in last 30 seconds
+    return POLL_INTERVAL; // 5 seconds
+  } else if (timeSinceActivity < 300000) { // Active in last 5 minutes
+    return POLL_INTERVAL * 2; // 10 seconds
+  } else {
+    return POLL_INTERVAL * 3; // 15 seconds for idle users
+  }
+};
+
+// Schedule next poll with adaptive timing
+const scheduleNextPoll = () => {
+  if (adaptiveTimer) {
+    clearTimeout(adaptiveTimer);
+  }
+
+  currentPollInterval = getAdaptivePollInterval();
+  
+  adaptiveTimer = setTimeout(async () => {
+    await performPoll();
+    if (connectionState !== 'disconnected') {
+      scheduleNextPoll(); // Schedule next poll
+    }
+  }, currentPollInterval);
+};
+
+// Get enhanced polling statistics including adaptive info
+export const getEnhancedPollingStats = () => {
+  return {
+    ...getPollingStats(),
+    adaptive: ADAPTIVE_POLLING,
+    currentInterval: currentPollInterval,
+    isPageVisible,
+    lastUserActivity: new Date(lastUserActivity).toLocaleTimeString(),
+    timeSinceActivity: Date.now() - lastUserActivity
+  };
 };
 
 // Default export
@@ -247,6 +335,7 @@ export default {
   getPollingConnectionState,
   isPollingActive,
   getPollingStats,
+  getEnhancedPollingStats,
   forcePoll,
   resetPolling
 };

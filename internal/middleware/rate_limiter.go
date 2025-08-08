@@ -100,9 +100,48 @@ func getIPAddress(r *http.Request) string {
 	return ip
 }
 
+// isPollingRequest checks if a request is an automated polling request that should be excluded from rate limiting
+func isPollingRequest(r *http.Request) bool {
+	// Check for polling endpoints
+	if strings.HasSuffix(r.URL.Path, "/stock-updates/poll") {
+		return true
+	}
+	
+	// Check for SSE endpoints (also automated)
+	if strings.HasSuffix(r.URL.Path, "/sse/stock-updates") {
+		return true
+	}
+	
+	// Check for health checks and monitoring endpoints
+	if strings.HasSuffix(r.URL.Path, "/health") || strings.HasSuffix(r.URL.Path, "/health-check") {
+		return true
+	}
+	
+	// Check for User-Agent indicating automated requests
+	userAgent := r.Header.Get("User-Agent")
+	if strings.Contains(strings.ToLower(userAgent), "polling") || 
+	   strings.Contains(strings.ToLower(userAgent), "automated") {
+		return true
+	}
+	
+	// Check for custom header indicating polling request
+	if r.Header.Get("X-Request-Type") == "polling" {
+		return true
+	}
+	
+	return false
+}
+
 // RateLimit is a middleware that limits requests based on client IP
 func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a polling request that should be excluded from rate limiting
+		if isPollingRequest(r) {
+			// Skip rate limiting for polling requests but still call next handler
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Get client IP address
 		clientIP := getIPAddress(r)
 
