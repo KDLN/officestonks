@@ -31,11 +31,11 @@ const getSocketIOURL = () => {
 const SOCKETIO_URL = getSocketIOURL();
 
 // Railway-optimized Socket.IO configuration
-// Railway supports WebSocket over same PORT - this is the key to success!
+// Railway doesn't support WebSocket hijacking, so force polling transport only
 const SOCKET_OPTIONS = {
-  transports: ['websocket', 'polling'], // WebSocket first, polling fallback
-  upgrade: true,
-  rememberUpgrade: true,
+  transports: ['polling'], // Force polling transport only for Railway compatibility
+  upgrade: false, // Disable WebSocket upgrade
+  rememberUpgrade: false,
   timeout: 20000,
   forceNew: false,
   reconnection: true,
@@ -44,7 +44,7 @@ const SOCKET_OPTIONS = {
   reconnectionDelayMax: 30000,
   maxReconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
   randomizationFactor: 0.5,
-  // Railway-specific: ensure proper WebSocket URL formation
+  // Railway-specific: force polling transport
   autoConnect: true,
   forceBase64: false,
 };

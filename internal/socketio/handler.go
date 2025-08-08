@@ -609,17 +609,23 @@ func (h *SocketIOHandler) BroadcastToRoom(room string, message []byte) {
 
 // handleWebSocketUpgradeFailure handles failed WebSocket upgrades
 func (h *SocketIOHandler) handleWebSocketUpgradeFailure(w http.ResponseWriter, r *http.Request) {
-	// Tell the client that WebSocket is not available, should use polling
-	w.Header().Set("Content-Type", "application/json")
+	// Set CORS headers first
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.WriteHeader(http.StatusUpgradeRequired) // 426 - Upgrade Required
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	
-	response := map[string]interface{}{
-		"error": "WebSocket upgrade failed",
-		"message": "Use polling transport",
-		"code": 3, // Socket.IO error code for transport error
-	}
-	json.NewEncoder(w).Encode(response)
+	// For Socket.IO WebSocket upgrade failures, we need to return a specific error
+	// that tells the client to fall back to polling transport
+	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+	w.WriteHeader(http.StatusBadRequest) // 400 - Bad Request (Socket.IO expects this)
+	
+	// Socket.IO expects error code 3 for transport errors
+	// Format: Socket.IO packet type (4) + namespace + error packet
+	errorResponse := `4{"type":"transport error","description":"WebSocket upgrade failed"}`
+	
+	log.Printf("🚫 Socket.IO: WebSocket upgrade failed, sending transport error to client")
+	w.Write([]byte(errorResponse))
 }
 
 // handleManualWebSocketUpgrade performs WebSocket handshake manually
