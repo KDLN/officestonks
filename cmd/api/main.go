@@ -937,9 +937,28 @@ func proxyWebSocketToSocketIO(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("🔗 Establishing WebSocket proxy to: %s", targetURL)
+	log.Printf("🔍 Original headers: %v", r.Header)
 
-	// Connect to target WebSocket server
-	targetConn, _, err := gorillaws.DefaultDialer.Dial(targetURL, r.Header)
+	// Create filtered headers for target connection (exclude WebSocket-specific headers)
+	filteredHeaders := make(http.Header)
+	for key, values := range r.Header {
+		// Skip WebSocket-specific headers to avoid duplication
+		switch key {
+		case "Upgrade", "Connection", "Sec-Websocket-Key", "Sec-Websocket-Version", 
+			 "Sec-Websocket-Extensions", "Sec-Websocket-Protocol":
+			// Skip these headers as they will be handled by the dialer
+			continue
+		default:
+			for _, value := range values {
+				filteredHeaders.Add(key, value)
+			}
+		}
+	}
+
+	log.Printf("🔍 Filtered headers: %v", filteredHeaders)
+
+	// Connect to target WebSocket server with filtered headers
+	targetConn, _, err := gorillaws.DefaultDialer.Dial(targetURL, filteredHeaders)
 	if err != nil {
 		log.Printf("❌ Failed to connect to target WebSocket: %v", err)
 		http.Error(w, "Failed to connect to Socket.IO server", http.StatusBadGateway)
