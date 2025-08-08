@@ -759,9 +759,13 @@ func main() {
             
             const token = 'test_token_123';
             socket = io(window.location.origin, {
-                transports: ['polling'], // Force polling
+                transports: ['polling'], // Force polling only
+                forceNew: true, // Force new connection
                 auth: { token: token },
-                query: { token: token }
+                query: { token: token },
+                upgrade: false, // Disable WebSocket upgrade
+                rememberUpgrade: false,
+                timeout: 20000
             });
             
             // Same event handlers as above
@@ -774,6 +778,28 @@ func main() {
             socket.on('connect_error', (error) => {
                 log('❌ Polling connection error: ' + error.message, 'error');
                 updateStatus('Polling Error', 'error');
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('⚠️ Polling disconnected: ' + reason, 'warning');
+                updateStatus('Disconnected', 'warning');
+                updateInfo();
+            });
+            
+            socket.on('connected', (data) => {
+                log('📡 Polling server confirmation: ' + JSON.stringify(data), 'success');
+            });
+            
+            socket.on('stock_update', (data) => {
+                log('📊 Polling stock update: ' + JSON.stringify(data), 'info');
+            });
+            
+            socket.on('subscription_confirmed', (data) => {
+                log('✅ Polling subscription confirmed: ' + JSON.stringify(data), 'success');
+            });
+            
+            socket.on('pong', (data) => {
+                log('🏓 Polling pong received: ' + JSON.stringify(data), 'info');
             });
         }
         

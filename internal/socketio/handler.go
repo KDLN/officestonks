@@ -76,20 +76,30 @@ func NewSocketIOHandler(stockUpdates <-chan market.StockUpdate, tokenValidator a
 
 // ServeHTTP handles Socket.IO requests
 func (h *SocketIOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Debug logging
+	log.Printf("🔍 Socket.IO Request: %s %s", r.Method, r.URL.String())
+	log.Printf("🔍 Headers: %v", r.Header)
+	log.Printf("🔍 Query params: %v", r.URL.Query())
+	
 	// Extract transport from query
 	transport := r.URL.Query().Get("transport")
+	log.Printf("🔍 Transport: '%s'", transport)
 	
 	// Handle based on transport type
 	switch transport {
 	case "websocket":
+		log.Printf("🔄 Routing to WebSocket handler")
 		h.handleWebSocket(w, r)
 	case "polling":
+		log.Printf("🔄 Routing to Polling handler")
 		h.handlePolling(w, r)
 	default:
 		// Default to polling if no transport specified
 		if r.Header.Get("Upgrade") == "websocket" {
+			log.Printf("🔄 No transport specified, but has WebSocket upgrade header - routing to WebSocket")
 			h.handleWebSocket(w, r)
 		} else {
+			log.Printf("🔄 No transport specified, defaulting to polling")
 			h.handlePolling(w, r)
 		}
 	}
