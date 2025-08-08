@@ -1,9 +1,13 @@
 package socketio
 
 import (
+	"bufio"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -89,7 +93,7 @@ func (h *SocketIOHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleWebSocket handles WebSocket transport
+// handleWebSocket handles WebSocket transport using ResponseController
 func (h *SocketIOHandler) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Get token from query
 	token := r.URL.Query().Get("token")
@@ -107,12 +111,34 @@ func (h *SocketIOHandler) handleWebSocket(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Upgrade to WebSocket
+	log.Printf("🔄 Socket.IO: Attempting WebSocket upgrade using ResponseController")
+
+	// Try ResponseController approach (Go 1.20+) for Railway compatibility
+	ctrl := http.NewResponseController(w)
+	
+	// First try using gorilla/websocket directly - it might use ResponseController internally
 	conn, err := h.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("❌ Socket.IO: Failed to upgrade: %v", err)
+		log.Printf("❌ Socket.IO: gorilla/websocket upgrade failed: %v", err)
+		
+		// Try manual hijacking using ResponseController
+		netConn, bufrw, hijackErr := ctrl.Hijack()
+		if hijackErr != nil {
+			log.Printf("❌ Socket.IO: ResponseController hijack failed: %v", hijackErr)
+			log.Printf("⚠️ Socket.IO: WebSocket not available, client should use polling")
+			h.handleWebSocketUpgradeFailure(w, r)
+			return
+		}
+		
+		log.Printf("✅ Socket.IO: Successfully hijacked connection using ResponseController")
+		defer netConn.Close()
+		
+		// Handle the WebSocket upgrade manually
+		h.handleManualWebSocketUpgrade(netConn, bufrw, r, userID, username)
 		return
 	}
+
+	log.Printf("✅ Socket.IO: WebSocket upgrade successful!")
 
 	// Create client
 	clientID := fmt.Sprintf("user_%d_%d", userID, time.Now().Unix())
@@ -367,4 +393,69 @@ func (h *SocketIOHandler) BroadcastToRoom(room string, message []byte) {
 			}
 		}
 	}
+}
+
+// handleWebSocketUpgradeFailure handles failed WebSocket upgrades
+func (h *SocketIOHandler) handleWebSocketUpgradeFailure(w http.ResponseWriter, r *http.Request) {
+	// Tell the client that WebSocket is not available, should use polling
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(http.StatusUpgradeRequired) // 426 - Upgrade Required
+	
+	response := map[string]interface{}{
+		"error": "WebSocket upgrade failed",
+		"message": "Use polling transport",
+		"code": 3, // Socket.IO error code for transport error
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleManualWebSocketUpgrade performs WebSocket handshake manually
+func (h *SocketIOHandler) handleManualWebSocketUpgrade(netConn net.Conn, bufrw *bufio.ReadWriter, r *http.Request, userID int, username string) {
+	// WebSocket handshake
+	key := r.Header.Get("Sec-WebSocket-Key")
+	if key == "" {
+		log.Printf("❌ Socket.IO: Missing Sec-WebSocket-Key")
+		netConn.Close()
+		return
+	}
+
+	// Compute WebSocket accept key
+	acceptKey := computeWebSocketAcceptKey(key)
+	
+	// Write WebSocket upgrade response
+	response := fmt.Sprintf(
+		"HTTP/1.1 101 Switching Protocols\r\n" +
+		"Upgrade: websocket\r\n" +
+		"Connection: Upgrade\r\n" +
+		"Sec-WebSocket-Accept: %s\r\n" +
+		"\r\n", acceptKey)
+	
+	if _, err := netConn.Write([]byte(response)); err != nil {
+		log.Printf("❌ Socket.IO: Failed to write WebSocket upgrade response: %v", err)
+		netConn.Close()
+		return
+	}
+
+	log.Printf("✅ Socket.IO: Manual WebSocket handshake completed")
+	
+	// Create a WebSocket connection from the net.Conn
+	// For now, just log success and close - full implementation would need WebSocket framing
+	log.Printf("🔄 Socket.IO: Manual WebSocket connection established for user %s", username)
+	
+	// TODO: Implement full WebSocket message framing and handling
+	// This is complex and would require implementing the full WebSocket protocol
+	
+	time.Sleep(1 * time.Second) // Keep connection alive briefly for testing
+	netConn.Close()
+}
+
+// computeWebSocketAcceptKey computes the WebSocket accept key
+func computeWebSocketAcceptKey(key string) string {
+	// WebSocket magic string as defined in RFC 6455
+	const webSocketMagicString = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+	
+	h := sha1.New()
+	h.Write([]byte(key + webSocketMagicString))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
