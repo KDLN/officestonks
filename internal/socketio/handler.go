@@ -347,13 +347,12 @@ func (h *SocketIOHandler) handlePollingGet(w http.ResponseWriter, r *http.Reques
 	
 	// If no messages, just send heartbeat (don't send stock updates until client connects)
 	if len(messages) == 0 {
-		// Send a simple pong message to keep connection alive
-		pongMessage := MessageTypePong
-		response = pongMessage + "\x1e"
+		// Send Engine.IO ping packet (packet type 2)
+		response = "2\x1e"
 		
 		log.Printf("📊 Socket.IO Polling: Sent heartbeat to %s (session: %s)", username, sid)
 	} else {
-		// Send queued messages
+		// Send queued messages - each message should already have proper Engine.IO packet type
 		for _, msg := range messages {
 			response += msg + "\x1e"
 		}
@@ -400,14 +399,14 @@ func (h *SocketIOHandler) handlePollingPost(w http.ResponseWriter, r *http.Reque
 		log.Printf("💬 %s joined chat via polling (session: %s)", username, sid)
 		// Queue confirmation message
 		h.queueMessage(sid, `42["chat_joined",{"status":"success"}]`)
-	} else if strings.Contains(messageStr, MessageTypePing) {
+	} else if strings.Contains(messageStr, MessageTypePing) || strings.Contains(messageStr, "2") {
 		log.Printf("🏓 Received ping from %s via polling (session: %s)", username, sid)
-		// Queue pong response
-		h.queueMessage(sid, MessageTypePong)
+		// Queue Engine.IO pong response (packet type 3)
+		h.queueMessage(sid, "3")
 	} else if strings.HasPrefix(messageStr, "40") {
 		// Socket.IO connect packet - client is connecting to Socket.IO namespace
 		log.Printf("🔗 %s Socket.IO connected via polling (session: %s)", username, sid)
-		// Send connect acknowledgment (packet type 4, message type 0)
+		// Send Socket.IO connect acknowledgment (Engine.IO packet type 4 + Socket.IO message type 0)
 		h.queueMessage(sid, "40") // Connect acknowledgment for default namespace
 		// Also queue stock subscription confirmation after connect
 		h.queueMessage(sid, `42["subscription_confirmed",{"channel":"stocks"}]`)
