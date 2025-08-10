@@ -14,18 +14,24 @@ ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL
 RUN npm run build
 
 # Use Go to build the backend
-FROM golang:1.21-alpine AS backend-builder
+FROM golang:1.22-alpine AS backend-builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN go build -o out ./cmd/api/main.go
 
-# Final runtime image
+# Final minimal runtime image
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
-WORKDIR /root/
+WORKDIR /app
+
+# Copy Go backend and frontend build
 COPY --from=backend-builder /app/out .
 COPY --from=frontend-builder /app/frontend/build ./frontend/build
+
+# Expose port (Railway will use PORT env var)
 EXPOSE 8080
+
+# Run the Go backend directly
 CMD ["./out"]

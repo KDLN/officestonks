@@ -13,15 +13,15 @@ import (
 
 // MarketService handles stock market operations
 type MarketService struct {
-	stockRepo           models.StockRepository
-	userRepo            models.UserRepository
-	portfolioRepo       models.PortfolioRepository
-	transactionRepo     models.TransactionRepository
-	sectorRepo          models.SectorRepository
-	delistedStockRepo   models.DelistedStockRepository
-	portfolioLossRepo   models.PortfolioLossRepository
-	newsService         *NewsService
-	simulator           *market.MarketSimulator
+	stockRepo         models.StockRepository
+	userRepo          models.UserRepository
+	portfolioRepo     models.PortfolioRepository
+	transactionRepo   models.TransactionRepository
+	sectorRepo        models.SectorRepository
+	delistedStockRepo models.DelistedStockRepository
+	portfolioLossRepo models.PortfolioLossRepository
+	newsService       *NewsService
+	simulator         *market.MarketSimulator
 }
 
 // NewMarketService creates a new market service
@@ -38,28 +38,28 @@ func NewMarketService(
 	// Create a market simulator with faster updates and higher volatility for more dynamic price movements
 	// 2-second updates and 5% volatility
 	simulator := market.NewMarketSimulator(2*time.Second, 0.05)
-	
+
 	// Create the service first
 	service := &MarketService{
-		stockRepo:           stockRepo,
-		userRepo:            userRepo,
-		portfolioRepo:       portfolioRepo,
-		transactionRepo:     transactionRepo,
-		sectorRepo:          sectorRepo,
-		delistedStockRepo:   delistedStockRepo,
-		portfolioLossRepo:   portfolioLossRepo,
-		newsService:         newsService,
-		simulator:           simulator,
+		stockRepo:         stockRepo,
+		userRepo:          userRepo,
+		portfolioRepo:     portfolioRepo,
+		transactionRepo:   transactionRepo,
+		sectorRepo:        sectorRepo,
+		delistedStockRepo: delistedStockRepo,
+		portfolioLossRepo: portfolioLossRepo,
+		newsService:       newsService,
+		simulator:         simulator,
 	}
-	
+
 	// Connect the news service to the simulator for automated news generation
 	if newsService != nil {
 		simulator.SetNewsService(newsService)
 	}
-	
+
 	// Connect the bankruptcy handler (the service itself implements the interface)
 	simulator.SetBankruptcyHandler(service)
-	
+
 	return service
 }
 
@@ -70,37 +70,37 @@ func (s *MarketService) InitializeSimulator() error {
 	if err != nil {
 		log.Printf("Warning: Failed to load sectors from database: %v", err)
 		log.Println("Using mock data for market simulation (development mode)")
-		
+
 		// Use mock sectors for development
 		sectors = s.createMockSectors()
 	}
-	
+
 	// Add sectors to the simulator
 	for _, sector := range sectors {
 		s.simulator.AddSector(sector.ID, sector.Name, sector.VolatilityModifier)
 	}
-	
+
 	// Try to load stocks from the database
 	stocks, err := s.stockRepo.LoadStocksForSimulation()
 	if err != nil {
 		log.Printf("Warning: Failed to load stocks from database: %v", err)
 		log.Println("Using mock data for market simulation (development mode)")
-		
+
 		// Use mock stocks for development
 		stocks = s.createMockStocks()
 	}
-	
+
 	// Add stocks to the simulator
 	for id, stock := range stocks {
 		s.simulator.AddStock(id, stock.Symbol, stock.Name, stock.Sector, stock.SectorID, stock.Price)
 	}
-	
+
 	// Start the simulator
 	s.simulator.Start()
-	
+
 	// Start a goroutine to update stock prices in the database (if available)
 	go s.updateStockPrices()
-	
+
 	log.Printf("Market simulator initialized with %d sectors and %d stocks", len(sectors), len(stocks))
 	return nil
 }
@@ -153,25 +153,25 @@ func (s *MarketService) createMockStocks() map[int]struct {
 // updateStockPrices handles updates from the simulator
 func (s *MarketService) updateStockPrices() {
 	updateChan := s.simulator.GetUpdateChannel()
-	
+
 	log.Printf("📡 MarketService: Starting to listen for stock updates from simulator")
 	updatesProcessed := 0
 	lastLogTime := time.Now()
-	
+
 	for update := range updateChan {
 		updatesProcessed++
-		
+
 		// Log first few updates to verify flow
 		if updatesProcessed <= 5 {
 			log.Printf("📈 MarketService: Received update #%d - %s: $%.2f", updatesProcessed, update.Symbol, update.Price)
 		}
-		
+
 		// Validate price before updating database
 		if math.IsInf(update.Price, 0) || math.IsNaN(update.Price) || update.Price <= 0 {
 			log.Printf("⚠️ MarketService: Skipping database update for stock %s: invalid price %f", update.Symbol, update.Price)
 			continue
 		}
-		
+
 		// Ensure price is within reasonable bounds
 		price := update.Price
 		if price < 0.01 {
@@ -179,13 +179,13 @@ func (s *MarketService) updateStockPrices() {
 		} else if price > 1000000 {
 			price = 1000000
 		}
-		
+
 		// Update the stock price in the database
 		if err := s.stockRepo.UpdateStockPrice(update.StockID, price); err != nil {
 			log.Printf("❌ MarketService: Error updating stock price for %s: %v", update.Symbol, err)
 			continue
 		}
-		
+
 		// Log progress every 60 seconds
 		if time.Since(lastLogTime) >= 60*time.Second {
 			log.Printf("📊 MarketService: Processed %d stock updates in last 60s", updatesProcessed)
@@ -193,7 +193,7 @@ func (s *MarketService) updateStockPrices() {
 			lastLogTime = time.Now()
 		}
 	}
-	
+
 	log.Printf("🛑 MarketService: Stock update listener stopped")
 }
 
@@ -214,19 +214,19 @@ func (s *MarketService) GetUserPortfolio(userID int) (*models.PortfolioSummary, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Get the user's cash balance
 	user, err := s.userRepo.GetUserByID(userID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate total stock value
 	var stockValue float64
 	for _, item := range items {
 		stockValue += float64(item.Quantity) * item.Stock.CurrentPrice
 	}
-	
+
 	// Create the portfolio summary
 	summary := &models.PortfolioSummary{
 		CashBalance:    user.CashBalance,
@@ -234,7 +234,7 @@ func (s *MarketService) GetUserPortfolio(userID int) (*models.PortfolioSummary, 
 		TotalValue:     user.CashBalance + stockValue,
 		PortfolioItems: items,
 	}
-	
+
 	return summary, nil
 }
 
@@ -244,51 +244,51 @@ func (s *MarketService) BuyStock(userID, stockID, quantity int) error {
 	if quantity <= 0 {
 		return errors.New("quantity must be greater than zero")
 	}
-	
+
 	// Get the stock
 	stock, err := s.stockRepo.GetStockByID(stockID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Get the user
 	user, err := s.userRepo.GetUserByID(userID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Calculate total cost
 	totalCost := stock.CurrentPrice * float64(quantity)
-	
+
 	// Check if user has enough cash
 	if user.CashBalance < totalCost {
 		return errors.New("insufficient funds")
 	}
-	
+
 	// Begin transaction (in a real app, you'd use a database transaction here)
-	
+
 	// Update user's cash balance
 	newBalance := user.CashBalance - totalCost
 	if err := s.userRepo.UpdateUserBalance(userID, newBalance); err != nil {
 		return err
 	}
-	
+
 	// Update user's portfolio
 	if err := s.portfolioRepo.AddStockToPortfolio(userID, stockID, quantity); err != nil {
 		// In a real app, you'd roll back the balance change on error
 		return err
 	}
-	
+
 	// Record the transaction
 	_, err = s.transactionRepo.CreateTransaction(userID, stockID, quantity, stock.CurrentPrice, models.Buy)
 	if err != nil {
 		// In a real app, you'd roll back the previous changes on error
 		return err
 	}
-	
+
 	// Update market simulation
 	s.simulator.ProcessTransaction(stockID, quantity, true)
-	
+
 	return nil
 }
 
@@ -298,58 +298,58 @@ func (s *MarketService) SellStock(userID, stockID, quantity int) error {
 	if quantity <= 0 {
 		return errors.New("quantity must be greater than zero")
 	}
-	
+
 	// Get the stock
 	stock, err := s.stockRepo.GetStockByID(stockID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Get the user's holding for this stock
 	holding, err := s.portfolioRepo.GetUserStockHolding(userID, stockID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if user owns the stock and has enough shares
 	if holding == nil || holding.Quantity < quantity {
 		return errors.New("insufficient shares")
 	}
-	
+
 	// Get the user
 	user, err := s.userRepo.GetUserByID(userID)
 	if err != nil {
 		return err
 	}
-	
+
 	// Calculate total proceeds
 	totalProceeds := stock.CurrentPrice * float64(quantity)
-	
+
 	// Begin transaction (in a real app, you'd use a database transaction here)
-	
+
 	// Update user's cash balance
 	newBalance := user.CashBalance + totalProceeds
 	if err := s.userRepo.UpdateUserBalance(userID, newBalance); err != nil {
 		return err
 	}
-	
+
 	// Update user's portfolio
 	newQuantity := holding.Quantity - quantity
 	if err := s.portfolioRepo.UpdateStockQuantity(holding.ID, newQuantity); err != nil {
 		// In a real app, you'd roll back the balance change on error
 		return err
 	}
-	
+
 	// Record the transaction
 	_, err = s.transactionRepo.CreateTransaction(userID, stockID, quantity, stock.CurrentPrice, models.Sell)
 	if err != nil {
 		// In a real app, you'd roll back the previous changes on error
 		return err
 	}
-	
+
 	// Update market simulation
 	s.simulator.ProcessTransaction(stockID, quantity, false)
-	
+
 	return nil
 }
 
@@ -387,12 +387,12 @@ func (s *MarketService) ReloadSimulatorPrices() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Update each stock's price in the simulator
 	for id, stock := range stocks {
 		s.simulator.ReloadStock(id, stock.Price)
 	}
-	
+
 	return nil
 }
 
@@ -404,22 +404,22 @@ func (s *MarketService) AtomicResetStockPrices() error {
 		// Always resume the simulator, even if there was an error
 		s.simulator.Resume()
 	}()
-	
+
 	// Small delay to ensure pause takes effect
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// Step 2: Reset prices in database
 	err := s.stockRepo.ResetAllStockPrices()
 	if err != nil {
 		return fmt.Errorf("failed to reset stock prices in database: %w", err)
 	}
-	
+
 	// Step 3: Reload simulator with new prices from database
 	err = s.ReloadSimulatorPrices()
 	if err != nil {
 		return fmt.Errorf("failed to reload simulator prices: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -446,16 +446,19 @@ func (s *MarketService) GetSimulatorStockInfo(stockID int) (map[string]interface
 	if !exists {
 		return nil, fmt.Errorf("stock with ID %d not found in simulator", stockID)
 	}
-	
+
 	return map[string]interface{}{
-		"id":         stock.ID,
-		"symbol":     stock.Symbol,
-		"name":       stock.Name,
-		"sector":     stock.Sector,
-		"sector_id":  stock.SectorID,
-		"base_price": stock.BasePrice,
-		"trend":      stock.Trend,
+		"id":            stock.ID,
+		"symbol":        stock.Symbol,
+		"name":          stock.Name,
+		"sector":        stock.Sector,
+		"sector_id":     stock.SectorID,
+		"base_price":    stock.BasePrice,
+		"trend":         stock.Trend,
 		"trend_counter": stock.TrendCounter,
+		"is_locked":     !stock.LockedUntil.IsZero() && time.Now().Before(stock.LockedUntil),
+		"locked_until":  stock.LockedUntil,
+		"locked_price":  stock.LockedPrice,
 	}, nil
 }
 
@@ -463,20 +466,20 @@ func (s *MarketService) GetSimulatorStockInfo(stockID int) (map[string]interface
 func (s *MarketService) ListSimulatorStocks() map[int]map[string]interface{} {
 	stocks := s.simulator.ListAllStocks()
 	result := make(map[int]map[string]interface{})
-	
+
 	for id, stock := range stocks {
 		result[id] = map[string]interface{}{
-			"id":         stock.ID,
-			"symbol":     stock.Symbol,
-			"name":       stock.Name,
-			"sector":     stock.Sector,
-			"sector_id":  stock.SectorID,
-			"base_price": stock.BasePrice,
-			"trend":      stock.Trend,
+			"id":            stock.ID,
+			"symbol":        stock.Symbol,
+			"name":          stock.Name,
+			"sector":        stock.Sector,
+			"sector_id":     stock.SectorID,
+			"base_price":    stock.BasePrice,
+			"trend":         stock.Trend,
 			"trend_counter": stock.TrendCounter,
 		}
 	}
-	
+
 	return result
 }
 
@@ -487,17 +490,17 @@ func (s *MarketService) ProcessStockBankruptcy(stockID int) error {
 	if err != nil {
 		return fmt.Errorf("failed to get stock info: %w", err)
 	}
-	
+
 	log.Printf("💀 Processing bankruptcy for %s (%s)", stock.Symbol, stock.Name)
-	
+
 	// Step 1: Get all users who own this stock
 	holders, err := s.portfolioRepo.GetAllHoldersOfStock(stockID)
 	if err != nil {
 		return fmt.Errorf("failed to get stock holders: %w", err)
 	}
-	
+
 	log.Printf("Found %d users holding %s stock", len(holders), stock.Symbol)
-	
+
 	// Step 2: Record portfolio losses for all holders
 	for _, holding := range holders {
 		lossAmount := float64(holding.Quantity) * stock.CurrentPrice
@@ -516,7 +519,7 @@ func (s *MarketService) ProcessStockBankruptcy(stockID int) error {
 			log.Printf("💸 Recorded $%.2f loss for user %d from %s bankruptcy", lossAmount, holding.UserID, stock.Symbol)
 		}
 	}
-	
+
 	// Step 3: Record the delisted stock
 	err = s.delistedStockRepo.CreateDelistedStock(
 		stockID,
@@ -529,19 +532,19 @@ func (s *MarketService) ProcessStockBankruptcy(stockID int) error {
 	if err != nil {
 		return fmt.Errorf("failed to record delisted stock: %w", err)
 	}
-	
+
 	// Step 4: Remove stock from all portfolios
 	err = s.portfolioRepo.RemoveStockFromAllPortfolios(stockID)
 	if err != nil {
 		return fmt.Errorf("failed to remove stock from portfolios: %w", err)
 	}
-	
+
 	// Step 5: Mark stock as delisted in database
 	err = s.stockRepo.DelistStock(stockID)
 	if err != nil {
 		return fmt.Errorf("failed to delist stock: %w", err)
 	}
-	
+
 	log.Printf("✅ Bankruptcy processing completed for %s", stock.Symbol)
 	return nil
 }
@@ -558,9 +561,9 @@ func (s *MarketService) AddStockToSimulator(stock *models.Stock) {
 func (s *MarketService) GenerateIPONews(stock *models.Stock) {
 	if s.newsService != nil && stock != nil {
 		// Create IPO announcement news
-		newsContent := fmt.Sprintf("%s (%s) launches IPO at $%.2f per share. The %s sector welcomes its newest member!", 
+		newsContent := fmt.Sprintf("%s (%s) launches IPO at $%.2f per share. The %s sector welcomes its newest member!",
 			stock.Name, stock.Symbol, stock.CurrentPrice, stock.Sector)
-		
+
 		s.newsService.CreateSystemNews(
 			fmt.Sprintf("%s IPO Launch", stock.Symbol),
 			newsContent,
@@ -578,7 +581,7 @@ func (s *MarketService) ApplySectorEvent(sectorID int, eventType string, impactP
 	if err != nil {
 		return err
 	}
-	
+
 	affectedStocks := 0
 	for _, stock := range stocks {
 		if stock.SectorID != nil && *stock.SectorID == sectorID {
@@ -589,36 +592,46 @@ func (s *MarketService) ApplySectorEvent(sectorID int, eventType string, impactP
 			} else if eventType == "crash" {
 				multiplier = 1 - (impactPercentage / 100)
 			}
-			
+
 			newPrice := stock.CurrentPrice * multiplier
 			if newPrice < 0.01 {
 				newPrice = 0.01
 			}
-			
-			// Update stock price
-			err := s.stockRepo.UpdateStockPrice(stock.ID, newPrice)
-			if err != nil {
+
+			// Update stock price and sync with simulator
+			if err := s.UpdateStockPrice(stock.ID, newPrice); err != nil {
 				log.Printf("Failed to update stock %s during sector event: %v", stock.Symbol, err)
 				continue
 			}
-			
+
 			affectedStocks++
 		}
 	}
-	
+
 	// Create news event
 	sector, _ := s.sectorRepo.GetSectorByID(sectorID)
 	sectorName := "Unknown"
 	if sector != nil {
 		sectorName = sector.Name
 	}
-	
+
 	newsTitle := fmt.Sprintf("%s Sector %s", sectorName, eventType)
-	newsContent := fmt.Sprintf("The %s sector experiences a major %s! %d stocks affected with %.1f%% price impact.", 
+	newsContent := fmt.Sprintf("The %s sector experiences a major %s! %d stocks affected with %.1f%% price impact.",
 		sectorName, eventType, affectedStocks, impactPercentage)
-	
+
 	s.newsService.CreateSystemNews(newsTitle, newsContent, "sector_event", 0, 0)
-	
+
 	log.Printf("Applied %s event to %s sector: %d stocks affected", eventType, sectorName, affectedStocks)
+	return nil
+}
+
+// UpdateStockPrice sets a stock's price and syncs it with the simulator
+func (s *MarketService) UpdateStockPrice(id int, price float64) error {
+	if err := s.stockRepo.UpdateStockPrice(id, price); err != nil {
+		return err
+	}
+	if s.simulator != nil {
+		s.simulator.UpdateStockPrice(id, price)
+	}
 	return nil
 }

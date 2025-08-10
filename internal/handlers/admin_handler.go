@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"officestonks/internal/middleware"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"officestonks/internal/middleware"
 	"strconv"
 	"strings"
 	"time"
@@ -31,7 +31,6 @@ func NewAdminHandler(userRepo models.UserRepository, stockRepo models.StockRepos
 		marketService: marketService,
 	}
 }
-
 
 // getUserIDFromContext extracts user ID from request context
 func getUserIDFromContext(r *http.Request) (int, bool) {
@@ -97,7 +96,6 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 			log.Printf("AdminOnly: Added token from URL parameter: %s", tokenPrefix)
 		}
 
-
 		// Get user ID from context (set by auth middleware)
 		userID, ok := getUserIDFromContext(r)
 		log.Printf("AdminOnly: UserID from context: %v, ok: %v", userID, ok)
@@ -108,10 +106,10 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Unauthorized",
-				"message": "Authentication required for admin access",
-				"path": r.URL.Path,
-				"method": r.Method,
+				"error":     "Unauthorized",
+				"message":   "Authentication required for admin access",
+				"path":      r.URL.Path,
+				"method":    r.Method,
 				"has_token": fmt.Sprintf("%t", r.Header.Get("Authorization") != ""),
 			})
 			return
@@ -126,7 +124,7 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Internal Server Error",
+				"error":   "Internal Server Error",
 				"message": "Error checking admin status",
 			})
 			return
@@ -137,7 +135,7 @@ func (h *AdminHandler) AdminOnly(next http.HandlerFunc) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error": "Forbidden",
+				"error":   "Forbidden",
 				"message": "Admin access required",
 				"user_id": fmt.Sprintf("%d", userID),
 			})
@@ -192,7 +190,6 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 		log.Printf("GetAdminStatus: Found token in URL: %s", tokenPrefix)
 	}
 
-
 	// Get user ID from context (set by auth middleware)
 	userID, ok := getUserIDFromContext(r)
 	log.Printf("GetAdminStatus: userID from context: %v, ok: %v", userID, ok)
@@ -202,7 +199,7 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Unauthorized",
+			"error":   "Unauthorized",
 			"message": "Authentication required",
 		})
 		return
@@ -217,7 +214,7 @@ func (h *AdminHandler) GetAdminStatus(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Internal Server Error",
+			"error":   "Internal Server Error",
 			"message": "Error checking admin status",
 		})
 		return
@@ -283,7 +280,7 @@ func (h *AdminHandler) GetAllUsers(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{
-			"error": "Internal Server Error",
+			"error":   "Internal Server Error",
 			"message": "Error retrieving users",
 		})
 		return
@@ -501,9 +498,9 @@ func (h *AdminHandler) ResetStockPrices(w http.ResponseWriter, r *http.Request) 
 	h.marketService.ValidateSimulator()
 
 	response := map[string]interface{}{
-		"message": "Stock prices reset and market simulator reinitialized successfully",
-		"success": true,
-		"timestamp": time.Now().String(),
+		"message":      "Stock prices reset and market simulator reinitialized successfully",
+		"success":      true,
+		"timestamp":    time.Now().String(),
 		"stocks_count": len(stocks),
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -549,8 +546,8 @@ func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 
 	// Return success
 	response := map[string]interface{}{
-		"message": "Chat messages cleared successfully",
-		"success": true,
+		"message":   "Chat messages cleared successfully",
+		"success":   true,
 		"timestamp": time.Now().String(),
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -563,34 +560,34 @@ func (h *AdminHandler) ClearAllChats(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ForceCrisisEvent(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	// Parse request body
 	var req struct {
 		StockID int `json:"stock_id"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.StockID <= 0 {
 		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	log.Printf("🧪 Admin forcing crisis event for stock ID: %d", req.StockID)
-	
+
 	// Force crisis event
 	err := h.marketService.ForceCrisisEvent(req.StockID)
 	if err != nil {
@@ -598,14 +595,14 @@ func (h *AdminHandler) ForceCrisisEvent(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Error forcing crisis: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Get stock info after crisis
 	stockInfo, err := h.marketService.GetSimulatorStockInfo(req.StockID)
 	if err != nil {
 		log.Printf("Error getting stock info: %v", err)
 		stockInfo = map[string]interface{}{"error": "Could not retrieve updated stock info"}
 	}
-	
+
 	response := map[string]interface{}{
 		"message":    "Crisis event forced successfully",
 		"success":    true,
@@ -613,7 +610,7 @@ func (h *AdminHandler) ForceCrisisEvent(w http.ResponseWriter, r *http.Request) 
 		"stock_info": stockInfo,
 		"timestamp":  time.Now().String(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -621,46 +618,46 @@ func (h *AdminHandler) ForceCrisisEvent(w http.ResponseWriter, r *http.Request) 
 // ForceBankruptcy forces a stock into bankruptcy for testing (admin only)
 func (h *AdminHandler) ForceBankruptcy(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var req struct {
 		StockID int `json:"stock_id"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.StockID <= 0 {
 		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	log.Printf("🧪 Admin forcing bankruptcy for stock ID: %d", req.StockID)
-	
+
 	err := h.marketService.ForceBankruptcy(req.StockID)
 	if err != nil {
 		log.Printf("Error forcing bankruptcy: %v", err)
 		http.Error(w, fmt.Sprintf("Error forcing bankruptcy: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	stockInfo, err := h.marketService.GetSimulatorStockInfo(req.StockID)
 	if err != nil {
 		log.Printf("Error getting stock info: %v", err)
 		stockInfo = map[string]interface{}{"error": "Could not retrieve updated stock info"}
 	}
-	
+
 	response := map[string]interface{}{
 		"message":    "Bankruptcy forced successfully",
 		"success":    true,
@@ -668,7 +665,7 @@ func (h *AdminHandler) ForceBankruptcy(w http.ResponseWriter, r *http.Request) {
 		"stock_info": stockInfo,
 		"timestamp":  time.Now().String(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -676,46 +673,46 @@ func (h *AdminHandler) ForceBankruptcy(w http.ResponseWriter, r *http.Request) {
 // ForceRecovery forces a stock recovery for testing (admin only)
 func (h *AdminHandler) ForceRecovery(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var req struct {
 		StockID int `json:"stock_id"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.StockID <= 0 {
 		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	log.Printf("🧪 Admin forcing recovery for stock ID: %d", req.StockID)
-	
+
 	err := h.marketService.ForceRecovery(req.StockID)
 	if err != nil {
 		log.Printf("Error forcing recovery: %v", err)
 		http.Error(w, fmt.Sprintf("Error forcing recovery: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	stockInfo, err := h.marketService.GetSimulatorStockInfo(req.StockID)
 	if err != nil {
 		log.Printf("Error getting stock info: %v", err)
 		stockInfo = map[string]interface{}{"error": "Could not retrieve updated stock info"}
 	}
-	
+
 	response := map[string]interface{}{
 		"message":    "Recovery forced successfully",
 		"success":    true,
@@ -723,7 +720,7 @@ func (h *AdminHandler) ForceRecovery(w http.ResponseWriter, r *http.Request) {
 		"stock_info": stockInfo,
 		"timestamp":  time.Now().String(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -731,21 +728,21 @@ func (h *AdminHandler) ForceRecovery(w http.ResponseWriter, r *http.Request) {
 // GetSimulatorStatus returns the current status of all stocks in the simulator (admin only)
 func (h *AdminHandler) GetSimulatorStatus(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "GET" {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	log.Println("🧪 Admin requesting simulator status")
-	
+
 	stocks := h.marketService.ListSimulatorStocks()
-	
+
 	response := map[string]interface{}{
 		"message":     "Simulator status retrieved successfully",
 		"success":     true,
@@ -753,7 +750,7 @@ func (h *AdminHandler) GetSimulatorStatus(w http.ResponseWriter, r *http.Request
 		"stock_count": len(stocks),
 		"timestamp":   time.Now().String(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -761,19 +758,19 @@ func (h *AdminHandler) GetSimulatorStatus(w http.ResponseWriter, r *http.Request
 // GetAllStocksDetailed returns all stocks with full details for admin management
 func (h *AdminHandler) GetAllStocksDetailed(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	stocks, err := h.stockRepo.GetAllStocks()
 	if err != nil {
 		log.Printf("Error getting stocks: %v", err)
 		http.Error(w, "Failed to get stocks", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stocks)
 }
@@ -781,17 +778,17 @@ func (h *AdminHandler) GetAllStocksDetailed(w http.ResponseWriter, r *http.Reque
 // CreateStock creates a new stock
 func (h *AdminHandler) CreateStock(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var req struct {
 		Symbol            string  `json:"symbol"`
 		Name              string  `json:"name"`
@@ -802,18 +799,18 @@ func (h *AdminHandler) CreateStock(w http.ResponseWriter, r *http.Request) {
 		VolatilityProfile string  `json:"volatility_profile"`
 		Description       string  `json:"description"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate required fields
 	if req.Symbol == "" || req.Name == "" || req.InitialPrice <= 0 {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Create the stock
 	stock, err := h.stockRepo.CreateStock(
 		req.Symbol, req.Name, req.Sector, req.SectorID,
@@ -824,10 +821,10 @@ func (h *AdminHandler) CreateStock(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create stock", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Add to market simulator
 	h.marketService.AddStockToSimulator(stock)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stock)
 }
@@ -835,31 +832,31 @@ func (h *AdminHandler) CreateStock(w http.ResponseWriter, r *http.Request) {
 // UpdateStockAdmin updates stock details
 func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "PUT" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	// Extract stock ID from URL
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
 		http.Error(w, "Invalid URL path", http.StatusBadRequest)
 		return
 	}
-	
+
 	stockIDStr := pathParts[len(pathParts)-1]
 	stockID, err := strconv.Atoi(stockIDStr)
 	if err != nil {
 		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	var req struct {
 		Name              string  `json:"name"`
 		Sector            string  `json:"sector"`
@@ -868,14 +865,14 @@ func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) 
 		VolatilityProfile string  `json:"volatility_profile"`
 		Description       string  `json:"description"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	log.Printf("🔬 Admin stock update - ID: %d, Request: %+v", stockID, req)
-	
+
 	// Get existing stock data to preserve values not being updated
 	existingStock, err := h.stockRepo.GetStockByID(stockID)
 	if err != nil {
@@ -883,18 +880,18 @@ func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Stock not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// Use existing values for fields that are empty/default in the request
 	name := req.Name
 	if name == "" {
 		name = existingStock.Name
 	}
-	
+
 	sector := req.Sector
 	if sector == "" {
 		sector = existingStock.Sector
 	}
-	
+
 	sectorID := req.SectorID
 	if sectorID <= 0 {
 		// Use existing sector_id, or default to 1 if existing is also invalid
@@ -905,18 +902,18 @@ func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) 
 		}
 		log.Printf("🔧 Using preserved/default sector_id: %d", sectorID)
 	}
-	
+
 	volatilityProfile := req.VolatilityProfile
 	if volatilityProfile == "" {
 		volatilityProfile = "normal" // Default value
 	}
-	
+
 	description := req.Description
 	// Description can be empty, so we allow it
-	
-	log.Printf("🔬 Final update parameters: name=%s, sector=%s, sectorID=%d, volatility=%s", 
+
+	log.Printf("🔬 Final update parameters: name=%s, sector=%s, sectorID=%d, volatility=%s",
 		name, sector, sectorID, volatilityProfile)
-	
+
 	// Update stock details
 	err = h.stockRepo.UpdateStockDetails(stockID, name, sector, sectorID, volatilityProfile, description)
 	if err != nil {
@@ -924,15 +921,14 @@ func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Failed to update stock", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Update price if provided
 	if req.CurrentPrice > 0 {
-		err = h.stockRepo.UpdateStockPrice(stockID, req.CurrentPrice)
-		if err != nil {
+		if err = h.marketService.UpdateStockPrice(stockID, req.CurrentPrice); err != nil {
 			log.Printf("Error updating stock price: %v", err)
 		}
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Stock updated successfully"})
 }
@@ -940,31 +936,31 @@ func (h *AdminHandler) UpdateStockAdmin(w http.ResponseWriter, r *http.Request) 
 // DeleteStockAdmin soft deletes a stock
 func (h *AdminHandler) DeleteStockAdmin(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "DELETE" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	// Extract stock ID from URL
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
 		http.Error(w, "Invalid URL path", http.StatusBadRequest)
 		return
 	}
-	
+
 	stockIDStr := pathParts[len(pathParts)-1]
 	stockID, err := strconv.Atoi(stockIDStr)
 	if err != nil {
 		http.Error(w, "Invalid stock ID", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Force delisting
 	err = h.stockRepo.ForceDelisting(stockID, "Admin deletion")
 	if err != nil {
@@ -972,7 +968,7 @@ func (h *AdminHandler) DeleteStockAdmin(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Failed to delete stock", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Stock deleted successfully"})
 }
@@ -980,17 +976,17 @@ func (h *AdminHandler) DeleteStockAdmin(w http.ResponseWriter, r *http.Request) 
 // LaunchIPO launches a new stock as an IPO
 func (h *AdminHandler) LaunchIPO(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var req struct {
 		Symbol          string  `json:"symbol"`
 		Name            string  `json:"name"`
@@ -999,17 +995,17 @@ func (h *AdminHandler) LaunchIPO(w http.ResponseWriter, r *http.Request) {
 		IPOPrice        float64 `json:"ipo_price"`
 		SharesAvailable int     `json:"shares_available"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Default shares if not provided
 	if req.SharesAvailable == 0 {
 		req.SharesAvailable = 1000000
 	}
-	
+
 	// Launch IPO
 	stock, err := h.stockRepo.LaunchIPO(
 		req.Symbol, req.Name, req.Sector, req.SectorID,
@@ -1020,13 +1016,13 @@ func (h *AdminHandler) LaunchIPO(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to launch IPO", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Add to market simulator
 	h.marketService.AddStockToSimulator(stock)
-	
+
 	// Create news event for IPO
 	h.marketService.GenerateIPONews(stock)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stock)
 }
@@ -1034,29 +1030,29 @@ func (h *AdminHandler) LaunchIPO(w http.ResponseWriter, r *http.Request) {
 // TriggerSectorEvent triggers a sector-wide market event
 func (h *AdminHandler) TriggerSectorEvent(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
-	
+
 	if r.Method == "OPTIONS" {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	
+
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
 	var req struct {
 		SectorID         int     `json:"sector_id"`
 		EventType        string  `json:"event_type"` // "boom" or "crash"
 		ImpactPercentage float64 `json:"impact_percentage"`
 		DurationMinutes  int     `json:"duration_minutes"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Apply sector-wide impact
 	err := h.marketService.ApplySectorEvent(req.SectorID, req.EventType, req.ImpactPercentage, req.DurationMinutes)
 	if err != nil {
@@ -1064,7 +1060,7 @@ func (h *AdminHandler) TriggerSectorEvent(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Failed to apply sector event", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Sector event triggered successfully"})
 }

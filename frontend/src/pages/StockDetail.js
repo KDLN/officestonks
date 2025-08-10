@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getStockById, executeTrade, getUserPortfolio } from '../services/stock';
 import { initWebSocket, addWebSocketListener, closeWebSocket } from '../services/websocket';
-import { initSSE, addSSEListener, removeSSEListener } from '../services/sse';
+import { startPolling, addPollingListener, removePollingListener } from '../services/polling';
 import Navigation from '../components/Navigation';
 import TradeConfirmationModal from '../components/TradeConfirmationModal';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -47,15 +47,15 @@ const StockDetail = () => {
     // Initialize WebSocket connection for chat (keeping existing functionality)
     initWebSocket();
 
-    // Initialize SSE connection for stock updates
-    const sseTimeout = setTimeout(() => {
-      console.log('📡 Initializing SSE for StockDetail updates...');
-      initSSE().catch(err => {
-        console.error('❌ Failed to initialize SSE:', err);
+    // Initialize HTTP polling for stock updates
+    const pollingTimeout = setTimeout(() => {
+      console.log('📡 Starting HTTP polling for StockDetail updates...');
+      startPolling().catch(err => {
+        console.error('❌ Failed to start HTTP polling:', err);
       });
     }, 750);
 
-    // Listen for SSE stock price updates
+    // Listen for polling stock price updates
     const handleStockUpdate = (message) => {
       if (message.stock_id === stockId) {
         setStock(prevStock => {
@@ -76,13 +76,13 @@ const StockDetail = () => {
       }
     };
 
-    addSSEListener('stockUpdate', handleStockUpdate);
+    addPollingListener('stockUpdate', handleStockUpdate);
 
     // Cleanup on unmount
     return () => {
-      clearTimeout(sseTimeout);
-      removeSSEListener('stockUpdate', handleStockUpdate);
-      // Don't close WebSocket or SSE on component unmount as they're shared
+      clearTimeout(pollingTimeout);
+      removePollingListener('stockUpdate', handleStockUpdate);
+      // Don't close WebSocket or polling on component unmount as they're shared
     };
   }, [stockId]);
 

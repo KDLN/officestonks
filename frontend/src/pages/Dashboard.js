@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getUserPortfolio, getTransactionHistory, getAllStocks } from '../services/stock';
 import { initWebSocket, addWebSocketListener, getWebSocketInstance } from '../services/websocket';
-import { initSSE, addSSEListener, removeSSEListener, isSSEConnected } from '../services/sse';
+import { startPolling, addPollingListener, removePollingListener, isPollingActive } from '../services/polling';
 import { safeGetItem, safeSetItem } from '../utils';
 import logger from '../services/logger';
 import Navigation from '../components/Navigation';
@@ -119,28 +119,28 @@ const Dashboard = () => {
       });
     }, 500);
 
-    // Initialize SSE connection for stock updates
-    console.log('⏳ Setting up SSE initialization timer...');
-    const sseTimeout = setTimeout(() => {
-      console.log('📡 Initializing SSE connection for stock updates...');
-      initSSE().then(() => {
-        console.log('✅ SSE initialized successfully');
+    // Initialize HTTP polling for stock updates  
+    console.log('⏳ Setting up HTTP polling initialization timer...');
+    const pollingTimeout = setTimeout(() => {
+      console.log('📡 Initializing HTTP polling for stock updates...');
+      startPolling().then(() => {
+        console.log('✅ HTTP polling initialized successfully');
       }).catch(err => {
-        console.error('❌ Failed to initialize SSE:', err);
+        console.error('❌ Failed to initialize HTTP polling:', err);
         // Don't block the UI, just log the error
       });
     }, 750);
 
-    // Listen for stock updates via SSE
+    // Listen for stock updates via HTTP polling
     const handleStockUpdate = (message) => {
-      console.log('Received SSE stock update on dashboard:', message);
+      console.log('Received stock update on dashboard:', message);
 
-      // Extract stock_id and price from SSE message
+      // Extract stock_id and price from polling message
       const stock_id = message.stock_id;
       const price = message.price;
 
       if (!stock_id || !price) {
-        console.log('Missing required fields in SSE message:', message);
+        console.log('Missing required fields in polling message:', message);
         return;
       }
 
@@ -208,15 +208,15 @@ const Dashboard = () => {
       });
     };
 
-    // Add SSE listener for stock updates
-    addSSEListener('stockUpdate', handleStockUpdate);
+    // Add polling listener for stock updates
+    addPollingListener('stockUpdate', handleStockUpdate);
 
     // Clean up on unmount
     return () => {
       clearTimeout(wsTimeout);
-      clearTimeout(sseTimeout);
-      removeSSEListener('stockUpdate', handleStockUpdate);
-      // Don't close WebSocket or SSE on component unmount as they're shared
+      clearTimeout(pollingTimeout);
+      removePollingListener('stockUpdate', handleStockUpdate);
+      // Don't close WebSocket or polling on component unmount as they're shared
     };
   }, []);
 

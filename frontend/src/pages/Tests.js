@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navigation from '../components/Navigation';
 import WebSocketDiagnostics from '../components/WebSocketDiagnostics';
-import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, createMissingSectors, testAdminStockUpdate, getTestStatus } from '../services/admin';
+import { runCrisisTests, runPortfolioTests, runSSETests, runStockManagementTests, createMissingSectors, testAdminStockUpdate, testStockPriceLocking, getTestStatus } from '../services/admin';
 import { initSSE, addSSEListener, removeSSEListener, isSSEConnected, getSSEConnectionState, forceSSEReconnect } from '../services/sse';
 import { initWebSocket, getWebSocketInstance } from '../services/websocket';
 import './Tests.css';
@@ -1916,6 +1916,9 @@ const Tests = () => {
         case 'admin-stock-update':
           results = await testAdminStockUpdate();
           break;
+        case 'stock-price-locking':
+          results = await testStockPriceLocking();
+          break;
         case 'sse-comprehensive':
           results = await runComprehensiveSSETests();
           break;
@@ -2068,6 +2071,7 @@ const Tests = () => {
               <option value="sse">📡 Basic SSE Test Suite</option>
               <option value="stock-management">🔧 Stock Management Debug Suite</option>
               <option value="admin-stock-update">🔬 Admin Stock Update Test</option>
+              <option value="stock-price-locking">🔒 Stock Price Locking Test</option>
               <option value="changelog">📰 Changelog System Test Suite</option>
               <option value="monitoring">📊 Monitoring System Test Suite</option>
             </select>

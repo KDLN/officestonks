@@ -16,6 +16,7 @@ import Portfolio from './pages/Portfolio';
 import Tests from './pages/Tests';
 import MonitoringDashboard from './pages/MonitoringDashboard';
 import SSEDebug from './pages/SSEDebug';
+import PollingDebug from './pages/PollingDebug';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthSync from './components/AuthSync';
 import ChangelogModal from './components/ChangelogModal';
@@ -65,6 +66,7 @@ const AppContent = () => {
             <Route path="/tests" element={<ProtectedRoute element={<Tests />} />} />
             <Route path="/monitoring" element={<ProtectedRoute element={<MonitoringDashboard />} />} />
             <Route path="/sse-debug" element={<ProtectedRoute element={<SSEDebug />} />} />
+            <Route path="/polling-debug" element={<ProtectedRoute element={<PollingDebug />} />} />
 
             {/* Default redirect */}
             <Route path="*" element={<Navigate to="/login" />} />

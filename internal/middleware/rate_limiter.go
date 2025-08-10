@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -100,9 +101,64 @@ func getIPAddress(r *http.Request) string {
 	return ip
 }
 
+// isPollingRequest checks if a request is an automated polling request that should be excluded from rate limiting
+func isPollingRequest(r *http.Request) bool {
+	// Check for polling endpoints
+	if strings.HasSuffix(r.URL.Path, "/stock-updates/poll") {
+		return true
+	}
+	
+	// Check for SSE endpoints (also automated)
+	if strings.HasSuffix(r.URL.Path, "/sse/stock-updates") {
+		return true
+	}
+	
+	// Check for health checks and monitoring endpoints
+	if strings.HasSuffix(r.URL.Path, "/health") || strings.HasSuffix(r.URL.Path, "/health-check") {
+		return true
+	}
+	
+	// Check for User-Agent indicating automated requests
+	userAgent := r.Header.Get("User-Agent")
+	if strings.Contains(strings.ToLower(userAgent), "polling") || 
+	   strings.Contains(strings.ToLower(userAgent), "automated") {
+		return true
+	}
+	
+	// Check for custom header indicating polling request
+	if r.Header.Get("X-Request-Type") == "polling" {
+		return true
+	}
+	
+	// Exclude admin endpoints from rate limiting - admins should have unlimited access
+	if strings.Contains(r.URL.Path, "/api/admin/") {
+		return true
+	}
+	
+	return false
+}
+
 // RateLimit is a middleware that limits requests based on client IP
 func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if this is a polling request that should be excluded from rate limiting
+		if isPollingRequest(r) {
+			// Skip rate limiting for polling requests but still call next handler
+			reason := "unknown"
+			if strings.Contains(r.URL.Path, "/api/admin/") {
+				reason = "admin endpoint"
+			} else if strings.Contains(r.URL.Path, "/stock-updates/poll") || strings.Contains(r.URL.Path, "/sse/") {
+				reason = "polling/sse endpoint"
+			} else if r.Header.Get("X-Request-Type") == "polling" {
+				reason = "polling header"
+			} else if strings.Contains(r.URL.Path, "/health") {
+				reason = "health check"
+			}
+			log.Printf("⚡ BYPASS: Request bypassed rate limiting (%s): %s %s", reason, r.Method, r.URL.Path)
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Get client IP address
 		clientIP := getIPAddress(r)
 
@@ -120,6 +176,14 @@ func (rl *RateLimiter) RateLimit(next http.Handler) http.Handler {
 		if len(rl.clients[clientIP]) >= rl.maxRequests {
 			// Too many requests, return 429 status
 			rl.stats.blockedRequests++
+			
+			// Enhanced logging for rate limit blocks
+			log.Printf("🚫 RATE LIMIT: Client %s blocked (requests: %d/%d) for %s %s", 
+				clientIP, len(rl.clients[clientIP]), rl.maxRequests, r.Method, r.URL.Path)
+			log.Printf("🚫 RATE LIMIT: User-Agent: %s", r.Header.Get("User-Agent"))
+			log.Printf("🚫 RATE LIMIT: Origin: %s", r.Header.Get("Origin"))
+			log.Printf("🚫 RATE LIMIT: X-Request-Type: %s", r.Header.Get("X-Request-Type"))
+			
 			rl.mu.Unlock() // Unlock before returning response
 
 			w.Header().Set("Retry-After", rl.window.String())

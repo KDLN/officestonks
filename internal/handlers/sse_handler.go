@@ -13,10 +13,10 @@ import (
 
 // SSEHandler handles Server-Sent Events for real-time stock updates
 type SSEHandler struct {
-	marketService       *services.MarketService
-	clients             map[chan []byte]bool
-	clientsMutex        sync.Mutex
-	noClientLogCounter  int
+	marketService      *services.MarketService
+	clients            map[chan []byte]bool
+	clientsMutex       sync.Mutex
+	noClientLogCounter int
 }
 
 // NewSSEHandler creates a new SSE handler
@@ -25,10 +25,10 @@ func NewSSEHandler(marketService *services.MarketService) *SSEHandler {
 		marketService: marketService,
 		clients:       make(map[chan []byte]bool),
 	}
-	
+
 	// Start listening for stock updates
 	go handler.listenForStockUpdates()
-	
+
 	return handler
 }
 
@@ -48,7 +48,7 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 	remoteAddr := r.RemoteAddr
 	log.Printf("🌟 SSE Handler: Connection attempt - Origin: %s, RemoteAddr: %s", origin, remoteAddr)
 	log.Printf("🔍 SSE Handler: User-Agent: %s", userAgent)
-	
+
 	// Set SSE headers with Railway-specific settings (some may be duplicated from main.go but that's safe)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -58,7 +58,7 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
 	w.Header().Set("Pragma", "no-cache")      // HTTP/1.0 cache control
-	
+
 	// Flush headers immediately to help with Railway proxy
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
@@ -77,10 +77,10 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 
 	// Send immediate connection confirmation - use same format as working test endpoint
 	log.Printf("🚀 SSE Handler: Sending immediate connection confirmation...")
-	
+
 	// Simple format that matches our working test endpoint
 	fmt.Fprintf(w, "data: {\"type\": \"connection\", \"status\": \"connected\", \"timestamp\": %d}\r\n\r\n", time.Now().Unix())
-	
+
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
@@ -102,13 +102,17 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 	// Set up a ticker to send periodic heartbeats (Railway-friendly interval)
 	heartbeatTicker := time.NewTicker(15 * time.Second) // More frequent for Railway proxy
 	defer heartbeatTicker.Stop()
-	
+
 	log.Printf("🔄 SSE Handler: Starting heartbeat timer (15s intervals)")
 
 	// Listen for messages and client disconnection
 	for {
 		select {
-		case data := <-clientChan:
+		case data, ok := <-clientChan:
+			if !ok {
+				// Channel closed - exit the connection loop
+				return
+			}
 			// Send data to client with Railway-compatible format
 			fmt.Fprintf(w, "data: %s\r\n\r\n", data)
 			if f, ok := w.(http.Flusher); ok {
@@ -132,7 +136,7 @@ func (h *SSEHandler) HandleStockUpdates(w http.ResponseWriter, r *http.Request) 
 // sendCurrentStockPrices sends all current stock prices to a newly connected client
 func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 	log.Printf("📊 SSE Handler: Sending current stock prices to client...")
-	
+
 	stocks, err := h.marketService.GetAllStocks()
 	if err != nil {
 		log.Printf("❌ SSE Handler: Error fetching stocks for initial data: %v", err)
@@ -142,7 +146,7 @@ func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 	stockCount := 0
 	for _, stock := range stocks {
 		// Simple format matching our working test endpoint style
-		fmt.Fprintf(w, "data: {\"type\": \"stock_update\", \"stock_id\": %d, \"symbol\": \"%s\", \"price\": %.2f}\r\n\r\n", 
+		fmt.Fprintf(w, "data: {\"type\": \"stock_update\", \"stock_id\": %d, \"symbol\": \"%s\", \"price\": %.2f}\r\n\r\n",
 			stock.ID, stock.Symbol, stock.CurrentPrice)
 		stockCount++
 	}
@@ -150,26 +154,26 @@ func (h *SSEHandler) sendCurrentStockPrices(w http.ResponseWriter) {
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
-	
+
 	log.Printf("✅ SSE Handler: Sent %d stock prices to client", stockCount)
 }
 
 // listenForStockUpdates listens for stock updates from the market service and broadcasts to all SSE clients
 func (h *SSEHandler) listenForStockUpdates() {
 	stockUpdates := h.marketService.GetSimulatorUpdates()
-	
+
 	log.Printf("📡 SSEHandler: Starting to listen for stock updates from market simulator")
 	updatesReceived := 0
 	lastLogTime := time.Now()
-	
+
 	for update := range stockUpdates {
 		updatesReceived++
-		
+
 		// Log first few updates to verify flow
 		if updatesReceived <= 5 {
 			log.Printf("📈 SSEHandler: Received update #%d - %s: $%.2f", updatesReceived, update.Symbol, update.Price)
 		}
-		
+
 		// Validate price to prevent infinity/NaN issues
 		if !isValidPrice(update.Price) {
 			log.Printf("⚠️ SSEHandler: Skipping invalid price for stock %s: %f", update.Symbol, update.Price)
@@ -193,19 +197,19 @@ func (h *SSEHandler) listenForStockUpdates() {
 
 		// Broadcast to all connected clients
 		h.broadcastToClients(data)
-		
+
 		// Log progress every 60 seconds
 		if time.Since(lastLogTime) >= 60*time.Second {
 			h.clientsMutex.Lock()
 			clientCount := len(h.clients)
 			h.clientsMutex.Unlock()
-			
+
 			log.Printf("📊 SSEHandler: Processed %d updates in last 60s, broadcasting to %d clients", updatesReceived, clientCount)
 			updatesReceived = 0
 			lastLogTime = time.Now()
 		}
 	}
-	
+
 	log.Printf("🛑 SSEHandler: Stock update listener stopped")
 }
 
@@ -246,7 +250,7 @@ func (h *SSEHandler) broadcastToClients(data []byte) {
 	}
 
 	if len(disconnectedClients) > 0 {
-		log.Printf("🔌 SSEHandler: Removed %d disconnected clients. Active clients: %d", 
+		log.Printf("🔌 SSEHandler: Removed %d disconnected clients. Active clients: %d",
 			len(disconnectedClients), len(h.clients))
 	}
 }

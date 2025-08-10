@@ -48,12 +48,14 @@ type MarketSimulator struct {
 type StockInfo struct {
 	ID           int
 	Symbol       string
-	Name         string   // Company name for news generation
+	Name         string // Company name for news generation
 	BasePrice    float64
 	Sector       string
 	SectorID     int
-	Trend        float64  // Bias for price movement: positive means upward trend, negative means downward
-	TrendCounter int      // Counter to track trend duration
+	Trend        float64 // Bias for price movement: positive means upward trend, negative means downward
+	TrendCounter int     // Counter to track trend duration
+	LockedUntil  time.Time // Admin lock - prevents automatic updates until this time
+	LockedPrice  float64   // The price set by admin during lock period
 }
 
 // SectorInfo tracks sector-wide trends and volatility
@@ -68,13 +70,13 @@ type SectorInfo struct {
 // NewMarketSimulator creates a new market simulator
 func NewMarketSimulator(updateInterval time.Duration, volatility float64) *MarketSimulator {
 	return &MarketSimulator{
-		stocksInfo:     make(map[int]StockInfo),
-		sectorsInfo:    make(map[int]SectorInfo),
-		updateInterval: updateInterval,
-		volatility:     volatility,
-		updateChan:     make(chan StockUpdate, 100),
-		stopChan:       make(chan struct{}),
-		pauseChan:      make(chan bool, 1),
+		stocksInfo:        make(map[int]StockInfo),
+		sectorsInfo:       make(map[int]SectorInfo),
+		updateInterval:    updateInterval,
+		volatility:        volatility,
+		updateChan:        make(chan StockUpdate, 100),
+		stopChan:          make(chan struct{}),
+		pauseChan:         make(chan bool, 1),
 		isPaused:          false,
 		newsService:       nil, // Will be set later
 		bankruptcyHandler: nil, // Will be set later
@@ -101,10 +103,10 @@ func (s *MarketSimulator) SetBankruptcyHandler(handler BankruptcyHandlerInterfac
 func (s *MarketSimulator) AddSector(id int, name string, volatilityModifier float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	// Initialize with a small random trend
-	initialTrend := (rand.Float64() * 0.04) - 0.02  // Range: -0.02 to 0.02
-	
+	initialTrend := (rand.Float64() * 0.04) - 0.02 // Range: -0.02 to 0.02
+
 	s.sectorsInfo[id] = SectorInfo{
 		ID:                 id,
 		Name:               name,
@@ -118,15 +120,15 @@ func (s *MarketSimulator) AddSector(id int, name string, volatilityModifier floa
 func (s *MarketSimulator) AddStock(id int, symbol, name, sector string, sectorID int, basePrice float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	// Validate base price before adding
 	if math.IsInf(basePrice, 0) || math.IsNaN(basePrice) || basePrice <= 0 {
 		log.Printf("⚠️ Invalid base price for stock %s: %f, setting to $10.00", symbol, basePrice)
 		basePrice = 10.00
 	}
-	
+
 	// Initialize with a random trend (slightly biased upward for a bull market)
-	initialTrend := (rand.Float64() * 0.1) - 0.03  // Range: -0.03 to 0.07, slightly positive bias
+	initialTrend := (rand.Float64() * 0.1) - 0.03 // Range: -0.03 to 0.07, slightly positive bias
 
 	s.stocksInfo[id] = StockInfo{
 		ID:           id,
@@ -138,11 +140,40 @@ func (s *MarketSimulator) AddStock(id int, symbol, name, sector string, sectorID
 		Trend:        initialTrend,
 		TrendCounter: rand.Intn(10) + 5, // Random initial trend duration (5-15 updates)
 	}
-	
+
 	// Update sector stock count
 	if sector, exists := s.sectorsInfo[sectorID]; exists {
 		sector.StockCount++
 		s.sectorsInfo[sectorID] = sector
+	}
+}
+
+// UpdateStockPrice updates a stock's base price in the simulator
+func (s *MarketSimulator) UpdateStockPrice(id int, newPrice float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if info, exists := s.stocksInfo[id]; exists {
+		// Set both BasePrice and LockedPrice to ensure consistency
+		info.BasePrice = newPrice
+		info.LockedPrice = newPrice
+		// Lock the price for 30 seconds after admin update to prevent race conditions
+		info.LockedUntil = time.Now().Add(30 * time.Second)
+		s.stocksInfo[id] = info
+		log.Printf("🔒 Stock %s (ID: %d) price locked at $%.2f for 30 seconds (until %v)", info.Symbol, id, newPrice, info.LockedUntil.Format("15:04:05"))
+		
+		// Immediately send the locked price to ensure it's broadcast
+		select {
+		case s.updateChan <- StockUpdate{
+			StockID: info.ID,
+			Symbol:  info.Symbol,
+			Price:   info.LockedPrice,
+		}:
+			log.Printf("🔒 Immediately broadcast locked price $%.2f for %s", info.LockedPrice, info.Symbol)
+		default:
+			// Channel is full, skip this immediate update
+			log.Printf("⚠️ Update channel full, couldn't immediately broadcast locked price for %s", info.Symbol)
+		}
 	}
 }
 
@@ -155,10 +186,10 @@ func (s *MarketSimulator) GetUpdateChannel() <-chan StockUpdate {
 func (s *MarketSimulator) Start() {
 	// Initialize random seed
 	rand.Seed(time.Now().UnixNano())
-	
+
 	log.Printf("🚀 MarketSimulator: Starting market simulation with %d stocks", len(s.stocksInfo))
 	log.Printf("📊 MarketSimulator: Update interval: %v, Volatility: %.2f%%", s.updateInterval, s.volatility*100)
-	
+
 	// Start the simulation loop in a goroutine
 	go s.simulationLoop()
 }
@@ -172,11 +203,11 @@ func (s *MarketSimulator) Stop() {
 func (s *MarketSimulator) simulationLoop() {
 	ticker := time.NewTicker(s.updateInterval)
 	defer ticker.Stop()
-	
+
 	log.Printf("📈 MarketSimulator: Simulation loop started with %v interval", s.updateInterval)
 	updateCount := 0
 	lastLogTime := time.Now()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -185,11 +216,11 @@ func (s *MarketSimulator) simulationLoop() {
 			paused := s.isPaused
 			stockCount := len(s.stocksInfo)
 			s.mu.RUnlock()
-			
+
 			if !paused {
 				updateCount++
 				s.updatePrices()
-				
+
 				// Log progress every 30 seconds
 				if time.Since(lastLogTime) >= 30*time.Second {
 					log.Printf("📊 MarketSimulator: Generated %d updates for %d stocks in last 30s", updateCount, stockCount)
@@ -226,14 +257,14 @@ func (s *MarketSimulator) updateSectorTrends() {
 		if rand.Float64() < 0.1 {
 			adjustment := (rand.Float64() - 0.5) * 0.02 // ±1% change
 			sector.Trend += adjustment
-			
+
 			// Cap sector trends to reasonable limits
 			if sector.Trend > 0.05 {
 				sector.Trend = 0.05
 			} else if sector.Trend < -0.05 {
 				sector.Trend = -0.05
 			}
-			
+
 			s.sectorsInfo[sectorID] = sector
 		}
 	}
@@ -249,6 +280,34 @@ func (s *MarketSimulator) updatePrices() {
 
 	// Update all stocks
 	for id, info := range s.stocksInfo {
+		// Check if stock is locked by admin update
+		if !info.LockedUntil.IsZero() && time.Now().Before(info.LockedUntil) {
+			// Stock is locked, use the locked price and skip automatic updates
+			log.Printf("🔒 Stock %s still locked until %v, sending locked price $%.2f", info.Symbol, info.LockedUntil.Format("15:04:05"), info.LockedPrice)
+			select {
+			case s.updateChan <- StockUpdate{
+				StockID: info.ID,
+				Symbol:  info.Symbol,
+				Price:   info.LockedPrice,
+			}:
+			default:
+				// Channel is full, skip this update
+			}
+			continue // Skip to next stock
+		}
+		
+		// If lock has expired, clear it and ensure BasePrice matches the locked price
+		if !info.LockedUntil.IsZero() && time.Now().After(info.LockedUntil) {
+			// CRITICAL: Set BasePrice to the locked price to prevent snapback
+			if info.LockedPrice > 0 {
+				info.BasePrice = info.LockedPrice
+				log.Printf("🔓 Stock %s (ID: %d) price lock expired, BasePrice updated to locked price $%.2f", info.Symbol, id, info.LockedPrice)
+			}
+			info.LockedUntil = time.Time{} // Clear the lock
+			info.LockedPrice = 0
+			s.stocksInfo[id] = info // Make sure to save the updated info
+		}
+		
 		// Validate base price before any calculations
 		if math.IsInf(info.BasePrice, 0) || math.IsNaN(info.BasePrice) || info.BasePrice <= 0 {
 			info.BasePrice = 0.01 // Reset to safe value
@@ -257,18 +316,14 @@ func (s *MarketSimulator) updatePrices() {
 		// Check if we need to change the trend
 		if info.TrendCounter <= 0 {
 			// Time to reverse or modify the trend
-			// Stronger reversal for extreme trends (mean reversion)
-			reversalStrength := 1.0 + math.Abs(info.Trend)*5
 
 			// Generate new trend - more likely to reverse direction
 			if rand.Float64() < 0.7 { // 70% chance of trend reversal
-				// Reverse the trend with some randomness, amplified by reversalStrength
-				info.Trend = -info.Trend * (0.5 + rand.Float64()) * math.Min(reversalStrength, 3.0)
+				// Reverse the trend with a moderate factor to avoid runaway drops
+				info.Trend = -info.Trend * (0.5 + rand.Float64()*0.5) // 50-100% reversal
 			} else {
 				// Modify current trend with dampening (regression to mean)
-				// Stronger dampening for extreme trends
 				dampening := 0.3 + rand.Float64()*0.4 // 30-70% of current trend
-				dampening /= math.Min(reversalStrength, 2.0) // More dampening for extreme trends
 				info.Trend = info.Trend * dampening
 			}
 
@@ -280,17 +335,17 @@ func (s *MarketSimulator) updatePrices() {
 
 		// Calculate price zone volatility based on current price
 		priceZoneVolatility := s.getPriceZoneVolatility(info.BasePrice)
-		
+
 		// Calculate new price with sector correlation
 		// Individual stock factors (70% weight)
 		randomChange := (rand.Float64() - 0.5) * priceZoneVolatility
 		individualChange := randomChange + info.Trend
-		
+
 		// Validate individual change
 		if math.IsInf(individualChange, 0) || math.IsNaN(individualChange) {
 			individualChange = randomChange // fallback to just random change
 		}
-		
+
 		// Sector factors (30% weight)
 		var sectorChange float64
 		if info.SectorID > 0 {
@@ -306,15 +361,15 @@ func (s *MarketSimulator) updatePrices() {
 				}
 			}
 		}
-		
+
 		// Validate sector change
 		if math.IsInf(sectorChange, 0) || math.IsNaN(sectorChange) {
 			sectorChange = 0
 		}
-		
+
 		// Combined change: 70% individual, 30% sector
 		totalChange := (individualChange * 0.7) + (sectorChange * 0.3)
-		
+
 		// Validate total change - cap extreme values
 		if math.IsInf(totalChange, 0) || math.IsNaN(totalChange) {
 			totalChange = 0 // Reset to no change
@@ -323,7 +378,7 @@ func (s *MarketSimulator) updatePrices() {
 		} else if totalChange < -0.5 {
 			totalChange = -0.5
 		}
-		
+
 		// Calculate final price change
 		newPrice := info.BasePrice * (1 + totalChange)
 
@@ -351,7 +406,7 @@ func (s *MarketSimulator) updatePrices() {
 				jumpMultiplier = 1.0 - (rand.Float64() * 0.05) // 0-5% jump down
 			}
 			newPrice *= jumpMultiplier
-			
+
 			// Validate after jump
 			if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
 				newPrice = 0.01
@@ -360,7 +415,7 @@ func (s *MarketSimulator) updatePrices() {
 
 		// Round to 2 decimal places
 		newPrice = math.Round(newPrice*100) / 100
-		
+
 		// Final validation after rounding
 		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
 			newPrice = 0.01
@@ -381,7 +436,7 @@ func (s *MarketSimulator) updatePrices() {
 			Symbol:  info.Symbol,
 			Price:   newPrice,
 		}
-		
+
 		select {
 		case s.updateChan <- update:
 			// Successfully sent update
@@ -395,16 +450,16 @@ func (s *MarketSimulator) updatePrices() {
 // processCrisisEvent handles bankruptcy/recovery events for stocks at $0.01
 func (s *MarketSimulator) processCrisisEvent(stockID int, stock StockInfo) {
 	log.Printf("🚨 CRISIS EVENT: %s at $0.01 - Rolling for fate...", stock.Symbol)
-	
+
 	// Generate crisis news if this is the first time hitting $0.01
 	// We'll track this better later, for now just generate news occasionally
 	if s.newsService != nil && rand.Float64() < 0.3 { // 30% chance to generate crisis news
 		s.newsService.GenerateCrisisNews(stock.ID, stock.Symbol, stock.Name, stock.Sector)
 	}
-	
+
 	// Crisis event probabilities
 	roll := rand.Float64()
-	
+
 	if roll < 0.05 { // 5% chance of bankruptcy
 		log.Printf("💀 BANKRUPTCY: %s going bankrupt!", stock.Symbol)
 		s.triggerBankruptcy(stockID, stock)
@@ -420,12 +475,12 @@ func (s *MarketSimulator) processCrisisEvent(stockID int, stock StockInfo) {
 // triggerBankruptcy processes a stock bankruptcy event
 func (s *MarketSimulator) triggerBankruptcy(stockID int, stock StockInfo) {
 	log.Printf("📰 NEWS: %s files for bankruptcy - stock delisted", stock.Symbol)
-	
+
 	// Generate bankruptcy news
 	if s.newsService != nil {
 		s.newsService.GenerateBankruptcyNews(stock.ID, stock.Symbol, stock.Name, stock.Sector)
 	}
-	
+
 	// Process bankruptcy with portfolio handling
 	if s.bankruptcyHandler != nil {
 		err := s.bankruptcyHandler.ProcessStockBankruptcy(stockID)
@@ -435,43 +490,43 @@ func (s *MarketSimulator) triggerBankruptcy(stockID int, stock StockInfo) {
 	} else {
 		log.Printf("⚠️ No bankruptcy handler set - portfolio losses not recorded")
 	}
-	
+
 	// Apply sector contagion after processing bankruptcy
 	s.applySectorContagion(stockID, stock, "bankruptcy")
-	
+
 	// Replace the bankrupt company with a new one (simulate new IPO)
 	stock.BasePrice = rand.Float64()*5 + 1 // $1-6 range for "new company"
-	stock.Trend = 0 // Reset trend
+	stock.Trend = 0                        // Reset trend
 	s.stocksInfo[stockID] = stock
-	
+
 	log.Printf("📈 SIMULATION: %s replaced with new company at $%.2f", stock.Symbol, stock.BasePrice)
 }
 
 // triggerRecovery processes a stock recovery event
 func (s *MarketSimulator) triggerRecovery(stockID int, stock StockInfo) {
 	log.Printf("📰 NEWS: Surprise acquisition saves %s!", stock.Symbol)
-	
+
 	// Recovery jump: 10x to 100x potential (1-5 dollar range)
 	recoveryMultiplier := rand.Float64()*400 + 100 // 100x to 500x
 	newPrice := 0.01 * recoveryMultiplier
-	
+
 	// Cap recovery to reasonable range
 	if newPrice > 50 {
 		newPrice = rand.Float64()*30 + 10 // $10-40 range for major recovery
 	}
-	
+
 	// Generate recovery news before updating price
 	if s.newsService != nil {
 		s.newsService.GenerateRecoveryNews(stock.ID, stock.Symbol, stock.Name, stock.Sector, newPrice)
 	}
-	
+
 	stock.BasePrice = newPrice
 	stock.Trend = 0.02 + rand.Float64()*0.03 // Positive trend for a while
-	stock.TrendCounter = rand.Intn(20) + 10 // Longer positive trend
+	stock.TrendCounter = rand.Intn(20) + 10  // Longer positive trend
 	s.stocksInfo[stockID] = stock
-	
+
 	log.Printf("🚀 RECOVERY: %s jumps to $%.2f (%.0fx return!)", stock.Symbol, newPrice, newPrice/0.01)
-	
+
 	// Apply positive sector contagion
 	s.applySectorContagion(stockID, stock, "recovery")
 }
@@ -481,9 +536,9 @@ func (s *MarketSimulator) applySectorContagion(stockID int, stock StockInfo, eve
 	if stock.SectorID == 0 {
 		return // No sector assigned
 	}
-	
+
 	log.Printf("🔗 CONTAGION: Applying %s contagion to %s sector", eventType, stock.Sector)
-	
+
 	contagionCount := 0
 	for id, peerStock := range s.stocksInfo {
 		if id != stockID && peerStock.SectorID == stock.SectorID {
@@ -491,7 +546,7 @@ func (s *MarketSimulator) applySectorContagion(stockID int, stock StockInfo, eve
 			case "bankruptcy":
 				// Major negative impact on sector
 				peerStock.Trend -= 0.05 // Push trend strongly negative
-				
+
 				// Small chance to trigger crisis in vulnerable stocks
 				if peerStock.BasePrice < 10.0 && rand.Float64() < 0.1 {
 					crashAmount := 0.3 + rand.Float64()*0.4 // 30-70% crash
@@ -502,21 +557,21 @@ func (s *MarketSimulator) applySectorContagion(stockID int, stock StockInfo, eve
 					log.Printf("💥 CONTAGION CRASH: %s drops %.0f%% due to sector crisis", peerStock.Symbol, crashAmount*100)
 				}
 				contagionCount++
-				
+
 			case "recovery":
 				// Positive sentiment for sector
 				peerStock.Trend += 0.01 + rand.Float64()*0.02 // 1-3% positive trend
-				peerStock.TrendCounter = rand.Intn(10) + 5 // Short-term boost
+				peerStock.TrendCounter = rand.Intn(10) + 5    // Short-term boost
 				log.Printf("📈 CONTAGION BOOST: %s gets positive sentiment", peerStock.Symbol)
 				contagionCount++
 			}
-			
+
 			s.stocksInfo[id] = peerStock
 		}
 	}
-	
+
 	log.Printf("🔗 CONTAGION: Affected %d stocks in %s sector", contagionCount, stock.Sector)
-	
+
 	// Generate sector contagion news if multiple stocks are affected
 	if contagionCount >= 2 && s.newsService != nil {
 		s.newsService.GenerateSectorContagionNews(stock.Sector, eventType, contagionCount)
@@ -547,19 +602,25 @@ func (s *MarketSimulator) Resume() {
 func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	if stock, exists := s.stocksInfo[stockID]; exists {
 		// Validate and set new price
 		if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
 			newPrice = 0.01
 		}
+		// Set both BasePrice and LockedPrice to ensure consistency
 		stock.BasePrice = newPrice
-		
+		stock.LockedPrice = newPrice
+
+		// Lock the price for 30 seconds after admin reset to prevent race conditions
+		stock.LockedUntil = time.Now().Add(30 * time.Second)
+
 		// Reset trend to prevent carrying over corrupted values
 		stock.Trend = 0
 		stock.TrendCounter = rand.Intn(10) + 5
-		
+
 		s.stocksInfo[stockID] = stock
+		log.Printf("🔒 Stock %s (ID: %d) reloaded at $%.2f and locked for 30 seconds", stock.Symbol, stockID, newPrice)
 	}
 }
 
@@ -567,22 +628,22 @@ func (s *MarketSimulator) ReloadStock(stockID int, newPrice float64) {
 func (s *MarketSimulator) ValidateAllStocks() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	for id, stock := range s.stocksInfo {
 		fixed := false
-		
+
 		// Fix invalid base prices
 		if math.IsInf(stock.BasePrice, 0) || math.IsNaN(stock.BasePrice) || stock.BasePrice <= 0 {
 			stock.BasePrice = 0.01
 			fixed = true
 		}
-		
+
 		// Fix invalid trends
 		if math.IsInf(stock.Trend, 0) || math.IsNaN(stock.Trend) {
 			stock.Trend = 0
 			fixed = true
 		}
-		
+
 		// Cap extreme trends
 		if stock.Trend > 0.1 {
 			stock.Trend = 0.1
@@ -591,7 +652,7 @@ func (s *MarketSimulator) ValidateAllStocks() {
 			stock.Trend = -0.1
 			fixed = true
 		}
-		
+
 		if fixed {
 			s.stocksInfo[id] = stock
 			log.Printf("Fixed corrupted stock data for %s: price=%.2f, trend=%.4f", stock.Symbol, stock.BasePrice, stock.Trend)
@@ -605,22 +666,22 @@ func (s *MarketSimulator) ValidateAllStocks() {
 func (s *MarketSimulator) ForceCrisisEvent(stockID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	stock, exists := s.stocksInfo[stockID]
 	if !exists {
 		return fmt.Errorf("stock with ID %d not found", stockID)
 	}
-	
+
 	log.Printf("🧪 TESTING: Forcing crisis event for %s", stock.Symbol)
-	
+
 	// Set stock to crisis price
 	stock.BasePrice = 0.01
 	stock.Trend = -0.05 // Strong negative trend
 	s.stocksInfo[stockID] = stock
-	
+
 	// Trigger crisis event processing
 	s.processCrisisEvent(stockID, stock)
-	
+
 	// Send price update
 	select {
 	case s.updateChan <- StockUpdate{
@@ -631,7 +692,7 @@ func (s *MarketSimulator) ForceCrisisEvent(stockID int) error {
 	default:
 		// Channel full, skip update
 	}
-	
+
 	return nil
 }
 
@@ -639,21 +700,21 @@ func (s *MarketSimulator) ForceCrisisEvent(stockID int) error {
 func (s *MarketSimulator) ForceBankruptcy(stockID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	stock, exists := s.stocksInfo[stockID]
 	if !exists {
 		return fmt.Errorf("stock with ID %d not found", stockID)
 	}
-	
+
 	log.Printf("🧪 TESTING: Forcing bankruptcy for %s", stock.Symbol)
-	
+
 	// Set to crisis price first
 	stock.BasePrice = 0.01
 	s.stocksInfo[stockID] = stock
-	
+
 	// Trigger bankruptcy directly
 	s.triggerBankruptcy(stockID, stock)
-	
+
 	return nil
 }
 
@@ -661,29 +722,42 @@ func (s *MarketSimulator) ForceBankruptcy(stockID int) error {
 func (s *MarketSimulator) ForceRecovery(stockID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	stock, exists := s.stocksInfo[stockID]
 	if !exists {
 		return fmt.Errorf("stock with ID %d not found", stockID)
 	}
-	
+
 	log.Printf("🧪 TESTING: Forcing recovery for %s", stock.Symbol)
-	
+
 	// Set to crisis price first
 	stock.BasePrice = 0.01
 	s.stocksInfo[stockID] = stock
-	
+
 	// Trigger recovery directly
 	s.triggerRecovery(stockID, stock)
-	
+
 	return nil
+}
+
+// UnlockStock removes the admin lock from a stock, allowing automatic updates to resume
+func (s *MarketSimulator) UnlockStock(stockID int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if stock, exists := s.stocksInfo[stockID]; exists {
+		stock.LockedUntil = time.Time{} // Clear the lock
+		stock.LockedPrice = 0
+		s.stocksInfo[stockID] = stock
+		log.Printf("🔓 Stock %s (ID: %d) manually unlocked", stock.Symbol, stockID)
+	}
 }
 
 // GetStockInfo returns current stock information for testing
 func (s *MarketSimulator) GetStockInfo(stockID int) (StockInfo, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	stock, exists := s.stocksInfo[stockID]
 	return stock, exists
 }
@@ -692,7 +766,7 @@ func (s *MarketSimulator) GetStockInfo(stockID int) (StockInfo, bool) {
 func (s *MarketSimulator) ListAllStocks() map[int]StockInfo {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	// Return a copy to avoid race conditions
 	result := make(map[int]StockInfo)
 	for id, stock := range s.stocksInfo {
@@ -736,12 +810,12 @@ func (s *MarketSimulator) ProcessTransaction(stockID int, quantity int, isBuy bo
 
 	// Calculate new price
 	newPrice := stock.BasePrice * (1 + impactFactor)
-	
+
 	// Validate the calculated price
 	if math.IsInf(newPrice, 0) || math.IsNaN(newPrice) || newPrice <= 0 {
 		newPrice = 0.01
 	}
-	
+
 	if newPrice < 0.01 {
 		newPrice = 0.01
 	} else if newPrice > 1000000 { // Cap at $1M per share

@@ -624,3 +624,237 @@ export const testAdminStockUpdate = async () => {
     throw error;
   }
 };
+
+// Test stock price locking mechanism (admin only) - verify price stays locked for 30 seconds
+export const testStockPriceLocking = async () => {
+  try {
+    console.log("🔒 Starting stock price locking test...");
+    
+    // First get a stock to test with (use first available stock)
+    const stocksResponse = await authenticatedFetch(`${ADMIN_URL}/stocks`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!stocksResponse.ok) {
+      throw new Error("Failed to fetch stocks for test");
+    }
+
+    const stocks = await stocksResponse.json();
+    if (!stocks || stocks.length === 0) {
+      throw new Error("No stocks available for testing");
+    }
+
+    const testStock = stocks[0]; // Use first stock
+    const testStockId = testStock.id;
+    const originalPrice = testStock.current_price;
+    const testPrice = Math.round((originalPrice * 1.5) * 100) / 100; // 50% increase, rounded to 2 decimals
+
+    console.log(`🔒 Testing with stock ${testStock.symbol} (ID: ${testStockId})`);
+    console.log(`🔒 Original price: $${originalPrice}, Test price: $${testPrice}`);
+
+    const testResults = {
+      stock_id: testStockId,
+      stock_symbol: testStock.symbol,
+      original_price: originalPrice,
+      test_price: testPrice,
+      steps: [],
+      success: false,
+      error: null
+    };
+
+    try {
+      // Step 1: Update stock price via admin endpoint
+      testResults.steps.push({ step: 1, action: "Updating stock price", timestamp: new Date().toISOString() });
+      
+      await updateStock(testStockId, {
+        current_price: testPrice
+      });
+
+      console.log(`🔒 Step 1 complete: Stock price updated to $${testPrice}`);
+      testResults.steps.push({ 
+        step: 1, 
+        action: "Stock price updated successfully", 
+        timestamp: new Date().toISOString(),
+        result: `Price set to $${testPrice}`
+      });
+
+      // Step 2: Immediately check the price is locked
+      testResults.steps.push({ step: 2, action: "Checking immediate lock status", timestamp: new Date().toISOString() });
+      
+      const immediateCheck = await authenticatedFetch(`${API_URL}/stocks/${testStockId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!immediateCheck.ok) {
+        throw new Error("Failed to fetch stock for immediate check");
+      }
+
+      const immediateData = await immediateCheck.json();
+      const immediatePrice = immediateData.current_price;
+
+      console.log(`🔒 Step 2 complete: Immediate price check = $${immediatePrice}`);
+      testResults.steps.push({ 
+        step: 2, 
+        action: "Immediate price check completed", 
+        timestamp: new Date().toISOString(),
+        result: `Price is $${immediatePrice} (expected $${testPrice})`
+      });
+
+      if (Math.abs(immediatePrice - testPrice) > 0.01) {
+        throw new Error(`Price not locked! Expected $${testPrice}, got $${immediatePrice}`);
+      }
+
+      // Step 3: Wait 5 seconds and check again
+      testResults.steps.push({ step: 3, action: "Waiting 5 seconds...", timestamp: new Date().toISOString() });
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const fiveSecCheck = await authenticatedFetch(`${API_URL}/stocks/${testStockId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!fiveSecCheck.ok) {
+        throw new Error("Failed to fetch stock for 5-second check");
+      }
+
+      const fiveSecData = await fiveSecCheck.json();
+      const fiveSecPrice = fiveSecData.current_price;
+
+      console.log(`🔒 Step 3 complete: 5-second price check = $${fiveSecPrice}`);
+      testResults.steps.push({ 
+        step: 3, 
+        action: "5-second price check completed", 
+        timestamp: new Date().toISOString(),
+        result: `Price is $${fiveSecPrice} (should still be locked at $${testPrice})`
+      });
+
+      if (Math.abs(fiveSecPrice - testPrice) > 0.01) {
+        throw new Error(`Price changed too early! Expected $${testPrice}, got $${fiveSecPrice}`);
+      }
+
+      // Step 4: Wait another 10 seconds (total 15) and check again
+      testResults.steps.push({ step: 4, action: "Waiting another 10 seconds (total 15s)...", timestamp: new Date().toISOString() });
+      await new Promise(resolve => setTimeout(resolve, 10000));
+
+      const fifteenSecCheck = await authenticatedFetch(`${API_URL}/stocks/${testStockId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!fifteenSecCheck.ok) {
+        throw new Error("Failed to fetch stock for 15-second check");
+      }
+
+      const fifteenSecData = await fifteenSecCheck.json();
+      const fifteenSecPrice = fifteenSecData.current_price;
+
+      console.log(`🔒 Step 4 complete: 15-second price check = $${fifteenSecPrice}`);
+      testResults.steps.push({ 
+        step: 4, 
+        action: "15-second price check completed", 
+        timestamp: new Date().toISOString(),
+        result: `Price is $${fifteenSecPrice} (should still be locked at $${testPrice})`
+      });
+
+      if (Math.abs(fifteenSecPrice - testPrice) > 0.01) {
+        throw new Error(`Price changed too early! Expected $${testPrice}, got $${fifteenSecPrice}`);
+      }
+
+      // Step 5: Wait another 20 seconds (total 35) to verify lock expires
+      testResults.steps.push({ step: 5, action: "Waiting another 20 seconds (total 35s) for lock to expire...", timestamp: new Date().toISOString() });
+      await new Promise(resolve => setTimeout(resolve, 20000));
+
+      const finalCheck = await authenticatedFetch(`${API_URL}/stocks/${testStockId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!finalCheck.ok) {
+        throw new Error("Failed to fetch stock for final check");
+      }
+
+      const finalData = await finalCheck.json();
+      const finalPrice = finalData.current_price;
+
+      console.log(`🔒 Step 5 complete: Final price check = $${finalPrice}`);
+      testResults.steps.push({ 
+        step: 5, 
+        action: "Final price check completed", 
+        timestamp: new Date().toISOString(),
+        result: `Price is $${finalPrice} (lock should be expired, price may have changed)`
+      });
+
+      // Step 6: Wait 5 more seconds to ensure price doesn't snap back to original
+      testResults.steps.push({ step: 6, action: "Waiting 5 seconds post-lock to check for snapback...", timestamp: new Date().toISOString() });
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const postLockCheck = await authenticatedFetch(`${API_URL}/stocks/${testStockId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!postLockCheck.ok) {
+        throw new Error("Failed to fetch stock for post-lock check");
+      }
+
+      const postLockData = await postLockCheck.json();
+      const postLockPrice = postLockData.current_price;
+
+      console.log(`🔒 Step 6 complete: Post-lock price check = $${postLockPrice}`);
+      testResults.steps.push({ 
+        step: 6, 
+        action: "Post-lock snapback check completed", 
+        timestamp: new Date().toISOString(),
+        result: `Price is $${postLockPrice} (checking for snapback to original $${originalPrice})`
+      });
+
+      // Check if price snapped back to original (which would be bad)
+      const priceDifferenceFromOriginal = Math.abs(postLockPrice - originalPrice);
+      const priceDifferenceFromTest = Math.abs(postLockPrice - testPrice);
+      
+      if (priceDifferenceFromOriginal < 0.01 && priceDifferenceFromTest > 0.02) {
+        throw new Error(`Price snapped back! Post-lock price $${postLockPrice} is too close to original $${originalPrice}, suggesting snapback occurred`);
+      }
+
+      // Success if we made it this far
+      testResults.success = true;
+      testResults.steps.push({ 
+        step: 7, 
+        action: "Test completed successfully", 
+        timestamp: new Date().toISOString(),
+        result: `Stock price locking mechanism working correctly. No snapback detected. Final price: $${postLockPrice}`
+      });
+
+      console.log("🔒 Stock price locking test completed successfully!");
+      return testResults;
+
+    } catch (stepError) {
+      testResults.error = stepError.message;
+      testResults.steps.push({ 
+        step: "error", 
+        action: "Test failed", 
+        timestamp: new Date().toISOString(),
+        result: stepError.message
+      });
+      throw stepError;
+    }
+
+  } catch (error) {
+    console.error("🔒 Error in stock price locking test:", error);
+    throw error;
+  }
+};
