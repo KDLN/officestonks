@@ -56,7 +56,7 @@ func TestCrisisMechanics(t *testing.T) {
 		}
 
 		for _, u := range users {
-			_, err := userRepo.CreateUser(u.username, "password123", u.cash, false)
+			_, err := userRepo.CreateUser(u.username, "password123")
 			if err != nil {
 				t.Errorf("Failed to create user %s: %v", u.username, err)
 			}
