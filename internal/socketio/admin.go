@@ -20,16 +20,16 @@ type AdminServer struct {
 
 // AdminStats represents the statistics sent to the admin UI
 type AdminStats struct {
-	ServerID         string                 `json:"serverId"`
-	ServerName       string                 `json:"serverName"`
-	Version          string                 `json:"version"`
+	ServerID        string                 `json:"serverId"`
+	ServerName      string                 `json:"serverName"`
+	Version         string                 `json:"version"`
 	Uptime          int64                  `json:"uptime"`
-	ClientsCount     int                    `json:"clientsCount"`
-	NamespacesCount  int                    `json:"namespacesCount"`
-	RoomsCount       int                    `json:"roomsCount"`
-	Namespaces       []NamespaceInfo        `json:"namespaces"`
-	Clients          []ClientStatsInfo      `json:"clients"`
-	Events           map[string]interface{} `json:"events"`
+	ClientsCount    int                    `json:"clientsCount"`
+	NamespacesCount int                    `json:"namespacesCount"`
+	RoomsCount      int                    `json:"roomsCount"`
+	Namespaces      []NamespaceInfo        `json:"namespaces"`
+	Clients         []ClientStatsInfo      `json:"clients"`
+	Events          map[string]interface{} `json:"events"`
 }
 
 // NamespaceInfo represents namespace statistics
@@ -41,14 +41,14 @@ type NamespaceInfo struct {
 
 // ClientStatsInfo represents client information for admin UI
 type ClientStatsInfo struct {
-	ID          string            `json:"id"`
-	Connected   int64             `json:"connected"`
-	UserID      int               `json:"userId"`
-	Username    string            `json:"username"`
-	IP          string            `json:"ip"`
-	Transport   string            `json:"transport"`
-	Rooms       []string          `json:"rooms"`
-	Data        map[string]string `json:"data"`
+	ID        string            `json:"id"`
+	Connected int64             `json:"connected"`
+	UserID    int               `json:"userId"`
+	Username  string            `json:"username"`
+	IP        string            `json:"ip"`
+	Transport string            `json:"transport"`
+	Rooms     []string          `json:"rooms"`
+	Data      map[string]string `json:"data"`
 }
 
 // NewAdminServer creates a new admin server for Socket.IO monitoring
@@ -58,11 +58,10 @@ func NewAdminServer(socketServer *SocketIOServer) *AdminServer {
 	if adminUser == "" {
 		adminUser = "admin"
 	}
-	
+
 	adminPass := os.Getenv("SOCKETIO_ADMIN_PASS")
 	if adminPass == "" {
-		adminPass = "officestonks2024"
-		log.Printf("⚠️ Using default admin password. Set SOCKETIO_ADMIN_PASS env var for production")
+		log.Fatal("SOCKETIO_ADMIN_PASS environment variable is required")
 	}
 
 	admin := &AdminServer{
@@ -95,7 +94,7 @@ func (a *AdminServer) ServeAdminUI(w http.ResponseWriter, r *http.Request) {
 // serveAdminDashboard serves a comprehensive admin interface for Socket.IO debugging
 func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
-	
+
 	stats := a.getServerStats()
 	statsJSON, _ := json.MarshalIndent(stats, "", "  ")
 
@@ -259,9 +258,9 @@ func (a *AdminServer) serveAdminDashboard(w http.ResponseWriter, r *http.Request
     </div>
 </body>
 </html>
-`, stats.ClientsCount, stats.NamespacesCount, "Online", 
-   r.Host, r.Host, r.Host,
-   stats.ClientsCount, a.generateClientsTableHTML(), string(statsJSON))
+`, stats.ClientsCount, stats.NamespacesCount, "Online",
+		r.Host, r.Host, r.Host,
+		stats.ClientsCount, a.generateClientsTableHTML(), string(statsJSON))
 
 	w.Write([]byte(html))
 }
@@ -282,7 +281,7 @@ func (a *AdminServer) generateClientsTableHTML() string {
 			}
 			rooms += room
 		}
-		
+
 		html += fmt.Sprintf(`
 			<tr>
 				<td><span class="status-indicator status-connected"></span><span class="badge badge-success">Connected</span></td>
@@ -292,17 +291,17 @@ func (a *AdminServer) generateClientsTableHTML() string {
 				<td>%s</td>
 				<td>%s</td>
 			</tr>
-		`, client.SocketID, client.Username, client.UserID, client.IPAddress, 
-		   client.ConnectedAt.Format("15:04:05"), rooms)
+		`, client.SocketID, client.Username, client.UserID, client.IPAddress,
+			client.ConnectedAt.Format("15:04:05"), rooms)
 	}
-	
+
 	return html
 }
 
 // getServerStats compiles comprehensive server statistics for admin UI
 func (a *AdminServer) getServerStats() AdminStats {
 	clients := a.socketServer.GetConnectedClients()
-	
+
 	// Build namespace info
 	namespaceCounts := make(map[string]int)
 	for _, client := range clients {
@@ -346,15 +345,15 @@ func (a *AdminServer) getServerStats() AdminStats {
 		ServerID:        "officestonks-socketio-1",
 		ServerName:      "Office Stonks Socket.IO Server",
 		Version:         "1.0.0",
-		Uptime:         time.Now().Unix(),
+		Uptime:          time.Now().Unix(),
 		ClientsCount:    len(clients),
 		NamespacesCount: len(namespaceCounts),
 		RoomsCount:      len(namespaceCounts), // Simplified
 		Namespaces:      namespaces,
 		Clients:         clientStats,
 		Events: map[string]interface{}{
-			"stock_update":      "Real-time stock price updates",
-			"chat_message":      "Chat system messages", 
+			"stock_update":       "Real-time stock price updates",
+			"chat_message":       "Chat system messages",
 			"admin_announcement": "Admin broadcast messages",
 		},
 	}
@@ -375,7 +374,7 @@ func (a *AdminServer) GetAdminStatsEndpoint() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		
+
 		stats := a.getServerStats()
 		json.NewEncoder(w).Encode(stats)
 	}
@@ -396,21 +395,21 @@ func (a *AdminServer) GetTestConnectionEndpoint() http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		
+
 		// Test Socket.IO server status
 		stats := a.socketServer.GetStats()
-		
+
 		result := map[string]interface{}{
-			"status": "ok",
+			"status":    "ok",
 			"timestamp": time.Now().Unix(),
 			"server": map[string]interface{}{
 				"connected_clients": stats["connected_clients"],
-				"transport_info": stats["transport_info"],
-				"server_uptime": stats["server_uptime"],
+				"transport_info":    stats["transport_info"],
+				"server_uptime":     stats["server_uptime"],
 			},
 			"connection_test": "Socket.IO server is responding",
 		}
-		
+
 		json.NewEncoder(w).Encode(result)
 	}
 }
