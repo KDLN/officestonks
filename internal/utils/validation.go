@@ -32,9 +32,10 @@ const (
 
 // Regex patterns
 var (
-	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
-	emailRegex    = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
-	sqlPattern    = regexp.MustCompile(`(?i)(union|select|insert|update|delete|drop|create|alter|exec|script|javascript|<script|onload|onerror)`)
+	usernameRegex   = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	emailRegex      = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	protocolPattern = regexp.MustCompile(`(?i)(javascript|data):`)
+	sqlPattern      = regexp.MustCompile(`(?i)(union|select|insert|update|delete|drop|create|alter|exec|script|javascript|<script|onload|onerror)`)
 )
 
 // ValidateUsername validates a username
@@ -172,8 +173,7 @@ func SanitizeString(input string) string {
 	// Remove any remaining potentially dangerous content
 	sanitized = strings.ReplaceAll(sanitized, "<", "&lt;")
 	sanitized = strings.ReplaceAll(sanitized, ">", "&gt;")
-	sanitized = strings.ReplaceAll(sanitized, "javascript:", "")
-	sanitized = strings.ReplaceAll(sanitized, "data:", "")
+	sanitized = protocolPattern.ReplaceAllString(sanitized, "")
 
 	return sanitized
 }
