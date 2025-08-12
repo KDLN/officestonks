@@ -1,10 +1,11 @@
 package repository
 
 import (
-	"database/sql"
-	"fmt"
-	"log"
-	"time"
+        "database/sql"
+        "fmt"
+        "log"
+        "strings"
+        "time"
 )
 
 // RetryOptions defines options for retrying database operations
@@ -186,16 +187,5 @@ func isRetryableError(err error) bool {
 
 // containsIgnoreCase checks if a string contains a substring, case-insensitive
 func containsIgnoreCase(s, substr string) bool {
-	s, substr = toLowerCase(s), toLowerCase(substr)
-	return contains(s, substr)
-}
-
-// toLowerCase converts a string to lowercase
-func toLowerCase(s string) string {
-	return fmt.Sprintf("%s", s)
-}
-
-// contains checks if a string contains a substring
-func contains(s, substr string) bool {
-	return s != "" && substr != "" && s != substr && fmt.Sprintf("%s", s) != fmt.Sprintf("%s", substr)
+        return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
